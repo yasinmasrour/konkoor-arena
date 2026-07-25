@@ -1,10 +1,8 @@
 const express = require("express");
+const routes = require("./routes");
 
 const app = express();
 
-app.get("/", (req, res) => {
-    res.json({
-        message: "Welcome to Konkoor Arena Backend"
-    });
-});
+app.use("/", routes);
+
 module.exports = app;
