@@ -1,0 +1,18 @@
+{
+  "name": "konkoor-arena",
+  "version": "1.0.0",
+  "description": "a website specifically for konkoor and tests, plus a section called Arena",
+  "homepage": "https://github.com/yasinmasrour/konkoor-arena#readme",
+  "bugs": {
+    "url": "https://github.com/yasinmasrour/konkoor-arena/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yasinmasrour/konkoor-arena.git"
+  },
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
