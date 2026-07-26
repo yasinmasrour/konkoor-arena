@@ -1,3 +1,4 @@
+const protect = require("../middleware/authMiddleware");
 const validate = require("../middleware/validate");
 const { registerSchema } = require("../validations/authValidation");
 
@@ -16,6 +17,19 @@ router.post(
 router.post(
     "/login",
     authController.login
+);
+
+router.get(
+    "/me",
+    protect,
+    (req, res) => {
+
+        res.status(200).json({
+            message: "Protected route accessed successfully",
+            user: req.user
+        });
+
+    }
 );
 
 module.exports = router;
