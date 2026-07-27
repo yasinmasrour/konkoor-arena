@@ -1,33 +1,95 @@
-# konkoor-arena
+# Konkoor Arena
 
-a website specifically for konkoor and tests, plus a section called Arena
+A full-stack online examination platform inspired by the Iranian Konkur system.
 
-## About
+## Overview
 
-Konkoor Arena is an educational platform combining:
-
+Konkoor Arena is an educational platform that provides:
 - Online exams
-- Courses
-- Consultation
-- Blog
-- PvP competitive learning experience
+- Question bank management
+- Student performance analysis
+- Counselor and admin management
+- Competitive exam features
 
-## Status
+## Current Features
 
-Under Development
+### Authentication
+- User registration
+- User login
+- JWT based authentication
+- Role based access control
 
-## Tecknologies
+### User Management
+- Student accounts
+- Counselor accounts
+- Admin accounts
+- User profile
 
-Will be built with:
+### Examination System
+- Exam structure
+- Booklet management
+- Attempt tracking
 
+## Tech Stack
+
+### Backend
 - Node.js
 - Express.js
-- MongoDB
-- React / Next.js
+- PostgreSQL (planned migration)
+- Prisma ORM (planned migration)
+- JWT
+- Zod Validation
+- bcrypt
+
+## Project Architecture
+
+src/
+
+├── controllers
+
+├── models
+
+├── routes
+
+├── services
+
+├── middleware
+
+└── validations
+
+
+## Database
+
+The project initially used MongoDB with Mongoose.
+
+The database layer is being migrated to PostgreSQL using Prisma ORM to provide:
+- Better relational data modeling
+- Improved scalability
+- Stronger data consistency
 
 ## Roadmap
 
-- [x] Project initialization
-- [ ] Backend development
-- [ ] Frontend developmant
-- [ ] Konkoor Arena PvP system
+- [x] Express backend setup
+- [x] MongoDB integration
+- [x] User authentication
+- [x] JWT authorization
+- [x] Role based access control
+- [x] Examination core models
+- [ ] PostgreSQL migration
+- [ ] Question bank
+- [ ] Exam creation panel
+- [ ] Student exam experience
+- [ ] Answer analysis
+- [ ] AI powered analysis
+
+## Installation
+
+...
+
+## Environment Variables
+
+...
+
+## License
+
+Private project
