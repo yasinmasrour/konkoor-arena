@@ -1,8 +1,26 @@
-const Question = require("../models/Question");
+const prisma = require("../config/prisma");
 
 
 const createQuestion = async (data) => {
-    const question = await Question.create(data);
+
+    const {
+        createdBy,
+        ...questionData
+    } = data;
+
+
+    const question = await prisma.question.create({
+        data: {
+            ...questionData,
+
+            createdBy: {
+                connect: {
+                    id: createdBy
+                }
+            }
+        }
+    });
+
 
     return question;
 };

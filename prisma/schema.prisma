@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Role {
@@ -32,6 +33,14 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  questions Question[]
+
+  booklets Booklet[]
+
+  exams Exam[]
+
+  attempts Attempt[]
 }
 
 model SubscriptionPlan {
@@ -65,4 +74,211 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Question {
+  id String @id @default(uuid())
+
+  code String @unique
+
+  lesson String
+
+  grade String
+
+  major String
+
+  chapter String
+
+  topic String @default("")
+
+  questionText String
+
+  questionImage String @default("")
+
+  options String[]
+
+  correctAnswer Int
+
+  explanation String @default("")
+
+  explanationPdf String @default("")
+
+  source String @default("")
+
+  author String @default("")
+
+  year Int?
+
+  difficulty String @default("medium")
+
+  tags String[] @default([])
+
+  usageCount Int @default(0)
+
+  status String @default("draft")
+
+  createdById String
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  bookletQuestions BookletQuestion[]
+
+  attemptAnswers AttemptAnswer[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([lesson])
+  @@index([grade])
+  @@index([major])
+  @@index([difficulty])
+}
+
+model Booklet {
+  id String @id @default(cuid())
+
+  lesson String
+
+  grade String
+
+  major String
+
+  examDate DateTime
+
+  duration Int
+
+  questions BookletQuestion[]
+
+  status String @default("draft")
+
+  createdById String
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  exams        Exam[]
+  examBooklets ExamBooklet[]
+}
+
+model BookletQuestion {
+  id String @id @default(cuid())
+
+  bookletId String
+
+  questionId String
+
+  booklet Booklet @relation(fields: [bookletId], references: [id])
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  order Int
+
+  score Float @default(1)
+
+  createdAt DateTime @default(now())
+
+  @@unique([bookletId, questionId])
+}
+
+model Exam {
+  id String @id @default(cuid())
+
+  title String
+
+  examDate DateTime
+
+  startTime String
+
+  endTime String @default("")
+
+  booklets ExamBooklet[]
+
+  attempts Attempt[]
+
+  status String @default("draft")
+
+  createdById String
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  booklet   Booklet? @relation(fields: [bookletId], references: [id])
+  bookletId String?
+}
+
+model ExamBooklet {
+  id String @id @default(cuid())
+
+  examId String
+
+  bookletId String
+
+  exam Exam @relation(fields: [examId], references: [id])
+
+  booklet Booklet @relation(fields: [bookletId], references: [id])
+
+  order Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([examId, bookletId])
+}
+
+model Attempt {
+  id String @id @default(cuid())
+
+  studentId String
+
+  examId String
+
+  student User @relation(fields: [studentId], references: [id])
+
+  exam Exam @relation(fields: [examId], references: [id])
+
+  answers AttemptAnswer[]
+
+  startedAt DateTime?
+
+  submittedAt DateTime?
+
+  status String @default("started")
+
+  score Float @default(0)
+
+  analysis Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, examId])
+}
+
+model AttemptAnswer {
+  id String @id @default(cuid())
+
+  attemptId String
+
+  questionId String
+
+  attempt Attempt @relation(fields: [attemptId], references: [id])
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  selectedAnswer Int?
+
+  isCorrect Boolean @default(false)
+
+  answeredAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([attemptId, questionId])
 }

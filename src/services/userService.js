@@ -1,10 +1,27 @@
-const User = require("../models/User");
+const prisma = require("../config/prisma");
 
 
 const getUserProfile = async (userId) => {
 
-    const user = await User.findById(userId)
-        .select("-password");
+    const user = await prisma.user.findUnique({
+
+        where: {
+            id: userId
+        },
+
+        select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: {
+                select: {
+                    name: true
+                }
+            }
+        }
+
+    });
 
 
     if (!user) {
@@ -13,6 +30,7 @@ const getUserProfile = async (userId) => {
 
 
     return user;
+
 };
 
 
