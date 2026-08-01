@@ -1,39 +1,54 @@
+const bcrypt = require("bcrypt");
 const { PrismaClient } = require("@prisma/client");
-
-require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-
 async function main() {
-  const roles = [
-    "ADMIN",
-    "COUNSELOR",
-    "QUESTION_DESIGNER",
-    "STUDENT",
-  ];
+    const roles = [
+        "ADMIN",
+        "COUNSELOR",
+        "QUESTION_DESIGNER",
+        "STUDENT"
+    ];
 
-  for (const roleName of roles) {
-    await prisma.role.upsert({
-      where: {
-        name: roleName,
-      },
-      update: {},
-      create: {
-        name: roleName,
-      },
+    // ساخت Roleها
+    for (const roleName of roles) {
+        await prisma.role.upsert({
+            where: { name: roleName },
+            update: {},
+            create: { name: roleName }
+        });
+    }
+
+    // گرفتن نقش ADMIN
+    const adminRole = await prisma.role.findUnique({
+        where: {
+            name: "ADMIN"
+        }
     });
-  }
 
-  console.log("Roles seeded successfully");
+    const hashedPassword = await bcrypt.hash("yasin.85.masrour", 10);
+
+    // ساخت ادمین
+    await prisma.user.upsert({
+        where: {
+            email: "yasinmasrour01@gmail.com"
+        },
+        update: {},
+        create: {
+            firstName: "Yasin",
+            lastName: "Masrour",
+            email: "yasinmasrour01@gmail.com",
+            password: hashedPassword,
+            roleId: adminRole.id
+        }
+    });
+
+    console.log("Roles and admin user seeded successfully");
 }
 
-
 main()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+    .catch(console.error)
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

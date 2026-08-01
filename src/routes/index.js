@@ -2,6 +2,8 @@ const express = require("express");
 const authRoutes = require("./authRoutes");
 const userRoutes = require("./userRoutes");
 const questionRoutes = require("./questionRoutes");
+const bookletRoutes = require("./bookletRoutes");
+const examRoutes = require("./examRoutes");
 
 const router = express.Router();
 
@@ -11,8 +13,10 @@ router.get("/", (req, res) => {
     });
 });
 
-router.use("/api/auth", authRoutes);
-router.use("/api/users", userRoutes);
-router.use("/api/questions", questionRoutes);
+router.use("/auth", authRoutes);
+router.use("/users", userRoutes);
+router.use("/questions", questionRoutes);
+router.use("/booklets", bookletRoutes);
+router.use("/exams", examRoutes);
 
 module.exports = router;
