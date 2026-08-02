@@ -4,6 +4,7 @@ const userRoutes = require("./userRoutes");
 const questionRoutes = require("./questionRoutes");
 const bookletRoutes = require("./bookletRoutes");
 const examRoutes = require("./examRoutes");
+const attemptRoutes = require("./attemptRoutes");
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use("/users", userRoutes);
 router.use("/questions", questionRoutes);
 router.use("/booklets", bookletRoutes);
 router.use("/exams", examRoutes);
+router.use("/attempts", attemptRoutes);
 
 module.exports = router;
