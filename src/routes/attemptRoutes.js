@@ -36,4 +36,22 @@ router.post(
     attemptController.submitAttempt
 );
 
+router.get(
+    "/:id/result",
+    authMiddleware,
+    attemptController.getAttemptResult
+);
+
+router.get(
+    "/my",
+    authMiddleware,
+    attemptController.getMyAttempts
+);
+
+router.get(
+    "/:id/review",
+    authMiddleware,
+    attemptController.getAttemptReview
+);
+
 module.exports = router;

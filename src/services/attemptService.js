@@ -205,7 +205,11 @@ const submitAttempt = async (attemptId, userId) => {
     },
 
     include: {
-      answers: true,
+      answers: {
+        include: {
+          question: true,
+        },
+      },
     },
   });
 
@@ -232,7 +236,7 @@ const submitAttempt = async (attemptId, userId) => {
   const unansweredQuestions = await prisma.bookletQuestion.count({
     where: {
       booklet: {
-        exams: {
+        examBooklets: {
           some: {
             examId: attempt.examId,
           },
@@ -251,18 +255,52 @@ const submitAttempt = async (attemptId, userId) => {
 
   const totalQuestions = correctAnswers + wrongAnswers + unansweredQuestions;
 
+  const percentage =
+    totalQuestions > 0
+      ? Number(((finalScore / totalQuestions) * 100).toFixed(2))
+      : 0;
+
+  const subjectMap = {};
+  for (const answer of attempt.answers) {
+    const lesson = answer.question.lesson;
+
+    if (!subjectMap[lesson]) {
+      subjectMap[lesson] = {
+        lesson,
+        correct: 0,
+        wrong: 0,
+        unanswered: 0,
+      };
+    }
+    if (answer.selectedAnswer === null) {
+      subjectMap[lesson].unanswered++;
+    } else if (answer.isCorrect) {
+      subjectMap[lesson].correct++;
+    } else {
+      subjectMap[lesson].wrong++;
+    }
+  }
+
+  const subjects = Object.values(subjectMap).map((subject) => {
+    const total = subject.correct + subject.wrong + subject.unanswered;
+
+    return {
+      ...subject,
+
+      percentage:
+        total > 0 ? Number(((subject.correct / total) * 100).toFixed(2)) : 0,
+    };
+  });
+
   const analysis = {
     totalQuestions,
-
     correctAnswers,
-
     wrongAnswers,
-
     unansweredQuestions,
-
     negativeScore,
-
     finalScore,
+    percentage,
+    subjects,
   };
 
   const updatedAttempt = await prisma.attempt.update({
@@ -284,9 +322,176 @@ const submitAttempt = async (attemptId, userId) => {
   return updatedAttempt;
 };
 
+const getAttemptResult = async (attemptId, userId) => {
+  const attempt = await prisma.attempt.findUnique({
+    where: {
+      id: attemptId,
+    },
+
+    include: {
+      exam: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
+  });
+
+  if (!attempt) {
+    throw new Error("Attempt not found");
+  }
+
+  if (attempt.studentId !== userId) {
+    throw new Error("Forbidden");
+  }
+
+  const analysis = attempt.analysis || {};
+
+  const totalQuestions = analysis.totalQuestions || 0;
+
+  const percentage =
+    totalQuestions > 0
+      ? Number(((attempt.score / totalQuestions) * 100).toFixed(2))
+      : 0;
+
+  return {
+    attemptId: attempt.id,
+
+    exam: attempt.exam,
+
+    result: {
+      score: attempt.score,
+
+      totalQuestions,
+
+      correctAnswers: analysis.correctAnswers || 0,
+
+      wrongAnswers: analysis.wrongAnswers || 0,
+
+      unansweredQuestions: analysis.unansweredQuestions || 0,
+
+      negativeScore: analysis.negativeScore || 0,
+
+      percentage,
+    },
+  };
+};
+
+const getMyAttempts = async (studentId) => {
+  const attempts = await prisma.attempt.findMany({
+    where: {
+      studentId,
+    },
+
+    include: {
+      exam: {
+        select: {
+          id: true,
+
+          title: true,
+
+          examDate: true,
+        },
+      },
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return attempts.map((attempt) => ({
+    id: attempt.id,
+
+    exam: attempt.exam,
+
+    status: attempt.status,
+
+    score: attempt.score,
+
+    percentage: attempt.analysis?.percentage ?? 0,
+
+    submittedAt: attempt.submittedAt,
+  }));
+};
+
+const getAttemptReview = async (attemptId, userId) => {
+  const attempt = await prisma.attempt.findUnique({
+    where: {
+      id: attemptId,
+    },
+
+    include: {
+      exam: {
+        select: {
+          id: true,
+
+          title: true,
+        },
+      },
+
+      answers: {
+        include: {
+          question: true,
+        },
+
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
+  });
+
+  if (!attempt) {
+    throw new Error("Attempt not found");
+  }
+
+  if (attempt.studentId !== userId) {
+    throw new Error("Forbidden");
+  }
+
+  return {
+    attemptId: attempt.id,
+
+    exam: attempt.exam,
+
+    score: attempt.score,
+
+    questions: attempt.answers.map((answer) => ({
+      id: answer.question.id,
+
+      questionText: answer.question.questionText,
+
+      questionImage: answer.question.questionImage,
+
+      options: answer.question.options,
+
+      selectedAnswer: answer.selectedAnswer,
+
+      correctAnswer: answer.question.correctAnswer,
+
+      isCorrect: answer.isCorrect,
+
+      explanation: answer.question.explanation,
+
+      explanationPdf: answer.question.explanationPdf,
+
+      difficulty: answer.question.difficulty,
+
+      lesson: answer.question.lesson,
+
+      chapter: answer.question.chapter,
+    })),
+  };
+};
+
 module.exports = {
   startAttempt,
   getAttemptQuestions,
   submitAnswer,
   submitAttempt,
+  getAttemptResult,
+  getMyAttempts,
+  getAttemptReview,
 };

@@ -119,9 +119,80 @@ const submitAttempt = async (req, res) => {
 
 };
 
+const getAttemptResult = async (req, res) => {
+
+    try {
+
+        const result = await attemptService.getAttemptResult(
+            req.params.id,
+            req.user.id
+        );
+
+
+        res.status(200).json(result);
+
+
+    } catch (error) {
+
+        res.status(400).json({
+            message: error.message
+        });
+
+    }
+
+};
+
+const getMyAttempts = async (req, res) => {
+
+    try {
+
+        const attempts =
+            await attemptService.getMyAttempts(
+                req.user.id
+            );
+
+        res.status(200).json({
+            attempts
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            message: error.message
+        });
+
+    }
+
+};
+
+const getAttemptReview = async (req, res) => {
+
+    try {
+
+        const review =
+            await attemptService.getAttemptReview(
+                req.params.id,
+                req.user.id
+            );
+
+        res.status(200).json(review);
+
+    } catch (error) {
+
+        res.status(400).json({
+            message: error.message
+        });
+
+    }
+
+};
+
 module.exports = {
     startAttempt,
     getAttemptQuestions,
     submitAnswer,
-    submitAttempt
+    submitAttempt,
+    getAttemptResult,
+    getMyAttempts,
+    getAttemptReview
 };
