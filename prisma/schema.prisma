@@ -160,7 +160,6 @@ model Booklet {
 
   updatedAt DateTime @updatedAt
 
-  exams        Exam[]
   examBooklets ExamBooklet[]
 }
 
@@ -208,9 +207,6 @@ model Exam {
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
-
-  booklet   Booklet? @relation(fields: [bookletId], references: [id])
-  bookletId String?
 }
 
 model ExamBooklet {
@@ -259,6 +255,8 @@ model Attempt {
   updatedAt DateTime @updatedAt
 
   @@unique([studentId, examId])
+  @@index([studentId])
+  @@index([examId])
 }
 
 model AttemptAnswer {
@@ -268,7 +266,7 @@ model AttemptAnswer {
 
   questionId String
 
-  attempt Attempt @relation(fields: [attemptId], references: [id])
+  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   question Question @relation(fields: [questionId], references: [id])
 
