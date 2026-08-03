@@ -1,58 +1,44 @@
 const express = require("express");
 const ROLES = require("../constants/roles");
 
-const {
-    createQuestion,
-    getQuestions,
-    getQuestionById,
-    updateQuestion,
-    deleteQuestion
-} = require("../controllers/questionController");
+const questionController = require("../controllers/questionController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
+const validate = require("../middleware/validationMiddleware");
+const {
+  createQuestionSchema,
+  updateQuestionSchema
+} = require("../validations/questionValidation");
+
 router.post(
-    "/",
-    authMiddleware,
-    roleMiddleware(
-    ROLES.ADMIN,
-    ROLES.COUNSELOR,
-    ROLES.QUESTION_DESIGNER
-    ),
-    createQuestion
+  "/",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR, ROLES.QUESTION_DESIGNER),
+  validate(createQuestionSchema),
+  questionController.createQuestion,
 );
 
-router.get(
-    "/",
-    authMiddleware,
-    getQuestions
-);
+router.get("/", authMiddleware, questionController.getQuestions);
 
-router.get(
-    "/:id",
-    authMiddleware,
-    getQuestionById
-);
+router.get("/:id", authMiddleware, questionController.getQuestionById);
 
 router.patch(
-    "/:id",
-    authMiddleware,
-    roleMiddleware(
-    ROLES.ADMIN,
-    ROLES.COUNSELOR,
-    ROLES.QUESTION_DESIGNER
-    ),
-    updateQuestion
+  "/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR, ROLES.QUESTION_DESIGNER),
+  validate(updateQuestionSchema),
+  questionController.updateQuestion,
 );
 
 router.delete(
-    "/:id",
-    authMiddleware,
-    roleMiddleware(ROLES.ADMIN),
-    deleteQuestion
+  "/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  questionController.deleteQuestion,
 );
 
 module.exports = router;

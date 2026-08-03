@@ -5,9 +5,10 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const ROLES = require("../constants/roles");
 
-
 const router = express.Router();
 
+const validate = require("../middleware/validationMiddleware");
+const {submitAnswerSchema} = require("../validations/attemptValidation");
 
 router.post(
     "/start/:examId",
@@ -33,6 +34,7 @@ router.post(
 router.post(
     "/:id/submit",
     authMiddleware,
+    validate(submitAnswerSchema),
     attemptController.submitAttempt
 );
 

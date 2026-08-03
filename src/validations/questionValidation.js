@@ -2,6 +2,8 @@ const { z } = require("zod");
 
 
 const createQuestionSchema = z.object({
+    code: z.string().min(2),
+    
     lesson: z.string().min(2),
 
     grade: z.enum([
@@ -54,7 +56,9 @@ const createQuestionSchema = z.object({
     ).optional()
 });
 
+const updateQuestionSchema = createQuestionSchema.partial();
 
 module.exports = {
-    createQuestionSchema
+    createQuestionSchema,
+    updateQuestionSchema
 };
