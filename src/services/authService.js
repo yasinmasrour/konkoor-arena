@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const AppError = require("../utils/appError")
+const AppError = require("../utils/appError");
 const prisma = require("../config/prisma");
 const ROLES = require("../constants/roles");
 
@@ -22,7 +22,7 @@ const registerUser = async (userData) => {
 
 
     if (existingUser) {
-        throw new Error("User already exists", 409);
+        throw new AppError("User already exists", 409);
     }
 
 
@@ -34,7 +34,7 @@ const registerUser = async (userData) => {
 
 
     if (!studentRole) {
-        throw new Error("Student role not found", 500);
+        throw new AppError("Student role not found", 500);
     }
 
 
@@ -77,7 +77,7 @@ const loginUser = async (email, password) => {
 
 
     if (!user) {
-        throw new Error("Invalid email or password", 401);
+        throw new AppError("Invalid email or password", 401);
     }
 
 
@@ -88,7 +88,7 @@ const loginUser = async (email, password) => {
 
 
     if (!isPasswordValid) {
-        throw new Error("Invalid email or password", 401);
+        throw new AppError("Invalid email or password", 401);
     }
 
 

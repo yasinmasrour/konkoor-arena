@@ -1,197 +1,138 @@
 const prisma = require("../config/prisma");
-const AppError = require("../utils/appError")
+const AppError = require("../utils/appError");
 
 const createExam = async (data) => {
+  const { createdBy, bookletIds, ...examData } = data;
 
-    const {
-        createdBy,
-        bookletIds,
-        ...examData
-    } = data;
+  const exam = await prisma.exam.create({
+    data: {
+      ...examData,
 
-
-    const exam = await prisma.exam.create({
-
-        data: {
-
-            ...examData,
-
-            createdBy: {
-                connect: {
-                    id: createdBy
-                }
-            },
-
-            booklets: {
-                create: bookletIds.map((bookletId, index) => ({
-                    booklet: {
-                        connect: {
-                            id: bookletId
-                        }
-                    },
-                    order: index + 1
-                }))
-            }
-
+      createdBy: {
+        connect: {
+          id: createdBy,
         },
+      },
 
-        include: {
-
-            booklets: {
-                include: {
-                    booklet: true
-                }
+      booklets: {
+        create: bookletIds.map((bookletId, index) => ({
+          booklet: {
+            connect: {
+              id: bookletId,
             },
+          },
+          order: index + 1,
+        })),
+      },
+    },
 
-            createdBy: {
-                select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true
-                }
-            }
+    include: {
+      booklets: {
+        include: {
+          booklet: true,
+        },
+      },
 
-        }
+      createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+  });
 
-    });
-
-
-    return exam;
-
+  return exam;
 };
-
-
 
 const getExams = async () => {
-
-    return await prisma.exam.findMany({
-
+  return await prisma.exam.findMany({
+    include: {
+      booklets: {
         include: {
-
-            booklets: {
-                include: {
-                    booklet: true
-                }
-            },
-
-            createdBy: {
-                select: {
-                    firstName: true,
-                    lastName: true
-                }
-            }
-
+          booklet: true,
         },
+      },
 
-        orderBy: {
-            createdAt: "desc"
-        }
+      createdBy: {
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
 
-    });
-
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 };
-
-
 
 const getExamById = async (id) => {
+  const exam = await prisma.exam.findUnique({
+    where: {
+      id,
+    },
 
-
-    const exam = await prisma.exam.findUnique({
-
-        where: {
-            id
-        },
-
+    include: {
+      booklets: {
         include: {
+          booklet: true,
+        },
+      },
+    },
+  });
 
-            booklets: {
-                include: {
-                    booklet: true
-                }
-            }
+  if (!exam) {
+    throw new AppError("Exam not found", 404);
+  }
 
-        }
-
-    });
-
-
-    if (!exam) {
-        throw new Error("Exam not found", 404);
-    }
-
-
-    return exam;
-
+  return exam;
 };
-
-
 
 const updateExam = async (id, data) => {
+  const exam = await prisma.exam.findUnique({
+    where: {
+      id,
+    },
+  });
 
+  if (!exam) {
+    throw new AppError("Exam not found", 404);
+  }
 
-    const exam = await prisma.exam.findUnique({
+  return await prisma.exam.update({
+    where: {
+      id,
+    },
 
-        where: {
-            id
-        }
-
-    });
-
-
-    if (!exam) {
-        throw new Error("Exam not found", 404);
-    }
-
-
-    return await prisma.exam.update({
-
-        where: {
-            id
-        },
-
-        data
-
-    });
-
-
+    data,
+  });
 };
-
-
 
 const deleteExam = async (id) => {
+  const exam = await prisma.exam.findUnique({
+    where: {
+      id,
+    },
+  });
 
+  if (!exam) {
+    throw new AppError("Exam not found", 404);
+  }
 
-    const exam = await prisma.exam.findUnique({
-
-        where: {
-            id
-        }
-
-    });
-
-
-    if (!exam) {
-        throw new Error("Exam not found", 404);
-    }
-
-
-    await prisma.exam.delete({
-
-        where: {
-            id
-
-        }
-
-    });
-
+  await prisma.exam.delete({
+    where: {
+      id,
+    },
+  });
 };
 
-
-
 module.exports = {
-    createExam,
-    getExams,
-    getExamById,
-    updateExam,
-    deleteExam
+  createExam,
+  getExams,
+  getExamById,
+  updateExam,
+  deleteExam,
 };
