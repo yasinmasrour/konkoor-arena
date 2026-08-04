@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const AppError = require("../utils/appError")
 
 const createBooklet = async (data) => {
     const {
@@ -74,7 +75,7 @@ const getBookletById = async (id) => {
     });
 
     if (!booklet) {
-        throw new Error("Booklet not found");
+        throw new Error("Booklet not found", 404);
     }
 
     return booklet;
@@ -87,7 +88,7 @@ const updateBooklet = async (id, data) => {
     });
 
     if (!existing) {
-        throw new Error("Booklet not found");
+        throw new Error("Booklet not found", 404);
     }
 
     return await prisma.booklet.update({
@@ -106,7 +107,7 @@ const deleteBooklet = async (id) => {
     });
 
     if (!existing) {
-        throw new Error("Booklet not found");
+        throw new Error("Booklet not found", 404);
     }
 
     await prisma.booklet.delete({

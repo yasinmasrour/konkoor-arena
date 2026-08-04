@@ -1,5 +1,5 @@
 const prisma = require("../config/prisma");
-
+const AppError = require("../utils/appError")
 
 const createQuestion = async (data) => {
 
@@ -61,7 +61,7 @@ const getQuestionById = async (id) => {
     });
 
     if (!question) {
-        throw new Error("Question not found");
+        throw new Error("Question not found", 404);
     }
 
     return question;
@@ -74,7 +74,7 @@ const updateQuestion = async (id, data) => {
     });
 
     if (!existing) {
-        throw new Error("Question not found");
+        throw new Error("Question not found", 404);
     }
 
     return await prisma.question.update({
@@ -94,7 +94,7 @@ const deleteQuestion = async (id) => {
     });
 
     if (!existing) {
-        throw new Error("Question not found");
+        throw new Error("Question not found", 404);
     }
 
     await prisma.question.delete({

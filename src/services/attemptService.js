@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const AppError = require("../utils/appError")
 
 const startAttempt = async (studentId, examId) => {
   const exam = await prisma.exam.findUnique({
@@ -23,7 +24,7 @@ const startAttempt = async (studentId, examId) => {
   });
 
   if (!exam) {
-    throw new Error("Exam not found");
+    throw new Error("Exam not found", 404);
   }
 
   const existingAttempt = await prisma.attempt.findUnique({
@@ -36,7 +37,7 @@ const startAttempt = async (studentId, examId) => {
   });
 
   if (existingAttempt) {
-    throw new Error("Attempt already exists");
+    throw new Error("Attempt already exists", 400);
   }
 
   const attempt = await prisma.attempt.create({
@@ -85,7 +86,7 @@ const getAttemptQuestions = async (attemptId) => {
   });
 
   if (!attempt) {
-    throw new Error("Attempt not found");
+    throw new Error("Attempt not found", 404);
   }
 
   const questions = attempt.exam.booklets.flatMap((examBooklet) =>
@@ -137,7 +138,7 @@ const submitAnswer = async (attemptId, userId, data) => {
   });
 
   if (!attempt) {
-    throw new Error("Attempt not found");
+    throw new Error("Attempt not found", 404);
   }
 
   if (attempt.studentId !== userId) {
@@ -151,7 +152,7 @@ const submitAnswer = async (attemptId, userId, data) => {
   );
 
   if (!questionExists) {
-    throw new Error("Question does not belong to this exam");
+    throw new Error("Question does not belong to this exam", 400);
   }
 
   const question = await prisma.question.findUnique({
@@ -161,7 +162,7 @@ const submitAnswer = async (attemptId, userId, data) => {
   });
 
   if (!question) {
-    throw new Error("Question not found");
+    throw new Error("Question not found", 404);
   }
 
   const isCorrect = question.correctAnswer === selectedAnswer;
@@ -214,15 +215,15 @@ const submitAttempt = async (attemptId, userId) => {
   });
 
   if (!attempt) {
-    throw new Error("Attempt not found");
+    throw new Error("Attempt not found", 404);
   }
 
   if (attempt.studentId !== userId) {
-    throw new Error("Forbidden");
+    throw new Error("Forbidden", 403);
   }
 
   if (attempt.status === "submitted") {
-    throw new Error("Attempt already submitted");
+    throw new Error("Attempt already submitted", 400);
   }
 
   const correctAnswers = attempt.answers.filter(
@@ -339,11 +340,11 @@ const getAttemptResult = async (attemptId, userId) => {
   });
 
   if (!attempt) {
-    throw new Error("Attempt not found");
+    throw new Error("Attempt not found", 404);
   }
 
   if (attempt.studentId !== userId) {
-    throw new Error("Forbidden");
+    throw new Error("Forbidden", 403);
   }
 
   const analysis = attempt.analysis || {};
@@ -444,11 +445,11 @@ const getAttemptReview = async (attemptId, userId) => {
   });
 
   if (!attempt) {
-    throw new Error("Attempt not found");
+    throw new Error("Attempt not found", 404);
   }
 
   if (attempt.studentId !== userId) {
-    throw new Error("Forbidden");
+    throw new Error("Forbidden", 403);
   }
 
   return {

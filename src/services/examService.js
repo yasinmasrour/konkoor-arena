@@ -1,5 +1,5 @@
 const prisma = require("../config/prisma");
-
+const AppError = require("../utils/appError")
 
 const createExam = async (data) => {
 
@@ -116,7 +116,7 @@ const getExamById = async (id) => {
 
 
     if (!exam) {
-        throw new Error("Exam not found");
+        throw new Error("Exam not found", 404);
     }
 
 
@@ -139,7 +139,7 @@ const updateExam = async (id, data) => {
 
 
     if (!exam) {
-        throw new Error("Exam not found");
+        throw new Error("Exam not found", 404);
     }
 
 
@@ -171,7 +171,7 @@ const deleteExam = async (id) => {
 
 
     if (!exam) {
-        throw new Error("Exam not found");
+        throw new Error("Exam not found", 404);
     }
 
 

@@ -1,5 +1,5 @@
 const prisma = require("../config/prisma");
-
+const AppError = require("../utils/appError")
 
 const getUserProfile = async (userId) => {
 
@@ -25,7 +25,7 @@ const getUserProfile = async (userId) => {
 
 
     if (!user) {
-        throw new Error("User not found");
+        throw new Error("User not found", 404);
     }
 
 
