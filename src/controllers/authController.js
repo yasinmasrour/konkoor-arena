@@ -1,101 +1,72 @@
 const authService = require("../services/authService");
+const asyncHandler = require("../utils/asyncHandler");
 
 
-const register = async (req, res) => {
+const register = asyncHandler(async (req, res) => {
 
-    try {
-
-        const user = await authService.registerUser(req.body);
+    const user = await authService.registerUser(req.body);
 
 
-        res.status(201).json({
+    res.status(201).json({
 
-            message: "User registered successfully",
+        message: "User registered successfully",
 
-            user: {
+        user: {
 
-                id: user.id,
+            id: user.id,
 
-                firstName: user.firstName,
+            firstName: user.firstName,
 
-                lastName: user.lastName,
+            lastName: user.lastName,
 
-                email: user.email,
+            email: user.email,
 
-                role: user.role.name
+            role: user.role.name
 
-            }
+        }
 
-        });
+    });
 
-
-    } catch (error) {
-
-        res.status(400).json({
-
-            message: error.message
-
-        });
-
-    }
-
-};
+});
 
 
+const login = asyncHandler(async (req, res) => {
 
-const login = async (req, res) => {
-
-    try {
-
-        const {
-            email,
-            password
-        } = req.body;
+    const {
+        email,
+        password
+    } = req.body;
 
 
-
-        const result = await authService.loginUser(
-            email,
-            password
-        );
-
+    const result = await authService.loginUser(
+        email,
+        password
+    );
 
 
-        res.status(200).json({
+    res.status(200).json({
 
-            message: "Login successful",
+        message: "Login successful",
 
-            token: result.token,
+        token: result.token,
 
-            user: {
+        user: {
 
-                id: result.user.id,
+            id: result.user.id,
 
-                firstName: result.user.firstName,
+            firstName: result.user.firstName,
 
-                lastName: result.user.lastName,
+            lastName: result.user.lastName,
 
-                email: result.user.email,
+            email: result.user.email,
 
-                role: result.user.role.name
+            role: result.user.role.name
 
-            }
+        }
 
-        });
+    });
 
-
-    } catch (error) {
-
-        res.status(401).json({
-
-            message: error.message
-
-        });
-
-    }
-
-};
-
+});
 
 
 module.exports = {

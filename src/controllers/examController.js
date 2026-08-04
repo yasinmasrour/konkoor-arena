@@ -1,155 +1,94 @@
 const examService = require("../services/examService");
+const asyncHandler = require("../utils/asyncHandler");
 
 
-const createExam = async (req,res)=>{
+const createExam = asyncHandler(async (req, res) => {
 
-    try{
+    const exam = await examService.createExam({
 
-        const exam = await examService.createExam({
+        ...req.body,
 
-            ...req.body,
+        createdBy: req.user.id
 
-            createdBy:req.user.id
+    });
 
-        });
 
+    res.status(201).json({
 
-        res.status(201).json({
+        message: "Exam created successfully",
 
-            message:"Exam created successfully",
+        exam
 
-            exam
+    });
 
-        });
+});
 
 
-    }catch(error){
+const getExams = asyncHandler(async (req, res) => {
 
-        res.status(500).json({
+    const exams = await examService.getExams();
 
-            message:error.message
 
-        });
+    res.status(200).json({
+        exams
+    });
 
-    }
+});
 
-};
 
+const getExamById = asyncHandler(async (req, res) => {
 
+    const exam = await examService.getExamById(
+        req.params.id
+    );
 
-const getExams = async(req,res)=>{
 
-    try{
+    res.status(200).json({
+        exam
+    });
 
-        const exams = await examService.getExams();
+});
 
 
-        res.json({
-            exams
-        });
+const updateExam = asyncHandler(async (req, res) => {
 
+    const exam = await examService.updateExam(
 
-    }catch(error){
+        req.params.id,
 
-        res.status(500).json({
-            message:error.message
-        });
+        req.body
 
-    }
+    );
 
-};
 
+    res.status(200).json({
 
+        message: "Exam updated",
 
-const getExamById = async(req,res)=>{
+        exam
 
-    try{
+    });
 
-        const exam = await examService.getExamById(
-            req.params.id
-        );
+});
 
 
-        res.json({
-            exam
-        });
+const deleteExam = asyncHandler(async (req, res) => {
 
+    await examService.deleteExam(
+        req.params.id
+    );
 
-    }catch(error){
 
-        res.status(404).json({
-            message:error.message
-        });
+    res.status(200).json({
 
-    }
+        message: "Exam deleted"
 
-};
+    });
 
+});
 
 
-const updateExam = async(req,res)=>{
-
-    try{
-
-        const exam = await examService.updateExam(
-
-            req.params.id,
-
-            req.body
-
-        );
-
-
-        res.json({
-
-            message:"Exam updated",
-
-            exam
-
-        });
-
-
-    }catch(error){
-
-        res.status(404).json({
-            message:error.message
-        });
-
-    }
-
-};
-
-
-
-const deleteExam = async(req,res)=>{
-
-    try{
-
-        await examService.deleteExam(
-            req.params.id
-        );
-
-
-        res.json({
-
-            message:"Exam deleted"
-
-        });
-
-
-    }catch(error){
-
-        res.status(404).json({
-            message:error.message
-        });
-
-    }
-
-};
-
-
-
-module.exports={
+module.exports = {
     createExam,
     getExams,
     getExamById,

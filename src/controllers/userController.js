@@ -1,28 +1,19 @@
 const userService = require("../services/userService");
+const asyncHandler = require("../utils/asyncHandler");
 
 
-const getProfile = async (req, res) => {
+const getProfile = asyncHandler(async (req, res) => {
 
-    try {
-
-        const user = await userService.getUserProfile(
-            req.user.id
-        );
+    const user = await userService.getUserProfile(
+        req.user.id
+    );
 
 
-        res.status(200).json({
-            user
-        });
+    res.status(200).json({
+        user
+    });
 
-
-    } catch (error) {
-
-        res.status(404).json({
-            message: error.message
-        });
-
-    }
-};
+});
 
 
 module.exports = {

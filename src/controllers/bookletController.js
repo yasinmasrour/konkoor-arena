@@ -1,119 +1,81 @@
 const bookletService = require("../services/bookletService");
+const asyncHandler = require("../utils/asyncHandler");
 
-const createBooklet = async (req, res) => {
 
-    try {
+const createBooklet = asyncHandler(async (req, res) => {
 
-        const booklet = await bookletService.createBooklet({
-            ...req.body,
-            createdBy: req.user.id
-        });
+    const booklet = await bookletService.createBooklet({
+        ...req.body,
+        createdBy: req.user.id
+    });
 
-        res.status(201).json({
-            message: "Booklet created successfully",
-            booklet
-        });
 
-    } catch (error) {
+    res.status(201).json({
+        message: "Booklet created successfully",
+        booklet
+    });
 
-        res.status(500).json({
-            message: error.message
-        });
+});
 
-    }
 
-};
+const getBooklets = asyncHandler(async (req, res) => {
 
-const getBooklets = async (req, res) => {
+    const booklets = await bookletService.getBooklets();
 
-    try {
 
-        const booklets = await bookletService.getBooklets();
+    res.status(200).json({
+        booklets
+    });
 
-        res.status(200).json({
-            booklets
-        });
+});
 
-    } catch (error) {
 
-        res.status(500).json({
-            message: error.message
-        });
+const getBookletById = asyncHandler(async (req, res) => {
 
-    }
+    const booklet = await bookletService.getBookletById(
+        req.params.id
+    );
 
-};
 
-const getBookletById = async (req, res) => {
+    res.status(200).json({
+        booklet
+    });
 
-    try {
+});
 
-        const booklet = await bookletService.getBookletById(
-            req.params.id
-        );
 
-        res.status(200).json({
-            booklet
-        });
+const updateBooklet = asyncHandler(async (req, res) => {
 
-    } catch (error) {
+    const booklet = await bookletService.updateBooklet(
+        req.params.id,
+        req.body
+    );
 
-        res.status(404).json({
-            message: error.message
-        });
 
-    }
+    res.status(200).json({
 
-};
+        message: "Booklet updated successfully",
 
-const updateBooklet = async (req, res) => {
+        booklet
 
-    try {
+    });
 
-        const booklet = await bookletService.updateBooklet(
-            req.params.id,
-            req.body
-        );
+});
 
-        res.status(200).json({
 
-            message: "Booklet updated successfully",
+const deleteBooklet = asyncHandler(async (req, res) => {
 
-            booklet
+    await bookletService.deleteBooklet(
+        req.params.id
+    );
 
-        });
 
-    } catch (error) {
+    res.status(200).json({
+        message: "Booklet deleted successfully"
+    });
 
-        res.status(404).json({
-            message: error.message
-        });
+});
 
-    }
-
-};
-
-const deleteBooklet = async (req, res) => {
-
-    try {
-
-        await bookletService.deleteBooklet(
-            req.params.id
-        );
-
-        res.status(200).json({
-            message: "Booklet deleted successfully"
-        });
-
-    } catch (error) {
-
-        res.status(404).json({
-            message: error.message
-        });
-
-    }
-
-};
 
 module.exports = {
     createBooklet,

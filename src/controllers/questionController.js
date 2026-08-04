@@ -1,121 +1,82 @@
 const questionService = require("../services/questionService");
+const asyncHandler = require("../utils/asyncHandler");
 
 
-const createQuestion = async (req, res) => {
-    try {
-        const question = await questionService.createQuestion({
-            ...req.body,
-            createdBy: req.user.id
-        });
+const createQuestion = asyncHandler(async (req, res) => {
+
+    const question = await questionService.createQuestion({
+        ...req.body,
+        createdBy: req.user.id
+    });
 
 
-        res.status(201).json({
-            message: "Question created successfully",
-            question
-        });
+    res.status(201).json({
+        message: "Question created successfully",
+        question
+    });
 
-    } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
-    }
-};
+});
 
-const getQuestions = async (req, res) => {
 
-    try {
+const getQuestions = asyncHandler(async (req, res) => {
 
-        const questions = await questionService.getQuestions();
+    const questions = await questionService.getQuestions();
 
-        res.status(200).json({
-            questions
-        });
 
-    } catch (error) {
+    res.status(200).json({
+        questions
+    });
 
-        res.status(500).json({
-            message: error.message
-        });
+});
 
-    }
 
-};
+const getQuestionById = asyncHandler(async (req, res) => {
 
-const getQuestionById = async (req, res) => {
+    const question = await questionService.getQuestionById(
+        req.params.id
+    );
 
-    try {
 
-        const question = await questionService.getQuestionById(
-            req.params.id
-        );
+    res.status(200).json({
+        question
+    });
 
-        res.status(200).json({
-            question
-        });
+});
 
-    } catch (error) {
 
-        res.status(404).json({
-            message: error.message
-        });
+const updateQuestion = asyncHandler(async (req, res) => {
 
-    }
+    const question = await questionService.updateQuestion(
+        req.params.id,
+        req.body
+    );
 
-};
 
-const updateQuestion = async (req, res) => {
+    res.status(200).json({
 
-    try {
+        message: "Question updated successfully",
 
-        const question = await questionService.updateQuestion(
+        question
 
-            req.params.id,
+    });
 
-            req.body
+});
 
-        );
 
-        res.status(200).json({
+const deleteQuestion = asyncHandler(async (req, res) => {
 
-            message: "Question updated successfully",
+    await questionService.deleteQuestion(
+        req.params.id
+    );
 
-            question
 
-        });
+    res.status(200).json({
 
-    } catch (error) {
+        message: "Question deleted successfully"
 
-        res.status(404).json({
-            message: error.message
-        });
+    });
 
-    }
-
-};
-
-const deleteQuestion = async (req, res) => {
-
-    try {
-
-        await questionService.deleteQuestion(
-            req.params.id
-        );
-
-        res.status(200).json({
-
-            message: "Question deleted successfully"
-
-        });
-
-    } catch (error) {
-
-        res.status(404).json({
-            message: error.message
-        });
-
-    }
-
-};
+});
 
 
 module.exports = {

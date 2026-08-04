@@ -1,83 +1,75 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 
-
-const protect = async (req, res, next) => {
-
-    try {
-
-        const authHeader = req.headers.authorization;
+const asyncHandler = require("../utils/asyncHandler");
+const AppError = require("../utils/appError");
 
 
-        if (!authHeader) {
+const protect = asyncHandler(async (req, res, next) => {
 
-            return res.status(401).json({
-                message: "Unauthorized"
-            });
-
-        }
+    const authHeader = req.headers.authorization;
 
 
-        const token = authHeader.split(" ")[1];
+    if (!authHeader) {
 
-
-        const decoded = jwt.verify(
-            token,
-            process.env.JWT_SECRET
+        throw new AppError(
+            "Unauthorized",
+            401
         );
-
-
-        const user = await prisma.user.findUnique({
-
-            where: {
-                id: decoded.id
-            },
-
-            include: {
-                role: true
-            }
-
-        });
-
-
-        if (!user) {
-
-            return res.status(401).json({
-                message: "User not found"
-            });
-
-        }
-
-
-        req.user = {
-
-            id: user.id,
-
-            firstName: user.firstName,
-
-            lastName: user.lastName,
-
-            email: user.email,
-
-            role: user.role.name
-
-        };
-
-
-        next();
-
-
-    } catch (error) {
-
-        return res.status(401).json({
-
-            message: "Invalid or expired token"
-
-        });
 
     }
 
-};
+
+    const token = authHeader.split(" ")[1];
+
+
+    const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET
+    );
+
+
+    const user = await prisma.user.findUnique({
+
+        where: {
+            id: decoded.id
+        },
+
+        include: {
+            role: true
+        }
+
+    });
+
+
+    if (!user) {
+
+        throw new AppError(
+            "User not found",
+            401
+        );
+
+    }
+
+
+    req.user = {
+
+        id: user.id,
+
+        firstName: user.firstName,
+
+        lastName: user.lastName,
+
+        email: user.email,
+
+        role: user.role.name
+
+    };
+
+
+    next();
+
+});
 
 
 module.exports = protect;
