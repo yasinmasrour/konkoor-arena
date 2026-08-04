@@ -4,46 +4,68 @@ const AppError = require("../utils/appError");
 const createExam = async (data) => {
   const { createdBy, bookletIds, ...examData } = data;
 
-  const exam = await prisma.exam.create({
-    data: {
-      ...examData,
-
-      createdBy: {
-        connect: {
-          id: createdBy,
-        },
-      },
-
-      booklets: {
-        create: bookletIds.map((bookletId, index) => ({
-          booklet: {
-            connect: {
-              id: bookletId,
-            },
-          },
-          order: index + 1,
-        })),
+  const booklets = await prisma.booklet.findMany({
+    where: {
+      id: {
+        in: bookletIds,
       },
     },
-
-    include: {
-      booklets: {
-        include: {
-          booklet: true,
-        },
-      },
-
-      createdBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
+    select: {
+      id: true,
     },
   });
 
-  return exam;
+  if (booklets.length !== bookletIds.length) {
+    throw new AppError("One or more booklets not found", 404);
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    const exam = await tx.exam.create({
+      data: {
+        ...examData,
+
+        createdBy: {
+          connect: {
+            id: createdBy,
+          },
+        },
+      },
+    });
+
+    await tx.examBooklet.createMany({
+      data: bookletIds.map((bookletId, index) => ({
+        examId: exam.id,
+
+        bookletId,
+
+        order: index + 1,
+      })),
+    });
+
+    return await tx.exam.findUnique({
+      where: {
+        id: exam.id,
+      },
+
+      include: {
+        booklets: {
+          include: {
+            booklet: true,
+          },
+        },
+
+        createdBy: {
+          select: {
+            id: true,
+
+            firstName: true,
+
+            lastName: true,
+          },
+        },
+      },
+    });
+  });
 };
 
 const getExams = async () => {

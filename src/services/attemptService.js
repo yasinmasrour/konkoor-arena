@@ -2,56 +2,66 @@ const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 
 const startAttempt = async (studentId, examId) => {
-  const exam = await prisma.exam.findUnique({
-    where: {
-      id: examId,
-    },
-    include: {
-      booklets: {
-        include: {
-          booklet: {
-            include: {
-              questions: {
-                include: {
-                  question: true,
-                },
+  return await prisma.$transaction(async (tx) => {
+    const exam = await tx.exam.findUnique({
+      where: {
+        id: examId,
+      },
+      include: {
+        booklets: {
+          include: {
+            booklet: {
+              include: {
+                questions: true,
               },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!exam) {
-    throw new AppError("Exam not found", 404);
-  }
+    if (!exam) {
+      throw new AppError("Exam not found", 404);
+    }
 
-  const existingAttempt = await prisma.attempt.findUnique({
-    where: {
-      studentId_examId: {
+    const existingAttempt = await tx.attempt.findUnique({
+      where: {
+        studentId_examId: {
+          studentId,
+          examId,
+        },
+      },
+    });
+
+    if (existingAttempt) {
+      throw new AppError("Attempt already exists", 400);
+    }
+
+    const attempt = await tx.attempt.create({
+      data: {
         studentId,
         examId,
+        startedAt: new Date(),
       },
-    },
+    });
+
+    const questions = exam.booklets.flatMap(
+      (examBooklet) => examBooklet.booklet.questions,
+    );
+
+    await tx.attemptAnswer.createMany({
+      data: questions.map((item) => ({
+        attemptId: attempt.id,
+
+        questionId: item.questionId,
+      })),
+    });
+
+    return {
+      attempt,
+      exam,
+    };
   });
-
-  if (existingAttempt) {
-    throw new AppError("Attempt already exists", 400);
-  }
-
-  const attempt = await prisma.attempt.create({
-    data: {
-      studentId,
-      examId,
-      startedAt: new Date(),
-    },
-  });
-
-  return {
-    attempt,
-    exam,
-  };
 };
 
 const getAttemptQuestions = async (attemptId) => {
@@ -115,88 +125,89 @@ const getAttemptQuestions = async (attemptId) => {
 const submitAnswer = async (attemptId, userId, data) => {
   const { questionId, selectedAnswer } = data;
 
-  const attempt = await prisma.attempt.findUnique({
-    where: {
-      id: attemptId,
-    },
+  return await prisma.$transaction(async (tx) => {
+    const attempt = await tx.attempt.findUnique({
+      where: {
+        id: attemptId,
+      },
 
-    include: {
-      exam: {
-        include: {
-          booklets: {
-            include: {
-              booklet: {
-                include: {
-                  questions: true,
+      include: {
+        exam: {
+          include: {
+            booklets: {
+              include: {
+                booklet: {
+                  include: {
+                    questions: true,
+                  },
                 },
               },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!attempt) {
-    throw new AppError("Attempt not found", 404);
-  }
+    if (!attempt) {
+      throw new AppError("Attempt not found", 404);
+    }
 
-  if (attempt.studentId !== userId) {
-    throw new AppError("Forbidden");
-  }
+    if (attempt.studentId !== userId) {
+      throw new AppError("Forbidden", 403);
+    }
 
-  const questionExists = attempt.exam.booklets.some((examBooklet) =>
-    examBooklet.booklet.questions.some(
-      (question) => question.questionId === questionId,
-    ),
-  );
+    const questionExists = attempt.exam.booklets.some((examBooklet) =>
+      examBooklet.booklet.questions.some(
+        (question) => question.questionId === questionId,
+      ),
+    );
 
-  if (!questionExists) {
-    throw new AppError("Question does not belong to this exam", 400);
-  }
+    if (!questionExists) {
+      throw new AppError("Question does not belong to this exam", 400);
+    }
 
-  const question = await prisma.question.findUnique({
-    where: {
-      id: questionId,
-    },
-  });
-
-  if (!question) {
-    throw new AppError("Question not found", 404);
-  }
-
-  const isCorrect = question.correctAnswer === selectedAnswer;
-
-  const answer = await prisma.attemptAnswer.upsert({
-    where: {
-      attemptId_questionId: {
-        attemptId,
-        questionId,
+    const question = await tx.question.findUnique({
+      where: {
+        id: questionId,
       },
-    },
+    });
 
-    update: {
-      selectedAnswer,
+    if (!question) {
+      throw new AppError("Question not found", 404);
+    }
 
-      isCorrect,
+    const isCorrect = question.correctAnswer === selectedAnswer;
 
-      answeredAt: new Date(),
-    },
+    return await tx.attemptAnswer.upsert({
+      where: {
+        attemptId_questionId: {
+          attemptId,
 
-    create: {
-      attemptId,
+          questionId,
+        },
+      },
 
-      questionId,
+      update: {
+        selectedAnswer,
 
-      selectedAnswer,
+        isCorrect,
 
-      isCorrect,
+        answeredAt: new Date(),
+      },
 
-      answeredAt: new Date(),
-    },
+      create: {
+        attemptId,
+
+        questionId,
+
+        selectedAnswer,
+
+        isCorrect,
+
+        answeredAt: new Date(),
+      },
+    });
   });
-
-  return answer;
 };
 
 const submitAttempt = async (attemptId, userId) => {
