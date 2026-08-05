@@ -6,16 +6,19 @@ const express = require("express");
 const authController = require("../controllers/authController");
 
 const router = express.Router();
+const rateLimiter = require("../middleware/rateLimiter");
 
 
 router.post(
     "/register",
+    rateLimiter,
     validate(registerSchema),
     authController.register
 );
 
 router.post(
     "/login",
+    rateLimiter,
     authController.login
 );
 

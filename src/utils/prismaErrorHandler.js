@@ -11,6 +11,10 @@ const prismaErrorHandler = (error) => {
     return new AppError("Record not found", 404);
   }
 
+  if (error.code === "P2003") {
+    return new AppError("Invalid reference", 400);
+  }
+
   return error;
 };
 
