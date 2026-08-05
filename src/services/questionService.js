@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
+const getPagination = require("../utils/pagination");
 
 const createQuestion = async (data) => {
   const { createdBy, ...questionData } = data;
@@ -19,21 +20,36 @@ const createQuestion = async (data) => {
   return question;
 };
 
-const getQuestions = async () => {
-  return await prisma.question.findMany({
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
+const getQuestions = async (query) => {
+  const { page, limit, skip } = getPagination(query);
+  const [questions, total] = await Promise.all([
+    prisma.question.findMany({
+      skip,
+      take: limit,
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
         },
       },
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.question.count(),
+  ]);
+  return {
+    questions,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  };
 };
 
 const getQuestionById = async (id) => {

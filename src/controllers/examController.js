@@ -1,97 +1,60 @@
 const examService = require("../services/examService");
 const asyncHandler = require("../utils/asyncHandler");
 
-
 const createExam = asyncHandler(async (req, res) => {
+  const exam = await examService.createExam({
+    ...req.body,
 
-    const exam = await examService.createExam({
+    createdBy: req.user.id,
+  });
 
-        ...req.body,
+  res.status(201).json({
+    message: "Exam created successfully",
 
-        createdBy: req.user.id
-
-    });
-
-
-    res.status(201).json({
-
-        message: "Exam created successfully",
-
-        exam
-
-    });
-
+    exam,
+  });
 });
-
 
 const getExams = asyncHandler(async (req, res) => {
+  const result = await examService.getExams(req.query);
 
-    const exams = await examService.getExams();
-
-
-    res.status(200).json({
-        exams
-    });
-
+  res.status(200).json(result);
 });
-
 
 const getExamById = asyncHandler(async (req, res) => {
+  const exam = await examService.getExamById(req.params.id);
 
-    const exam = await examService.getExamById(
-        req.params.id
-    );
-
-
-    res.status(200).json({
-        exam
-    });
-
+  res.status(200).json({
+    exam,
+  });
 });
-
 
 const updateExam = asyncHandler(async (req, res) => {
+  const exam = await examService.updateExam(
+    req.params.id,
 
-    const exam = await examService.updateExam(
+    req.body,
+  );
 
-        req.params.id,
+  res.status(200).json({
+    message: "Exam updated",
 
-        req.body
-
-    );
-
-
-    res.status(200).json({
-
-        message: "Exam updated",
-
-        exam
-
-    });
-
+    exam,
+  });
 });
-
 
 const deleteExam = asyncHandler(async (req, res) => {
+  await examService.deleteExam(req.params.id);
 
-    await examService.deleteExam(
-        req.params.id
-    );
-
-
-    res.status(200).json({
-
-        message: "Exam deleted"
-
-    });
-
+  res.status(200).json({
+    message: "Exam deleted",
+  });
 });
 
-
 module.exports = {
-    createExam,
-    getExams,
-    getExamById,
-    updateExam,
-    deleteExam
+  createExam,
+  getExams,
+  getExamById,
+  updateExam,
+  deleteExam,
 };

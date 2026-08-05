@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
+const getPagination = require("../utils/pagination");
 
 const createBooklet = async (data) => {
   const { createdBy, ...bookletData } = data;
@@ -17,26 +18,54 @@ const createBooklet = async (data) => {
   });
 };
 
-const getBooklets = async () => {
-  return await prisma.booklet.findMany({
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
+const getBooklets = async (query) => {
+  const { page, limit, skip } = getPagination(query);
+
+  const [booklets, total] = await Promise.all([
+    prisma.booklet.findMany({
+      skip,
+
+      take: limit,
+
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+
+            firstName: true,
+
+            lastName: true,
+          },
+        },
+
+        questions: {
+          include: {
+            question: true,
+          },
         },
       },
-      questions: {
-        include: {
-          question: true,
-        },
+
+      orderBy: {
+        createdAt: "desc",
       },
+    }),
+
+    prisma.booklet.count(),
+  ]);
+
+  return {
+    booklets,
+
+    pagination: {
+      total,
+
+      page,
+
+      limit,
+
+      totalPages: Math.ceil(total / limit),
     },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  };
 };
 
 const getBookletById = async (id) => {

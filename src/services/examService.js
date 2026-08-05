@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
+const getPagination = require("../utils/pagination");
 
 const createExam = async (data) => {
   const { createdBy, bookletIds, ...examData } = data;
@@ -68,27 +69,51 @@ const createExam = async (data) => {
   });
 };
 
-const getExams = async () => {
-  return await prisma.exam.findMany({
-    include: {
-      booklets: {
-        include: {
-          booklet: true,
+const getExams = async (query) => {
+  const { page, limit, skip } = getPagination(query);
+
+  const [exams, total] = await Promise.all([
+    prisma.exam.findMany({
+      skip,
+
+      take: limit,
+
+      include: {
+        booklets: {
+          include: {
+            booklet: true,
+          },
+        },
+
+        createdBy: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
         },
       },
 
-      createdBy: {
-        select: {
-          firstName: true,
-          lastName: true,
-        },
+      orderBy: {
+        createdAt: "desc",
       },
-    },
+    }),
 
-    orderBy: {
-      createdAt: "desc",
+    prisma.exam.count(),
+  ]);
+
+  return {
+    exams,
+
+    pagination: {
+      total,
+
+      page,
+
+      limit,
+
+      totalPages: Math.ceil(total / limit),
     },
-  });
+  };
 };
 
 const getExamById = async (id) => {
