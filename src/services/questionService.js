@@ -22,8 +22,46 @@ const createQuestion = async (data) => {
 
 const getQuestions = async (query) => {
   const { page, limit, skip } = getPagination(query);
+  const {
+    search,
+    lesson,
+    grade,
+    major,
+    chapter,
+    sort = "createdAt",
+    order = "desc",
+  } = query;
+  const allowedSortFields = ["createdAt", "lesson", "grade", "chapter"];
+
+  const sortField = allowedSortFields.includes(sort) ? sort : "createdAt";
+
+  const sortOrder = order === "asc" ? "asc" : "desc";
   const [questions, total] = await Promise.all([
     prisma.question.findMany({
+      where: {
+        ...(search && {
+          questionText: {
+            contains: search,
+            mode: "insensitive",
+          },
+        }),
+
+        ...(lesson && {
+          lesson,
+        }),
+
+        ...(grade && {
+          grade,
+        }),
+
+        ...(major && {
+          major,
+        }),
+
+        ...(chapter && {
+          chapter,
+        }),
+      },
       skip,
       take: limit,
       include: {
@@ -36,10 +74,35 @@ const getQuestions = async (query) => {
         },
       },
       orderBy: {
-        createdAt: "desc",
+        [sortField]: sortOrder,
       },
     }),
-    prisma.question.count(),
+    prisma.question.count({
+      where: {
+        ...(search && {
+          questionText: {
+            contains: search,
+            mode: "insensitive",
+          },
+        }),
+
+        ...(lesson && {
+          lesson,
+        }),
+
+        ...(grade && {
+          grade,
+        }),
+
+        ...(major && {
+          major,
+        }),
+
+        ...(chapter && {
+          chapter,
+        }),
+      },
+    }),
   ]);
   return {
     questions,

@@ -71,9 +71,26 @@ const createExam = async (data) => {
 
 const getExams = async (query) => {
   const { page, limit, skip } = getPagination(query);
+  const { search, status, sort = "createdAt", order = "desc" } = query;
+  const allowedSortFields = ["title", "examDate", "status", "createdAt"];
 
+  const sortField = allowedSortFields.includes(sort) ? sort : "createdAt";
+
+  const sortOrder = order === "asc" ? "asc" : "desc";
   const [exams, total] = await Promise.all([
     prisma.exam.findMany({
+      where: {
+        ...(search && {
+          title: {
+            contains: search,
+            mode: "insensitive",
+          },
+        }),
+
+        ...(status && {
+          status,
+        }),
+      },
       skip,
 
       take: limit,
@@ -94,11 +111,24 @@ const getExams = async (query) => {
       },
 
       orderBy: {
-        createdAt: "desc",
+        [sortField]: sortOrder,
       },
     }),
 
-    prisma.exam.count(),
+    prisma.exam.count({
+      where: {
+        ...(search && {
+          title: {
+            contains: search,
+            mode: "insensitive",
+          },
+        }),
+
+        ...(status && {
+          status,
+        }),
+      },
+    }),
   ]);
 
   return {

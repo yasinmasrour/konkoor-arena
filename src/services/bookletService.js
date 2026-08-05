@@ -20,9 +20,30 @@ const createBooklet = async (data) => {
 
 const getBooklets = async (query) => {
   const { page, limit, skip } = getPagination(query);
+  const { search, grade, major, sort = "createdAt", order = "desc" } = query;
+  const allowedSortFields = ["createdAt", "lesson", "grade", "examDate"];
 
+  const sortField = allowedSortFields.includes(sort) ? sort : "createdAt";
+
+  const sortOrder = order === "asc" ? "asc" : "desc";
   const [booklets, total] = await Promise.all([
     prisma.booklet.findMany({
+      where: {
+        ...(search && {
+          lesson: {
+            contains: search,
+            mode: "insensitive",
+          },
+        }),
+
+        ...(grade && {
+          grade,
+        }),
+
+        ...(major && {
+          major,
+        }),
+      },
       skip,
 
       take: limit,
@@ -46,11 +67,28 @@ const getBooklets = async (query) => {
       },
 
       orderBy: {
-        createdAt: "desc",
+        [sortField]: sortOrder,
       },
     }),
 
-    prisma.booklet.count(),
+    prisma.booklet.count({
+      where: {
+        ...(search && {
+          lesson: {
+            contains: search,
+            mode: "insensitive",
+          },
+        }),
+
+        ...(grade && {
+          grade,
+        }),
+
+        ...(major && {
+          major,
+        }),
+      },
+    }),
   ]);
 
   return {
