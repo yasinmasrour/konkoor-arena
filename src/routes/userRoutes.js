@@ -2,15 +2,23 @@ const express = require("express");
 const protect = require("../middleware/authMiddleware");
 const userController = require("../controllers/userController");
 
-
 const router = express.Router();
 
-
-router.get(
-    "/me",
-    protect,
-    userController.getProfile
-);
-
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Get current user profile
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/me", protect, userController.getProfile);
 
 module.exports = router;
