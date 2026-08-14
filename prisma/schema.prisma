@@ -41,6 +41,8 @@ model User {
   exams Exam[]
 
   attempts Attempt[]
+
+  arenaMatchPlayers ArenaMatchPlayer[]
 }
 
 model SubscriptionPlan {
@@ -124,6 +126,8 @@ model Question {
   bookletQuestions BookletQuestion[]
 
   attemptAnswers AttemptAnswer[]
+
+  arenaMatchQuestions ArenaMatchQuestion[]
 
   createdAt DateTime @default(now())
 
@@ -279,4 +283,117 @@ model AttemptAnswer {
   createdAt DateTime @default(now())
 
   @@unique([attemptId, questionId])
+}
+
+model ArenaMatch {
+  id String @id @default(cuid())
+
+  leagueId String
+
+  status String @default("waiting")
+
+  winnerId String?
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  league ArenaLeague @relation(fields: [leagueId], references: [id])
+
+  players   ArenaMatchPlayer[]
+  questions ArenaMatchQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ArenaMatchPlayer {
+  id String @id @default(cuid())
+
+  matchId String
+  userId  String
+
+  match ArenaMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id])
+
+  lives Int @default(3)
+
+  status String @default("playing")
+
+  isWinner Boolean @default(false)
+
+  joinedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([matchId, userId])
+  @@index([userId])
+  @@index([matchId])
+}
+
+model ArenaMatchQuestion {
+  id String @id @default(cuid())
+
+  matchId    String
+  questionId String
+
+  match    ArenaMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  question Question   @relation(fields: [questionId], references: [id])
+
+  order     Int
+  timeLimit Int
+
+  status String @default("pending")
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  winnerId String?
+
+  answers ArenaAnswer[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([matchId, questionId])
+  @@unique([matchId, order])
+  @@index([questionId])
+}
+
+model ArenaLeague {
+  id String @id @default(cuid())
+
+  title String
+
+  lesson String
+
+  startDate DateTime
+  endDate   DateTime
+
+  status String @default("upcoming")
+
+  matches ArenaMatch[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ArenaAnswer {
+  id String @id @default(cuid())
+
+  matchQuestionId String
+  playerId        String
+
+  selectedAnswer Int?
+
+  isCorrect Boolean
+
+  answeredAt DateTime @default(now())
+
+  responseTimeMs Int?
+
+  matchQuestion ArenaMatchQuestion @relation(fields: [matchQuestionId], references: [id], onDelete: Cascade)
+
+  @@unique([matchQuestionId, playerId])
+  @@index([playerId])
+  @@index([matchQuestionId])
 }
