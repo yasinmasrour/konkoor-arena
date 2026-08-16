@@ -201,6 +201,16 @@ const startArenaQuestion = async (matchId, matchQuestionId) => {
       startedAt: true,
       finishedAt: true,
       winnerId: true,
+
+      question: {
+        select: {
+          id: true,
+          questionText: true,
+          questionImage: true,
+          options: true,
+          correctAnswer: true,
+        },
+      },
     },
   });
 
@@ -230,24 +240,15 @@ const startArenaMatch = async (matchId) => {
     }
 
     if (match.status !== "waiting") {
-      throw new AppError(
-        "Arena match cannot be started",
-        400,
-      );
+      throw new AppError("Arena match cannot be started", 400);
     }
 
     if (match.players.length !== 2) {
-      throw new AppError(
-        "Arena match requires exactly two players",
-        400,
-      );
+      throw new AppError("Arena match requires exactly two players", 400);
     }
 
     if (match.questions.length !== 5) {
-      throw new AppError(
-        "Arena match must have exactly five questions",
-        400,
-      );
+      throw new AppError("Arena match must have exactly five questions", 400);
     }
 
     const now = new Date();
@@ -263,34 +264,8 @@ const startArenaMatch = async (matchId) => {
       },
     });
 
-    const firstQuestion = match.questions[0];
-
-    const updatedQuestion =
-      await tx.arenaMatchQuestion.update({
-        where: {
-          id: firstQuestion.id,
-        },
-
-        data: {
-          status: "active",
-          startedAt: now,
-        },
-
-        include: {
-          question: {
-            select: {
-              id: true,
-              questionText: true,
-              questionImage: true,
-              options: true,
-            },
-          },
-        },
-      });
-
     return {
       match: updatedMatch,
-      question: updatedQuestion,
     };
   });
 };
@@ -302,6 +277,7 @@ const submitArenaAnswer = async ({
   selectedAnswer,
 }) => {
   return await prisma.$transaction(async (tx) => {
+
     const matchQuestion = await tx.arenaMatchQuestion.findUnique({
       where: {
         id: matchQuestionId,
@@ -393,25 +369,42 @@ const submitArenaAnswer = async ({
       },
     });
 
-    // Correct answer
+    const opponent = match.players.find((item) => item.userId !== playerId);
+
+    if (!opponent) {
+      throw new AppError("Opponent not found", 400);
+    }
+
+    // ==========================================
+    // CORRECT ANSWER
+    // ==========================================
+
     if (isCorrect) {
-      const opponent = match.players.find((item) => item.userId !== playerId);
 
-      if (!opponent) {
-        throw new AppError("Opponent not found", 400);
-      }
-
-      const newOpponentLives = Math.max(opponent.lives - 1, 0);
-
-      await tx.arenaMatchPlayer.update({
+      const opponentAnswer = await tx.arenaAnswer.findUnique({
         where: {
-          id: opponent.id,
-        },
-
-        data: {
-          lives: newOpponentLives,
+          matchQuestionId_playerId: {
+            matchQuestionId,
+            playerId: opponent.userId,
+          },
         },
       });
+
+      let opponentLives = opponent.lives;
+
+      if (!opponentAnswer) {
+        opponentLives = Math.max(opponent.lives - 1, 0);
+
+        await tx.arenaMatchPlayer.update({
+          where: {
+            id: opponent.id,
+          },
+
+          data: {
+            lives: opponentLives,
+          },
+        });
+      }
 
       await tx.arenaMatchQuestion.update({
         where: {
@@ -431,11 +424,18 @@ const submitArenaAnswer = async ({
         answer,
         result: "correct",
         questionFinished: true,
-        opponentLives: newOpponentLives,
+        playerLives: player.lives,
+        opponentLives,
+        match: matchResult,
       };
     }
 
-    // Wrong answer
+    // ==========================================
+    // WRONG ANSWER
+    // ==========================================
+
+    const playerLives = Math.max(player.lives - 1, 0);
+
     await tx.arenaMatchPlayer.update({
       where: {
         id: player.id,
@@ -443,15 +443,13 @@ const submitArenaAnswer = async ({
 
       data: {
         status: "locked",
-        lives: Math.max(player.lives - 1, 0),
+        lives: playerLives,
       },
     });
 
-    const opponent = match.players.find((item) => item.userId !== playerId);
-
-    if (!opponent) {
-      throw new AppError("Opponent not found", 400);
-    }
+    // ==========================================
+    // CHECK OPPONENT ANSWER
+    // ==========================================
 
     const opponentAnswer = await tx.arenaAnswer.findUnique({
       where: {
@@ -462,23 +460,31 @@ const submitArenaAnswer = async ({
       },
     });
 
+    // ==========================================
+    // ONLY CURRENT PLAYER ANSWERED WRONG
+    // ==========================================
+
     if (!opponentAnswer) {
       return {
         answer,
         result: "wrong",
         questionFinished: false,
-        playerLives: Math.max(player.lives - 1, 0),
+        playerLives,
+        opponentLives: opponent.lives,
+        match: null,
       };
     }
 
-    // Both players answered incorrectly
+    // ==========================================
+    // BOTH PLAYERS ANSWERED WRONG
+    // ==========================================
     await tx.arenaMatchPlayer.update({
       where: {
         id: opponent.id,
       },
 
       data: {
-        lives: Math.max(opponent.lives - 1, 0),
+        status: "locked",
       },
     });
 
@@ -499,8 +505,32 @@ const submitArenaAnswer = async ({
       answer,
       result: "wrong",
       questionFinished: true,
-      playerLives: Math.max(player.lives - 1, 0),
-      opponentLives: Math.max(opponent.lives - 1, 0),
+      playerLives,
+      opponentLives: opponent.lives,
+      match: matchResult,
+    };
+
+    // ==========================================
+    // FINISH QUESTION
+    // ==========================================
+
+    await tx.arenaMatchQuestion.update({
+      where: {
+        id: matchQuestionId,
+      },
+
+      data: {
+        status: "finished",
+        finishedAt: now,
+      },
+    });
+
+    return {
+      answer,
+      result: "wrong",
+      questionFinished: true,
+      playerLives,
+      opponentLives,
       match: matchResult,
     };
   });
@@ -788,6 +818,16 @@ const startNextArenaQuestion = async (matchId) => {
         startedAt: true,
         finishedAt: true,
         winnerId: true,
+
+        question: {
+          select: {
+            id: true,
+            questionText: true,
+            questionImage: true,
+            options: true,
+            correctAnswer: true,
+          },
+        },
       },
     });
 
