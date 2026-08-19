@@ -9,9 +9,7 @@ const startMatch = async (matchId) => {
     throw new Error("Match cannot be started");
   }
 
-  const players = match.players;
-
-  if (players.length !== 2) {
+  if (match.players.length !== 2) {
     throw new Error("Match requires exactly two players");
   }
 
@@ -31,47 +29,32 @@ const submitAnswer = async ({
   playerId,
   selectedAnswer,
 }) => {
-  const result =
-    await arenaMatchService.submitArenaAnswer({
-      matchId,
-      matchQuestionId,
-      playerId,
-      selectedAnswer,
-    });
-
-  // Answer ثبت شده؛ Timer این سؤال دیگر نباید اجرا شود.
-  arenaTimerManager.cancelQuestionTimer(
+  const result = await arenaMatchService.submitArenaAnswer({
     matchId,
     matchQuestionId,
-  );
+    playerId,
+    selectedAnswer,
+  });
 
-  // نتیجه پاسخ را بلافاصله برای بازیکنان ارسال کن.
+  if (result.questionFinished) {
+    arenaTimerManager.cancelQuestionTimer(matchId, matchQuestionId);
+  }
+
   emitAnswerResult({
     matchId,
     result,
     playerId,
   });
 
-  // اگر سؤال تمام شده ولی Match تمام نشده،
-  // سؤال بعدی را شروع کن.
-  if (
-    result.questionFinished &&
-    !result.match?.finished
-  ) {
+  if (result.questionFinished && !result.match?.finished) {
     const nextQuestion =
-      await arenaMatchService.startNextArenaQuestion(
-        matchId,
-      );
+      await arenaMatchService.startNextArenaQuestion(matchId);
 
-    if (
-      !nextQuestion.matchFinished &&
-      nextQuestion.question
-    ) {
-      const payload =
-        buildArenaQuestionPayload({
-          matchQuestion: nextQuestion.question,
-          question: nextQuestion.question.question,
-        });
+    if (!nextQuestion.matchFinished && nextQuestion.question) {
+      const payload = buildArenaQuestionPayload({
+        matchQuestion: nextQuestion.question,
+        question: nextQuestion.question.question,
+      });
 
       emitQuestionStarted({
         matchId,
@@ -104,6 +87,23 @@ const handleQuestionTimeout = async (matchId, matchQuestionId) => {
   }
 
   const nextQuestion = await arenaMatchService.startNextArenaQuestion(matchId);
+
+  if (!nextQuestion.matchFinished && nextQuestion.question) {
+    const payload = buildArenaQuestionPayload({
+      matchQuestion: nextQuestion.question,
+      question: nextQuestion.question.question,
+    });
+
+    emitQuestionStarted({
+      matchId,
+      question: payload,
+    });
+
+    startTimerForQuestion({
+      matchId,
+      question: nextQuestion.question,
+    });
+  }
 
   return {
     ...result,
@@ -141,7 +141,6 @@ const startTimerForQuestion = ({ matchId, question }) => {
     matchId,
     matchQuestionId: question.id,
     timeLimit: question.timeLimit,
-
     onTimeout: async () => {
       await handleQuestionTimeout(matchId, question.id);
     },
@@ -155,15 +154,6 @@ const emitQuestionStarted = ({ matchId, question }) => {
   });
 };
 
-const sanitizeArenaQuestion = (question) => {
-  return {
-    id: question.id,
-    questionText: question.questionText,
-    questionImage: question.questionImage,
-    options: question.options,
-  };
-};
-
 const buildArenaQuestionPayload = ({ matchQuestion, question }) => {
   return {
     matchQuestionId: matchQuestion.id,
@@ -171,7 +161,6 @@ const buildArenaQuestionPayload = ({ matchQuestion, question }) => {
     order: matchQuestion.order,
     timeLimit: matchQuestion.timeLimit,
     startedAt: matchQuestion.startedAt,
-
     question: {
       id: question.id,
       questionText: question.questionText,
@@ -181,27 +170,16 @@ const buildArenaQuestionPayload = ({ matchQuestion, question }) => {
   };
 };
 
-const buildArenaAnswerResultPayload = ({
-  result,
-  playerId,
-}) => {
+const buildArenaAnswerResultPayload = ({ result, playerId }) => {
   return {
     playerId,
-
     result: result.result,
-
     isCorrect: result.answer.isCorrect,
-
     selectedAnswer: result.answer.selectedAnswer,
-
     responseTimeMs: result.answer.responseTimeMs,
-
     questionFinished: result.questionFinished,
-
     playerLives: result.playerLives ?? null,
-
     opponentLives: result.opponentLives ?? null,
-
     match: result.match
       ? {
           finished: result.match.finished,
@@ -220,6 +198,7 @@ const emitAnswerResult = ({ matchId, result, playerId }) => {
 
   arenaSocketEvents.emit("answer-result", {
     matchId,
+    playerId,
     result: payload,
   });
 };
@@ -229,7 +208,6 @@ module.exports = {
   submitAnswer,
   handleQuestionTimeout,
   emitQuestionStarted,
-  sanitizeArenaQuestion,
   buildArenaQuestionPayload,
   buildArenaAnswerResultPayload,
   emitAnswerResult,

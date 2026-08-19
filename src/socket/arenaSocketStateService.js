@@ -45,6 +45,16 @@ const getMatchState = async (matchId) => {
 
   const currentQuestion = match.questions[0] || null;
 
+  let remainingTime = null;
+
+  if (currentQuestion?.startedAt) {
+    const elapsedSeconds = Math.floor(
+      (Date.now() - currentQuestion.startedAt.getTime()) / 1000,
+    );
+
+    remainingTime = Math.max(currentQuestion.timeLimit - elapsedSeconds, 0);
+  }
+
   return {
     matchId: match.id,
     status: match.status,
@@ -53,7 +63,12 @@ const getMatchState = async (matchId) => {
 
     players: match.players,
 
-    currentQuestion,
+    currentQuestion: currentQuestion
+      ? {
+          ...currentQuestion,
+          remainingTime,
+        }
+      : null,
   };
 };
 

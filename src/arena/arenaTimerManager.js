@@ -1,5 +1,3 @@
-const arenaGameEngine = require("./arenaGameEngine");
-
 const timers = new Map();
 
 const getTimerKey = (matchId, matchQuestionId) => {

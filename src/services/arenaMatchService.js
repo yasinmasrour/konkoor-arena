@@ -32,7 +32,6 @@ const createArenaMatch = async (userId1, userId2, leagueId) => {
         in: [userId1, userId2],
       },
     },
-
     select: {
       id: true,
     },
@@ -46,27 +45,22 @@ const createArenaMatch = async (userId1, userId2, leagueId) => {
     where: {
       status: "published",
     },
-
     select: {
       id: true,
     },
   });
 
   if (questions.length < 5) {
-    throw new AppError(
-      `Not enough published questions available for ${lesson}`,
-      400,
-    );
+    throw new AppError("Not enough published questions available", 400);
   }
 
   const shuffledQuestions = questions
     .sort(() => Math.random() - 0.5)
     .slice(0, 5);
 
-  const match = await prisma.arenaMatch.create({
+  return await prisma.arenaMatch.create({
     data: {
       leagueId,
-
       status: "waiting",
 
       players: {
@@ -101,8 +95,6 @@ const createArenaMatch = async (userId1, userId2, leagueId) => {
       },
     },
   });
-
-  return match;
 };
 
 const getArenaMatchById = async (matchId) => {
@@ -181,7 +173,7 @@ const startArenaQuestion = async (matchId, matchQuestionId) => {
 
   const startedAt = new Date();
 
-  const updatedQuestion = await prisma.arenaMatchQuestion.update({
+  return await prisma.arenaMatchQuestion.update({
     where: {
       id: matchQuestionId,
     },
@@ -213,8 +205,6 @@ const startArenaQuestion = async (matchId, matchQuestionId) => {
       },
     },
   });
-
-  return updatedQuestion;
 };
 
 const startArenaMatch = async (matchId) => {
@@ -277,7 +267,6 @@ const submitArenaAnswer = async ({
   selectedAnswer,
 }) => {
   return await prisma.$transaction(async (tx) => {
-
     const matchQuestion = await tx.arenaMatchQuestion.findUnique({
       where: {
         id: matchQuestionId,
@@ -340,11 +329,11 @@ const submitArenaAnswer = async ({
       throw new AppError("Player is not active", 400);
     }
 
-    const now = new Date();
-
     if (!matchQuestion.startedAt) {
       throw new AppError("Question has not started", 400);
     }
+
+    const now = new Date();
 
     const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
 
@@ -375,12 +364,7 @@ const submitArenaAnswer = async ({
       throw new AppError("Opponent not found", 400);
     }
 
-    // ==========================================
-    // CORRECT ANSWER
-    // ==========================================
-
     if (isCorrect) {
-
       const opponentAnswer = await tx.arenaAnswer.findUnique({
         where: {
           matchQuestionId_playerId: {
@@ -390,11 +374,11 @@ const submitArenaAnswer = async ({
         },
       });
 
-      let opponentLives = opponent.lives;
+      const opponentLives = opponentAnswer
+        ? opponent.lives
+        : Math.max(opponent.lives - 1, 0);
 
       if (!opponentAnswer) {
-        opponentLives = Math.max(opponent.lives - 1, 0);
-
         await tx.arenaMatchPlayer.update({
           where: {
             id: opponent.id,
@@ -430,10 +414,6 @@ const submitArenaAnswer = async ({
       };
     }
 
-    // ==========================================
-    // WRONG ANSWER
-    // ==========================================
-
     const playerLives = Math.max(player.lives - 1, 0);
 
     await tx.arenaMatchPlayer.update({
@@ -447,10 +427,6 @@ const submitArenaAnswer = async ({
       },
     });
 
-    // ==========================================
-    // CHECK OPPONENT ANSWER
-    // ==========================================
-
     const opponentAnswer = await tx.arenaAnswer.findUnique({
       where: {
         matchQuestionId_playerId: {
@@ -459,10 +435,6 @@ const submitArenaAnswer = async ({
         },
       },
     });
-
-    // ==========================================
-    // ONLY CURRENT PLAYER ANSWERED WRONG
-    // ==========================================
 
     if (!opponentAnswer) {
       return {
@@ -475,9 +447,6 @@ const submitArenaAnswer = async ({
       };
     }
 
-    // ==========================================
-    // BOTH PLAYERS ANSWERED WRONG
-    // ==========================================
     await tx.arenaMatchPlayer.update({
       where: {
         id: opponent.id,
@@ -509,30 +478,6 @@ const submitArenaAnswer = async ({
       opponentLives: opponent.lives,
       match: matchResult,
     };
-
-    // ==========================================
-    // FINISH QUESTION
-    // ==========================================
-
-    await tx.arenaMatchQuestion.update({
-      where: {
-        id: matchQuestionId,
-      },
-
-      data: {
-        status: "finished",
-        finishedAt: now,
-      },
-    });
-
-    return {
-      answer,
-      result: "wrong",
-      questionFinished: true,
-      playerLives,
-      opponentLives,
-      match: matchResult,
-    };
   });
 };
 
@@ -556,6 +501,7 @@ const finishArenaMatch = async (tx, matchId) => {
       where: {
         matchId,
       },
+
       data: {
         status: "draw",
         isWinner: false,
@@ -568,6 +514,7 @@ const finishArenaMatch = async (tx, matchId) => {
       where: {
         id: player1.id,
       },
+
       data: {
         status: "eliminated",
         isWinner: false,
@@ -578,6 +525,7 @@ const finishArenaMatch = async (tx, matchId) => {
       where: {
         id: player2.id,
       },
+
       data: {
         status: "winner",
         isWinner: true,
@@ -590,6 +538,7 @@ const finishArenaMatch = async (tx, matchId) => {
       where: {
         id: player2.id,
       },
+
       data: {
         status: "eliminated",
         isWinner: false,
@@ -600,6 +549,7 @@ const finishArenaMatch = async (tx, matchId) => {
       where: {
         id: player1.id,
       },
+
       data: {
         status: "winner",
         isWinner: true,
@@ -619,6 +569,7 @@ const finishArenaMatch = async (tx, matchId) => {
     where: {
       id: matchId,
     },
+
     data: {
       status: "finished",
       winnerId,
@@ -672,9 +623,7 @@ const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
     }
 
     const now = new Date();
-
     const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
-
     const timeLimitMs = matchQuestion.timeLimit * 1000;
 
     if (elapsedMs < timeLimitMs) {
@@ -691,13 +640,9 @@ const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
       matchQuestion.answers.map((answer) => answer.playerId),
     );
 
-    const playersToLoseLife = [];
-
-    for (const player of players) {
-      if (!answeredPlayerIds.has(player.userId)) {
-        playersToLoseLife.push(player);
-      }
-    }
+    const playersToLoseLife = players.filter(
+      (player) => !answeredPlayerIds.has(player.userId),
+    );
 
     for (const player of playersToLoseLife) {
       await tx.arenaMatchPlayer.update({

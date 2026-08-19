@@ -4,6 +4,7 @@ const socketAuthMiddleware = require("./socketAuthMiddleware");
 const arenaSocketService = require("./arenaSocketService");
 const arenaSocketStateService = require("./arenaSocketStateService");
 const arenaSocketEvents = require("./arenaSocketEvents");
+const arenaSocketConnectionState = require("./arenaSocketConnectionState");
 
 const initializeSocket = (httpServer) => {
   const io = new Server(httpServer, {
@@ -18,6 +19,20 @@ const initializeSocket = (httpServer) => {
     io.to(roomName).emit("arena:question-started", question);
   });
 
+  arenaSocketEvents.on("answer-result", ({ playerId, result }) => {
+    const socketId = arenaSocketConnectionState.getPlayerSocket(playerId);
+
+    if (!socketId) {
+      console.log("ANSWER RESULT - PLAYER SOCKET NOT FOUND", {
+        playerId,
+      });
+
+      return;
+    }
+
+    io.to(socketId).emit("arena:answer-result", result);
+  });
+
   io.use(socketAuthMiddleware);
 
   io.on("connection", (socket) => {
@@ -26,6 +41,8 @@ const initializeSocket = (httpServer) => {
     socket.on("arena:join-match", async (matchId, callback) => {
       try {
         const result = await arenaSocketService.joinMatchRoom(socket, matchId);
+
+        arenaSocketConnectionState.addPlayerSocket(socket.user.id, socket.id);
 
         const state = await arenaSocketStateService.getMatchState(matchId);
 
@@ -60,6 +77,8 @@ const initializeSocket = (httpServer) => {
     });
 
     socket.on("disconnect", () => {
+      arenaSocketConnectionState.removePlayerSocket(socket.user.id, socket.id);
+
       console.log(
         `Socket disconnected: ${socket.id} | User: ${socket.user.id}`,
       );
