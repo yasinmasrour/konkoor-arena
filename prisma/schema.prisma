@@ -43,6 +43,10 @@ model User {
   attempts Attempt[]
 
   arenaMatchPlayers ArenaMatchPlayer[]
+
+  arenaLeaguePlayers ArenaLeaguePlayer[]
+
+  arenaRatings ArenaRating[]
 }
 
 model SubscriptionPlan {
@@ -373,6 +377,10 @@ model ArenaLeague {
 
   matches ArenaMatch[]
 
+  ratings ArenaRating[]
+
+  players ArenaLeaguePlayer[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -396,4 +404,53 @@ model ArenaAnswer {
   @@unique([matchQuestionId, playerId])
   @@index([playerId])
   @@index([matchQuestionId])
+}
+
+model ArenaLeaguePlayer {
+  id String @id @default(cuid())
+
+  leagueId String
+  userId   String
+
+  rating Int @default(0)
+
+  matchesPlayed Int @default(0)
+  wins          Int @default(0)
+  losses        Int @default(0)
+  draws         Int @default(0)
+
+  rank Int?
+
+  league ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leagueId, userId])
+  @@index([leagueId, rating])
+  @@index([userId])
+}
+
+model ArenaRating {
+  id String @id @default(cuid())
+
+  leagueId String
+  userId   String
+
+  rating Int @default(0)
+
+  wins   Int @default(0)
+  losses Int @default(0)
+  draws  Int @default(0)
+
+  league ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leagueId, userId])
+  @@index([leagueId, rating])
+  @@index([userId])
 }
