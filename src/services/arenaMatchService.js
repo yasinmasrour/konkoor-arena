@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
+const arenaRatingService = require("./arenaRatingService");
 
 const createArenaMatch = async (userId1, userId2, leagueId) => {
   if (userId1 === userId2) {
@@ -57,6 +58,8 @@ const createArenaMatch = async (userId1, userId2, leagueId) => {
   const shuffledQuestions = questions
     .sort(() => Math.random() - 0.5)
     .slice(0, 5);
+
+  await arenaRatingService.ensurePlayerRatings(leagueId, [userId1, userId2]);
 
   return await prisma.arenaMatch.create({
     data: {
@@ -482,17 +485,35 @@ const submitArenaAnswer = async ({
 };
 
 const finishArenaMatch = async (tx, matchId) => {
-  const players = await tx.arenaMatchPlayer.findMany({
+  const match = await tx.arenaMatch.findUnique({
     where: {
-      matchId,
+      id: matchId,
+    },
+
+    include: {
+      players: true,
     },
   });
 
-  if (players.length !== 2) {
+  if (!match) {
+    throw new AppError("Arena match not found", 404);
+  }
+
+  if (match.status === "finished") {
+    return {
+      finished: true,
+      winnerId: match.winnerId,
+      isDraw: !match.winnerId,
+      alreadyFinished: true,
+      rating: null,
+    };
+  }
+
+  if (match.players.length !== 2) {
     throw new AppError("Arena match must have exactly two players", 400);
   }
 
-  const [player1, player2] = players;
+  const [player1, player2] = match.players;
 
   let winnerId = null;
 
@@ -562,10 +583,13 @@ const finishArenaMatch = async (tx, matchId) => {
       finished: false,
       winnerId: null,
       isDraw: false,
+      rating: null,
     };
   }
 
-  await tx.arenaMatch.update({
+  const finishedAt = new Date();
+
+  const finishedMatch = await tx.arenaMatch.update({
     where: {
       id: matchId,
     },
@@ -573,14 +597,24 @@ const finishArenaMatch = async (tx, matchId) => {
     data: {
       status: "finished",
       winnerId,
-      finishedAt: new Date(),
+      finishedAt,
+    },
+
+    include: {
+      players: true,
     },
   });
+
+  const rating = await arenaRatingService.updateRatingsAfterMatchTx(
+    tx,
+    finishedMatch,
+  );
 
   return {
     finished: true,
     winnerId,
     isDraw: !winnerId,
+    rating,
   };
 };
 

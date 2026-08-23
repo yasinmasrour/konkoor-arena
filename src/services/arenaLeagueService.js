@@ -1,81 +1,194 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 
-const createLeague = async (data) => {
-  const { title, lesson, startDate, endDate } = data;
+const activateLeague = async (leagueId) => {
+  return await prisma.$transaction(async (tx) => {
+    const league = await tx.arenaLeague.findUnique({
+      where: {
+        id: leagueId,
+      },
+    });
 
-  if (new Date(startDate) >= new Date(endDate)) {
-    throw new AppError("Start date must be before end date", 400);
-  }
+    if (!league) {
+      throw new AppError("Arena league not found", 404);
+    }
 
-  const existingLeague = await prisma.arenaLeague.findFirst({
-    where: {
-      OR: [
-        {
-          title,
-        },
+    if (league.status === "active") {
+      return league;
+    }
 
-        {
-          lesson,
+    if (league.status === "finished") {
+      throw new AppError("Finished league cannot be activated", 400);
+    }
 
-          startDate: {
-            lte: new Date(endDate),
-          },
+    const now = new Date();
 
-          endDate: {
-            gte: new Date(startDate),
-          },
-        },
-      ],
-    },
+    if (now < league.startDate) {
+      throw new AppError("League start date has not been reached", 400);
+    }
+
+    if (now > league.endDate) {
+      throw new AppError("League end date has already passed", 400);
+    }
+
+    const updatedLeague = await tx.arenaLeague.update({
+      where: {
+        id: leagueId,
+      },
+
+      data: {
+        status: "active",
+      },
+    });
+
+    return updatedLeague;
   });
-
-  if (existingLeague) {
-    throw new AppError("A conflicting league already exists", 409);
-  }
-
-  const league = await prisma.arenaLeague.create({
-    data: {
-      title,
-      lesson,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      status: "upcoming",
-    },
-  });
-
-  return league;
 };
 
-const getActiveLeague = async () => {
+const finishLeague = async (leagueId) => {
+  return await prisma.$transaction(async (tx) => {
+    const league = await tx.arenaLeague.findUnique({
+      where: {
+        id: leagueId,
+      },
+    });
+
+    if (!league) {
+      throw new AppError("Arena league not found", 404);
+    }
+
+    if (league.status === "finished") {
+      return league;
+    }
+
+    if (league.status !== "active") {
+      throw new AppError("Only active leagues can be finished", 400);
+    }
+
+    const now = new Date();
+
+    if (now < league.endDate) {
+      throw new AppError("League has not ended yet", 400);
+    }
+
+    const updatedLeague = await tx.arenaLeague.update({
+      where: {
+        id: leagueId,
+      },
+
+      data: {
+        status: "finished",
+      },
+    });
+
+    return updatedLeague;
+  });
+};
+
+const processLeagueStatuses = async () => {
   const now = new Date();
 
-  const league = await prisma.arenaLeague.findFirst({
+  return await prisma.$transaction(async (tx) => {
+    const activatedLeagues = [];
+    const finishedLeagues = [];
+
+    const upcomingLeagues = await tx.arenaLeague.findMany({
+      where: {
+        status: "upcoming",
+        startDate: {
+          lte: now,
+        },
+        endDate: {
+          gt: now,
+        },
+      },
+    });
+
+    for (const league of upcomingLeagues) {
+      const updatedLeague = await tx.arenaLeague.update({
+        where: {
+          id: league.id,
+        },
+
+        data: {
+          status: "active",
+        },
+      });
+
+      activatedLeagues.push(updatedLeague);
+    }
+
+    const activeLeagues = await tx.arenaLeague.findMany({
+      where: {
+        status: "active",
+        endDate: {
+          lte: now,
+        },
+      },
+    });
+
+    for (const league of activeLeagues) {
+      const updatedLeague = await tx.arenaLeague.update({
+        where: {
+          id: league.id,
+        },
+
+        data: {
+          status: "finished",
+        },
+      });
+
+      finishedLeagues.push(updatedLeague);
+    }
+
+    return {
+      activatedLeagues,
+      finishedLeagues,
+    };
+  });
+};
+
+const getActiveLeagues = async () => {
+  return await prisma.arenaLeague.findMany({
     where: {
       status: "active",
-
-      startDate: {
-        lte: now,
-      },
-
-      endDate: {
-        gte: now,
-      },
     },
 
     orderBy: {
-      startDate: "desc",
+      startDate: "asc",
     },
   });
+};
 
-  if (!league) {
-    throw new AppError("No active league found", 404);
-  }
+const getUpcomingLeagues = async () => {
+  return await prisma.arenaLeague.findMany({
+    where: {
+      status: "upcoming",
+    },
 
-  return league;
+    orderBy: {
+      startDate: "asc",
+    },
+  });
+};
+
+const getFinishedLeagues = async () => {
+  return await prisma.arenaLeague.findMany({
+    where: {
+      status: "finished",
+    },
+
+    orderBy: {
+      endDate: "desc",
+    },
+  });
 };
 
 module.exports = {
-  createLeague,
-  getActiveLeague,
+  activateLeague,
+  finishLeague,
+  processLeagueStatuses,
+  getActiveLeagues,
+  getUpcomingLeagues,
+  getFinishedLeagues,
 };

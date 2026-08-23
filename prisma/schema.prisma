@@ -44,9 +44,9 @@ model User {
 
   arenaMatchPlayers ArenaMatchPlayer[]
 
-  arenaLeaguePlayers ArenaLeaguePlayer[]
-
   arenaRatings ArenaRating[]
+
+  arenaRatingHistory ArenaRatingHistory[]
 }
 
 model SubscriptionPlan {
@@ -303,6 +303,12 @@ model ArenaMatch {
 
   league ArenaLeague @relation(fields: [leagueId], references: [id])
 
+  ratingHistory ArenaRatingHistory[]
+
+  ratingUpdatedAt DateTime?
+
+  ratingUpdated Boolean @default(false)
+
   players   ArenaMatchPlayer[]
   questions ArenaMatchQuestion[]
 
@@ -379,7 +385,7 @@ model ArenaLeague {
 
   ratings ArenaRating[]
 
-  players ArenaLeaguePlayer[]
+  ratingHistory ArenaRatingHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -406,32 +412,6 @@ model ArenaAnswer {
   @@index([matchQuestionId])
 }
 
-model ArenaLeaguePlayer {
-  id String @id @default(cuid())
-
-  leagueId String
-  userId   String
-
-  rating Int @default(0)
-
-  matchesPlayed Int @default(0)
-  wins          Int @default(0)
-  losses        Int @default(0)
-  draws         Int @default(0)
-
-  rank Int?
-
-  league ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  user   User        @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([leagueId, userId])
-  @@index([leagueId, rating])
-  @@index([userId])
-}
-
 model ArenaRating {
   id String @id @default(cuid())
 
@@ -453,4 +433,26 @@ model ArenaRating {
   @@unique([leagueId, userId])
   @@index([leagueId, rating])
   @@index([userId])
+}
+
+model ArenaRatingHistory {
+  id String @id @default(cuid())
+
+  leagueId String
+  userId   String
+  matchId  String
+
+  oldRating Int
+  newRating Int
+
+  change Int
+
+  createdAt DateTime @default(now())
+
+  league ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match  ArenaMatch  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, userId])
+  @@index([matchId])
 }

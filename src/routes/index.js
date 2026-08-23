@@ -6,6 +6,7 @@ const bookletRoutes = require("./bookletRoutes");
 const examRoutes = require("./examRoutes");
 const attemptRoutes = require("./attemptRoutes");
 const arenaMatchRoutes = require("./arenaMatchRoutes");
+const arenaRankingRoutes = require("./arenaRankingRoutes");
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ router.use("/questions", questionRoutes);
 router.use("/booklets", bookletRoutes);
 router.use("/exams", examRoutes);
 router.use("/attempts", attemptRoutes);
+router.use("/arena", arenaRankingRoutes);
 router.use("/arena/matches", arenaMatchRoutes);
 
 module.exports = router;
