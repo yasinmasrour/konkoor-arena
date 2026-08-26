@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 
 const socketAuthMiddleware = require("./socketAuthMiddleware");
 const arenaSocketService = require("./arenaSocketService");
+const arenaMatchService = require("../services/arenaMatchService");
 const arenaSocketStateService = require("./arenaSocketStateService");
 const arenaSocketEvents = require("./arenaSocketEvents");
 const arenaSocketConnectionState = require("./arenaSocketConnectionState");
@@ -33,6 +34,23 @@ const initializeSocket = (httpServer) => {
     io.to(socketId).emit("arena:answer-result", result);
   });
 
+  arenaSocketEvents.on("match-started", ({ matchId }) => {
+    const roomName = arenaSocketService.getArenaRoomName(matchId);
+
+    io.to(roomName).emit("arena:match-started", {
+      matchId,
+    });
+  });
+
+  arenaSocketEvents.on("match-finished", ({ matchId, winnerId, rating }) => {
+    const roomName = arenaSocketService.getArenaRoomName(matchId);
+
+    io.to(roomName).emit("arena:match-finished", {
+      winnerId,
+      rating,
+    });
+  });
+
   io.use(socketAuthMiddleware);
 
   io.on("connection", (socket) => {
@@ -51,6 +69,36 @@ const initializeSocket = (httpServer) => {
         callback?.({
           success: true,
           ...result,
+        });
+      } catch (error) {
+        callback?.({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    socket.on("arena:submit-answer", async (data, callback) => {
+      try {
+        const { matchId, matchQuestionId, selectedAnswer } = data;
+
+        const result = await arenaMatchService.submitArenaAnswer({
+          matchId,
+          matchQuestionId,
+          playerId: socket.user.id,
+          selectedAnswer,
+        });
+
+        const roomName = arenaSocketService.getArenaRoomName(matchId);
+
+        io.to(roomName).emit("arena:answer-result", {
+          playerId: socket.user.id,
+          result,
+        });
+
+        callback?.({
+          success: true,
+          result,
         });
       } catch (error) {
         callback?.({

@@ -9,7 +9,7 @@ const PLAYER_1_TOKEN =
 const PLAYER_2_TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNtc2M3YTNlYzAwMDF2ajN3NGNxeGhoMG0iLCJpYXQiOjE3ODcyOTU1ODQsImV4cCI6MTc4NzkwMDM4NH0.KQZQ7zwRWO_YDVrAWff2d6x4YcqGWv9mf6I-NFYtBL8";
 
-const MATCH_ID = "cmt2lmq4b0005vjes34vxx06x";
+const MATCH_ID = "cmt7oyakt000kvjxwd27ivt48";
 // const LEAGUE_ID = "cmsk5s0of0000vjl0qqe4chvm";
 // const OPPONENT_ID = "cmsc7a3ec0001vj3w4cqxhh0m";
 
@@ -48,6 +48,19 @@ player1.on("connect_error", (error) => {
 player1.on("arena:question-started", (data) => {
   console.log("\nPLAYER 1 - QUESTION STARTED");
   console.dir(data, { depth: null });
+
+  // ارسال پاسخ برای Player 1
+  player1.emit(
+    "arena:submit-answer",
+    {
+      matchId: MATCH_ID,
+      matchQuestionId: data.matchQuestionId,
+      selectedAnswer: 0,
+    },
+    (response) => {
+      console.log("PLAYER 1 SUBMIT RESPONSE", response);
+    },
+  );
 });
 
 player1.on("arena:match-state", (state) => {
@@ -83,6 +96,19 @@ player2.on("connect_error", (error) => {
 player2.on("arena:question-started", (data) => {
   console.log("\nPLAYER 2 - QUESTION STARTED");
   console.dir(data, { depth: null });
+
+  // ارسال پاسخ برای Player 2
+  player2.emit(
+    "arena:submit-answer",
+    {
+      matchId: MATCH_ID,
+      matchQuestionId: data.matchQuestionId,
+      selectedAnswer: 0,
+    },
+    (response) => {
+      console.log("PLAYER 2 SUBMIT RESPONSE", response);
+    },
+  );
 });
 
 player2.on("arena:match-state", (state) => {

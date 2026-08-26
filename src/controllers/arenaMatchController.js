@@ -1,5 +1,6 @@
 const arenaMatchService = require("../services/arenaMatchService");
 const asyncHandler = require("../utils/asyncHandler");
+const arenaSocketEvents = require("../socket/arenaSocketEvents");
 
 const createMatch = asyncHandler(async (req, res) => {
   const match = await arenaMatchService.createArenaMatch(
@@ -23,9 +24,11 @@ const getMatchById = asyncHandler(async (req, res) => {
 });
 
 const startArenaMatch = asyncHandler(async (req, res) => {
-  const result = await arenaMatchService.startArenaMatch(
-    req.params.id,
-  );
+  const result = await arenaMatchService.startArenaMatch(req.params.id);
+
+  arenaSocketEvents.emit("match-started", {
+    matchId: req.params.id,
+  });
 
   res.status(200).json({
     message: "Arena match started successfully",
@@ -53,6 +56,14 @@ const submitAnswer = asyncHandler(async (req, res) => {
     selectedAnswer: req.body.selectedAnswer,
   });
 
+  if (result.match?.finished) {
+    arenaSocketEvents.emit("arena:match-finished", {
+      matchId: req.params.id,
+      winnerId: result.match.winnerId,
+      rating: result.match.rating,
+    });
+  }
+
   res.status(200).json({
     message: "Answer submitted successfully",
     ...result,
@@ -65,6 +76,14 @@ const finishQuestionByTimeout = asyncHandler(async (req, res) => {
       req.params.id,
       req.params.questionId,
     );
+
+  if (result.match?.finished) {
+    arenaSocketEvents.emit("arena:match-finished", {
+      matchId: req.params.id,
+      winnerId: result.match.winnerId,
+      rating: result.match.rating,
+    });
+  }
 
   res.status(200).json({
     message: "Arena question finished by timeout",

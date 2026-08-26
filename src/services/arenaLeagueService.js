@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
+const arenaLeagueFinalizationService = require("./arenaLeagueFinalizationService");
 
 const activateLeague = async (leagueId) => {
   return await prisma.$transaction(async (tx) => {
@@ -80,6 +81,8 @@ const finishLeague = async (leagueId) => {
         status: "finished",
       },
     });
+
+    await arenaLeagueFinalizationService.finalizeLeague(leagueId);
 
     return updatedLeague;
   });

@@ -121,20 +121,47 @@ const getArenaMatchById = async (matchId) => {
       players: {
         select: {
           id: true,
+
           userId: true,
+
           lives: true,
+
+          status: true,
+
+          isWinner: true,
+
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
         },
       },
 
       questions: {
-        select: {
-          id: true,
-          order: true,
-          timeLimit: true,
+        where: {
+          status: "active",
         },
 
         orderBy: {
           order: "asc",
+        },
+
+        take: 1,
+
+        select: {
+          id: true,
+
+          questionId: true,
+
+          order: true,
+
+          timeLimit: true,
+
+          startedAt: true,
+
+          status: true,
         },
       },
     },
@@ -144,7 +171,52 @@ const getArenaMatchById = async (matchId) => {
     throw new AppError("Arena match not found", 404);
   }
 
-  return match;
+  const currentQuestion = match.questions[0] || null;
+
+  let remainingTime = null;
+
+  if (currentQuestion?.startedAt) {
+    const elapsedSeconds = Math.floor(
+      (Date.now() - currentQuestion.startedAt.getTime()) / 1000,
+    );
+
+    remainingTime = Math.max(currentQuestion.timeLimit - elapsedSeconds, 0);
+  }
+
+  return {
+    id: match.id,
+
+    status: match.status,
+
+    winnerId: match.winnerId,
+
+    startedAt: match.startedAt,
+
+    finishedAt: match.finishedAt,
+
+    league: match.league,
+
+    players: match.players.map((player) => ({
+      userId: player.userId,
+
+      firstName: player.user.firstName,
+
+      lastName: player.user.lastName,
+
+      lives: player.lives,
+
+      status: player.status,
+
+      isWinner: player.isWinner,
+    })),
+
+    currentQuestion: currentQuestion
+      ? {
+          ...currentQuestion,
+          remainingTime,
+        }
+      : null,
+  };
 };
 
 const startArenaQuestion = async (matchId, matchQuestionId) => {

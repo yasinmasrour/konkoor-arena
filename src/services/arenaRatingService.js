@@ -363,6 +363,30 @@ const updateRatingsAfterMatchTx = async (tx, match) => {
     },
   });
 
+  await tx.arenaRatingHistory.createMany({
+    data: [
+      {
+        leagueId: match.leagueId,
+        userId: rating1.userId,
+        matchId: match.id,
+
+        oldRating: rating1.rating,
+        newRating: newRating1,
+        change: newRating1 - rating1.rating,
+      },
+
+      {
+        leagueId: match.leagueId,
+        userId: rating2.userId,
+        matchId: match.id,
+
+        oldRating: rating2.rating,
+        newRating: newRating2,
+        change: newRating2 - rating2.rating,
+      },
+    ],
+  });
+
   return {
     player1: updatedRating1,
     player2: updatedRating2,

@@ -47,6 +47,8 @@ model User {
   arenaRatings ArenaRating[]
 
   arenaRatingHistory ArenaRatingHistory[]
+
+  arenaLeagueStandings ArenaLeagueStanding[]
 }
 
 model SubscriptionPlan {
@@ -387,6 +389,8 @@ model ArenaLeague {
 
   ratingHistory ArenaRatingHistory[]
 
+  standings ArenaLeagueStanding[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -419,6 +423,8 @@ model ArenaRating {
   userId   String
 
   rating Int @default(0)
+
+  matchesPlayed Int @default(0)
 
   wins   Int @default(0)
   losses Int @default(0)
@@ -455,4 +461,28 @@ model ArenaRatingHistory {
 
   @@index([leagueId, userId])
   @@index([matchId])
+}
+
+model ArenaLeagueStanding {
+  id String @id @default(cuid())
+
+  leagueId String
+  userId   String
+
+  finalRating Int
+
+  rank Int
+
+  wins   Int
+  losses Int
+  draws  Int
+
+  league ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([leagueId, userId])
+  @@index([leagueId, rank])
 }
