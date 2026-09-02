@@ -69,7 +69,6 @@ router.post(
  *         description: Arena match not found
  */
 router.get("/:id", authMiddleware, arenaMatchController.getMatchById);
-module.exports = router;
 
 /**
  * @swagger
@@ -183,3 +182,5 @@ router.post(
   authMiddleware,
   arenaGameController.timeoutQuestion,
 );
+
+module.exports = router;

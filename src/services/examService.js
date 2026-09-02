@@ -71,26 +71,32 @@ const createExam = async (data) => {
 
 const getExams = async (query) => {
   const { page, limit, skip } = getPagination(query);
+
   const { search, status, sort = "createdAt", order = "desc" } = query;
+
   const allowedSortFields = ["title", "examDate", "status", "createdAt"];
 
   const sortField = allowedSortFields.includes(sort) ? sort : "createdAt";
 
   const sortOrder = order === "asc" ? "asc" : "desc";
+
+  const where = {
+    ...(search && {
+      title: {
+        contains: search,
+        mode: "insensitive",
+      },
+    }),
+
+    ...(status && {
+      status,
+    }),
+  };
+
   const [exams, total] = await Promise.all([
     prisma.exam.findMany({
-      where: {
-        ...(search && {
-          title: {
-            contains: search,
-            mode: "insensitive",
-          },
-        }),
+      where,
 
-        ...(status && {
-          status,
-        }),
-      },
       skip,
 
       take: limit,
@@ -98,13 +104,18 @@ const getExams = async (query) => {
       include: {
         booklets: {
           include: {
-            booklet: true,
+            booklet: {
+              include: {
+                questions: true,
+              },
+            },
           },
         },
 
         createdBy: {
           select: {
             firstName: true,
+
             lastName: true,
           },
         },
@@ -116,23 +127,42 @@ const getExams = async (query) => {
     }),
 
     prisma.exam.count({
-      where: {
-        ...(search && {
-          title: {
-            contains: search,
-            mode: "insensitive",
-          },
-        }),
-
-        ...(status && {
-          status,
-        }),
-      },
+      where,
     }),
   ]);
 
+  const formattedExams = exams.map((exam) => {
+    const booklet = exam.booklets[0]?.booklet;
+
+    return {
+      id: exam.id,
+
+      title: exam.title,
+
+      examDate: exam.examDate,
+
+      startTime: exam.startTime,
+
+      endTime: exam.endTime,
+
+      status: exam.status,
+
+      lesson: booklet?.lesson || "",
+
+      grade: booklet?.grade || "",
+
+      major: booklet?.major || "",
+
+      duration: booklet?.duration || 0,
+
+      questionCount: booklet?.questions?.length || 0,
+
+      createdBy: exam.createdBy,
+    };
+  });
+
   return {
-    exams,
+    exams: formattedExams,
 
     pagination: {
       total,
@@ -155,7 +185,15 @@ const getExamById = async (id) => {
     include: {
       booklets: {
         include: {
-          booklet: true,
+          booklet: {
+            include: {
+              questions: {
+                select: {
+                  id: true,
+                },
+              },
+            },
+          },
         },
       },
     },

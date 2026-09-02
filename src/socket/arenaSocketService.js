@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
+const arenaSocketConnectionState = require("./arenaSocketConnectionState");
 
 const getArenaRoomName = (matchId) => {
   return `arena:match:${matchId}`;
@@ -51,8 +52,27 @@ const leaveMatchRoom = async (socket, matchId) => {
   };
 };
 
+const emitToPlayer = (userId, event, payload) => {
+  const io = global.io;
+
+  if (!io) {
+    return false;
+  }
+
+  const socketId = arenaSocketConnectionState.getPlayerSocket(userId);
+
+  if (!socketId) {
+    return false;
+  }
+
+  io.to(socketId).emit(event, payload);
+
+  return true;
+};
+
 module.exports = {
   getArenaRoomName,
   joinMatchRoom,
   leaveMatchRoom,
+  emitToPlayer,
 };

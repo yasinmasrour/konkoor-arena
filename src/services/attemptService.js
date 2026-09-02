@@ -336,56 +336,33 @@ const submitAttempt = async (attemptId, userId) => {
 
 const getAttemptResult = async (attemptId, userId) => {
   const attempt = await prisma.attempt.findUnique({
-    where: {
-      id: attemptId,
-    },
-
-    include: {
-      exam: {
-        select: {
-          id: true,
-          title: true,
-        },
-      },
-    },
+    where: { id: attemptId },
+    include: { exam: { select: { id: true, title: true } } },
   });
-
   if (!attempt) {
     throw new AppError("Attempt not found", 404);
   }
-
   if (attempt.studentId !== userId) {
     throw new AppError("Forbidden", 403);
   }
-
   const analysis = attempt.analysis || {};
-
   const totalQuestions = analysis.totalQuestions || 0;
-
   const percentage =
     totalQuestions > 0
       ? Number(((attempt.score / totalQuestions) * 100).toFixed(2))
       : 0;
-
   return {
     attemptId: attempt.id,
-
     exam: attempt.exam,
-
     result: {
       score: attempt.score,
-
       totalQuestions,
-
       correctAnswers: analysis.correctAnswers || 0,
-
       wrongAnswers: analysis.wrongAnswers || 0,
-
       unansweredQuestions: analysis.unansweredQuestions || 0,
-
       negativeScore: analysis.negativeScore || 0,
-
       percentage,
+      subjects: analysis.subjects || [],
     },
   };
 };

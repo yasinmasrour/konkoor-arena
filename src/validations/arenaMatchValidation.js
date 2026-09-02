@@ -7,8 +7,6 @@ const createMatchSchema = z.object({
 });
 
 const submitAnswerSchema = z.object({
-  matchQuestionId: z.string().min(1, "Match question ID is required"),
-
   selectedAnswer: z.number().int().min(0),
 });
 

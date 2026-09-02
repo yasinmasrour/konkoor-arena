@@ -16,86 +16,17 @@ const createMatch = asyncHandler(async (req, res) => {
 });
 
 const getMatchById = asyncHandler(async (req, res) => {
-  const match = await arenaMatchService.getArenaMatchById(req.params.id);
+  const match = await arenaMatchService.getArenaMatchById(
+    req.params.id,
+    req.user.id,
+  );
 
   res.status(200).json({
     match,
   });
 });
 
-const startArenaMatch = asyncHandler(async (req, res) => {
-  const result = await arenaMatchService.startArenaMatch(req.params.id);
-
-  arenaSocketEvents.emit("match-started", {
-    matchId: req.params.id,
-  });
-
-  res.status(200).json({
-    message: "Arena match started successfully",
-    ...result,
-  });
-});
-
-const startQuestion = asyncHandler(async (req, res) => {
-  const question = await arenaMatchService.startArenaQuestion(
-    req.params.id,
-    req.params.questionId,
-  );
-
-  res.status(200).json({
-    message: "Arena question started successfully",
-    question,
-  });
-});
-
-const submitAnswer = asyncHandler(async (req, res) => {
-  const result = await arenaMatchService.submitArenaAnswer({
-    matchId: req.params.id,
-    matchQuestionId: req.body.matchQuestionId,
-    playerId: req.user.id,
-    selectedAnswer: req.body.selectedAnswer,
-  });
-
-  if (result.match?.finished) {
-    arenaSocketEvents.emit("arena:match-finished", {
-      matchId: req.params.id,
-      winnerId: result.match.winnerId,
-      rating: result.match.rating,
-    });
-  }
-
-  res.status(200).json({
-    message: "Answer submitted successfully",
-    ...result,
-  });
-});
-
-const finishQuestionByTimeout = asyncHandler(async (req, res) => {
-  const result =
-    await arenaMatchService.finishArenaQuestionByTimeout(
-      req.params.id,
-      req.params.questionId,
-    );
-
-  if (result.match?.finished) {
-    arenaSocketEvents.emit("arena:match-finished", {
-      matchId: req.params.id,
-      winnerId: result.match.winnerId,
-      rating: result.match.rating,
-    });
-  }
-
-  res.status(200).json({
-    message: "Arena question finished by timeout",
-    ...result,
-  });
-});
-
 module.exports = {
   createMatch,
   getMatchById,
-  startArenaMatch,
-  startQuestion,
-  submitAnswer,
-  finishQuestionByTimeout,
 };

@@ -7,6 +7,42 @@ const createArenaMatch = async (userId1, userId2, leagueId) => {
     throw new AppError("Players must be different", 400);
   }
 
+  const existingActiveMatch = await prisma.arenaMatch.findFirst({
+    where: {
+      status: {
+        in: ["waiting", "playing"],
+      },
+
+      players: {
+        some: {
+          userId: userId1,
+        },
+      },
+    },
+  });
+
+  if (existingActiveMatch) {
+    throw new AppError("Player already has an active match", 400);
+  }
+
+  const opponentActiveMatch = await prisma.arenaMatch.findFirst({
+    where: {
+      status: {
+        in: ["waiting", "playing"],
+      },
+
+      players: {
+        some: {
+          userId: userId2,
+        },
+      },
+    },
+  });
+
+  if (opponentActiveMatch) {
+    throw new AppError("Opponent already has an active match", 400);
+  }
+
   const league = await prisma.arenaLeague.findUnique({
     where: {
       id: leagueId,
@@ -100,7 +136,7 @@ const createArenaMatch = async (userId1, userId2, leagueId) => {
   });
 };
 
-const getArenaMatchById = async (matchId) => {
+const getArenaMatchById = async (matchId, userId) => {
   const match = await prisma.arenaMatch.findUnique({
     where: {
       id: matchId,
@@ -169,6 +205,12 @@ const getArenaMatchById = async (matchId) => {
 
   if (!match) {
     throw new AppError("Arena match not found", 404);
+  }
+
+  const isPlayer = match.players.some((player) => player.userId === userId);
+
+  if (!isPlayer) {
+    throw new AppError("Forbidden", 403);
   }
 
   const currentQuestion = match.questions[0] || null;

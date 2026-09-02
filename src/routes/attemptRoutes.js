@@ -126,7 +126,6 @@ router.post(
 router.post(
   "/:id/submit",
   authMiddleware,
-  validate(submitAnswerSchema),
   attemptController.submitAttempt,
 );
 

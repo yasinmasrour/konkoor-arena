@@ -1,9 +1,16 @@
 const arenaMatchService = require("../services/arenaMatchService");
 const arenaTimerManager = require("./arenaTimerManager");
 const arenaSocketEvents = require("../socket/arenaSocketEvents");
+const AppError = require("../utils/appError");
 
-const startMatch = async (matchId) => {
-  const match = await arenaMatchService.getArenaMatchById(matchId);
+const startMatch = async (matchId, playerId) => {
+  const match = await arenaMatchService.getArenaMatchById(matchId, playerId);
+
+  const isPlayer = match.players.some((player) => player.userId === playerId);
+
+  if (!isPlayer) {
+    throw new AppError("Forbidden", 403);
+  }
 
   if (match.status !== "waiting") {
     throw new Error("Match cannot be started");

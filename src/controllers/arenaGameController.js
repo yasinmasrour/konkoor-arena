@@ -2,7 +2,7 @@ const arenaGameEngine = require("../arena/arenaGameEngine");
 const asyncHandler = require("../utils/asyncHandler");
 
 const startMatch = asyncHandler(async (req, res) => {
-  const result = await arenaGameEngine.startMatch(req.params.id);
+  const result = await arenaGameEngine.startMatch(req.params.id, req.user.id);
 
   res.status(200).json({
     message: "Arena match started successfully",

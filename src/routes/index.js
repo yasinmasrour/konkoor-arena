@@ -10,6 +10,8 @@ const arenaRankingRoutes = require("./arenaRankingRoutes");
 const arenaStandingRoutes = require("./arenaStandingRoutes");
 const arenaProfileRoutes = require("./arenaProfileRoutes");
 const arenaMatchHistoryRoutes = require("./arenaMatchHistoryRoutes");
+const arenaLeagueRoutes = require("./arenaLeagueRoutes");
+const arenaQueueRoutes = require("./arenaQueueRoutes");
 
 const router = express.Router();
 
@@ -30,5 +32,7 @@ router.use("/arena", arenaRankingRoutes);
 router.use("/arena/matches", arenaMatchRoutes);
 router.use("/arena", arenaStandingRoutes);
 router.use("/arena", arenaProfileRoutes);
+router.use("/arena", arenaLeagueRoutes);
+router.use("/arena/queue", arenaQueueRoutes);
 
 module.exports = router;

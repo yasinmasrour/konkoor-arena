@@ -1,0 +1,36 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700;800&display=swap");
+
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  font-family: "Vazirmatn", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #FAFAF8;
+  color: #111827;
+  font-family: var(--font-body);
+  direction: rtl;
+}
+
+.dark body {
+  background: #080b12;
+  color: #f8fafc;
+}
+
+:root {
+  --griffin-gold: #c58b2a;
+  --griffin-dark: #0f172a;
+  --griffin-bg: #fafaf8;
+  --griffin-text: #111827;
+  --griffin-purple: #8b5cf6;
+}
+
+:root {
+  --font-body: "Vazirmatn", sans-serif;
+  --font-heading: "Vazirmatn", sans-serif;
+  --font-english: "Inter", sans-serif;
+}

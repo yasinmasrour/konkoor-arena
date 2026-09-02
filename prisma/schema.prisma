@@ -44,6 +44,8 @@ model User {
 
   arenaMatchPlayers ArenaMatchPlayer[]
 
+  arenaQueues ArenaQueue[]
+
   arenaRatings ArenaRating[]
 
   arenaRatingHistory ArenaRatingHistory[]
@@ -385,6 +387,8 @@ model ArenaLeague {
 
   matches ArenaMatch[]
 
+  queues ArenaQueue[]
+
   ratings ArenaRating[]
 
   ratingHistory ArenaRatingHistory[]
@@ -485,4 +489,24 @@ model ArenaLeagueStanding {
 
   @@unique([leagueId, userId])
   @@index([leagueId, rank])
+}
+
+model ArenaQueue {
+  id String @id @default(cuid())
+
+  userId String
+  leagueId String
+
+  rating Int
+
+  status String @default("waiting")
+
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, leagueId])
+  @@index([leagueId, status, rating])
+  @@index([userId, status])
 }

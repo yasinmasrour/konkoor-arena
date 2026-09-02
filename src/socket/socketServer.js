@@ -6,6 +6,7 @@ const arenaMatchService = require("../services/arenaMatchService");
 const arenaSocketStateService = require("./arenaSocketStateService");
 const arenaSocketEvents = require("./arenaSocketEvents");
 const arenaSocketConnectionState = require("./arenaSocketConnectionState");
+const arenaGameEngine = require("../arena/arenaGameEngine");
 
 const initializeSocket = (httpServer) => {
   const io = new Server(httpServer, {
@@ -13,6 +14,8 @@ const initializeSocket = (httpServer) => {
       origin: "*",
     },
   });
+
+  global.io = io;
 
   arenaSocketEvents.on("question-started", ({ matchId, question }) => {
     const roomName = arenaSocketService.getArenaRoomName(matchId);
@@ -56,6 +59,8 @@ const initializeSocket = (httpServer) => {
   io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id} | User: ${socket.user.id}`);
 
+    arenaSocketConnectionState.addPlayerSocket(socket.user.id, socket.id);
+
     socket.on("arena:join-match", async (matchId, callback) => {
       try {
         const result = await arenaSocketService.joinMatchRoom(socket, matchId);
@@ -78,22 +83,34 @@ const initializeSocket = (httpServer) => {
       }
     });
 
+    socket.on("arena:start-match", async (matchId, callback) => {
+      try {
+        const result = await arenaGameEngine.startMatch(
+          matchId,
+          socket.user.id,
+        );
+
+        callback?.({
+          success: true,
+          ...result,
+        });
+      } catch (error) {
+        callback?.({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
     socket.on("arena:submit-answer", async (data, callback) => {
       try {
         const { matchId, matchQuestionId, selectedAnswer } = data;
 
-        const result = await arenaMatchService.submitArenaAnswer({
+        const result = await arenaGameEngine.submitAnswer({
           matchId,
           matchQuestionId,
           playerId: socket.user.id,
           selectedAnswer,
-        });
-
-        const roomName = arenaSocketService.getArenaRoomName(matchId);
-
-        io.to(roomName).emit("arena:answer-result", {
-          playerId: socket.user.id,
-          result,
         });
 
         callback?.({
@@ -101,6 +118,8 @@ const initializeSocket = (httpServer) => {
           result,
         });
       } catch (error) {
+        console.error("Arena submit answer error:", error);
+
         callback?.({
           success: false,
           message: error.message,
