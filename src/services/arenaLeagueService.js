@@ -82,7 +82,7 @@ const finishLeague = async (leagueId) => {
       },
     });
 
-    await arenaLeagueFinalizationService.finalizeLeague(leagueId);
+    await arenaLeagueFinalizationService.finalizeLeagueTx(tx, leagueId);
 
     return updatedLeague;
   });
@@ -187,105 +187,6 @@ const getFinishedLeagues = async () => {
   });
 };
 
-const getLeagueOpponents = async (leagueId, userId) => {
-  const league = await prisma.arenaLeague.findUnique({
-    where: {
-      id: leagueId,
-    },
-
-    select: {
-      id: true,
-      title: true,
-      lesson: true,
-      status: true,
-    },
-  });
-
-  if (!league) {
-    throw new AppError("League not found", 404);
-  }
-
-  if (league.status !== "active") {
-    throw new AppError("League is not active", 400);
-  }
-
-  const ratings = await prisma.arenaRating.findMany({
-    where: {
-      leagueId,
-      userId: {
-        not: userId,
-      },
-    },
-
-    select: {
-      userId: true,
-      rating: true,
-      matchesPlayed: true,
-      wins: true,
-      losses: true,
-      draws: true,
-
-      user: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-    },
-
-    orderBy: {
-      rating: "desc",
-    },
-  });
-
-  const userIds = ratings.map((item) => item.userId);
-
-  const activePlayers = await prisma.arenaMatchPlayer.findMany({
-    where: {
-      userId: {
-        in: userIds,
-      },
-
-      match: {
-        status: {
-          in: ["waiting", "playing"],
-        },
-      },
-    },
-
-    select: {
-      userId: true,
-    },
-  });
-
-  const activePlayerIds = new Set(activePlayers.map((player) => player.userId));
-
-  return {
-    league,
-
-    opponents: ratings.map((item) => ({
-      userId: item.userId,
-
-      firstName: item.user.firstName,
-
-      lastName: item.user.lastName,
-
-      rating: item.rating,
-
-      matchesPlayed: item.matchesPlayed,
-
-      wins: item.wins,
-
-      losses: item.losses,
-
-      draws: item.draws,
-
-      isAvailable: !activePlayerIds.has(item.userId),
-    })),
-  };
-};
-
 module.exports = {
   activateLeague,
   finishLeague,
@@ -293,5 +194,4 @@ module.exports = {
   getActiveLeagues,
   getUpcomingLeagues,
   getFinishedLeagues,
-  getLeagueOpponents,
 };

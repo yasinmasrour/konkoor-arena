@@ -4,7 +4,6 @@ const {
   getActiveLeagues,
   getUpcomingLeagues,
   getFinishedLeagues,
-  getLeagueOpponents,
 } = require("../controllers/arenaLeagueController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -17,6 +16,5 @@ router.get("/leagues/upcoming", authMiddleware, getUpcomingLeagues);
 
 router.get("/leagues/finished", authMiddleware, getFinishedLeagues);
 
-router.get("/leagues/:leagueId/opponents", authMiddleware, getLeagueOpponents);
 
 module.exports = router;

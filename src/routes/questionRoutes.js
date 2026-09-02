@@ -142,7 +142,12 @@ router.post(
  *       200:
  *         description: List of questions
  */
-router.get("/", authMiddleware, questionController.getQuestions);
+router.get(
+  "/",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR, ROLES.QUESTION_DESIGNER),
+  questionController.getQuestions,
+);
 
 /**
  * @swagger
@@ -163,7 +168,12 @@ router.get("/", authMiddleware, questionController.getQuestions);
  *       404:
  *         description: Question not found
  */
-router.get("/:id", authMiddleware, questionController.getQuestionById);
+router.get(
+  "/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR, ROLES.QUESTION_DESIGNER),
+  questionController.getQuestionById,
+);
 
 /**
  * @swagger

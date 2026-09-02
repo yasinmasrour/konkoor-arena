@@ -45,13 +45,24 @@ const initializeSocket = (httpServer) => {
     });
   });
 
-  arenaSocketEvents.on("match-finished", ({ matchId, winnerId, rating }) => {
+  arenaSocketEvents.on("match-finished", ({ matchId, winnerId, isDraw, rating }) => {
     const roomName = arenaSocketService.getArenaRoomName(matchId);
 
     io.to(roomName).emit("arena:match-finished", {
       winnerId,
+      isDraw,
       rating,
     });
+  });
+
+  arenaSocketEvents.on("match-state-changed", async ({ matchId }) => {
+    try {
+      const roomName = arenaSocketService.getArenaRoomName(matchId);
+      const state = await arenaSocketStateService.getMatchState(matchId);
+      io.to(roomName).emit("arena:match-state", state);
+    } catch (error) {
+      console.error("Arena match state broadcast error:", error);
+    }
   });
 
   io.use(socketAuthMiddleware);

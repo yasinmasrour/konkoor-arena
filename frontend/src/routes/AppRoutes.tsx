@@ -73,16 +73,21 @@ const router = createBrowserRouter([
         element: <AttemptReview />,
       },
       {
-        path: "/arena",
-        element: <Arena />,
-      },
-      {
-        path: "/arena/leagues/:leagueId",
-        element: <Matchmaking />,
-      },
-      {
-        path: "/arena/match/:matchId",
-        element: <Match />,
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "/arena",
+            element: <Arena />,
+          },
+          {
+            path: "/arena/leagues/:leagueId",
+            element: <Matchmaking />,
+          },
+          {
+            path: "/arena/match/:matchId",
+            element: <Match />,
+          },
+        ],
       },
     ],
   },

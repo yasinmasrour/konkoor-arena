@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { socket } from "../../socket/socket";
+import { useAuth } from "../../context/AuthContext";
 
 interface MatchQuestion {
   matchQuestionId: string;
@@ -9,6 +10,7 @@ interface MatchQuestion {
   order: number;
   timeLimit: number;
   startedAt: string | null;
+  remainingTime?: number | null;
   question: {
     id: string;
     questionText: string;
@@ -17,27 +19,46 @@ interface MatchQuestion {
   };
 }
 
+interface ArenaPlayer {
+  userId: string;
+  lives: number;
+  status?: string;
+  isWinner?: boolean;
+  firstName?: string;
+  lastName?: string;
+}
+
 interface ArenaMatch {
   id: string;
-  leagueId: string;
+  leagueId?: string;
   status: string;
+  winnerId?: string | null;
   startedAt: string | null;
-  players: {
-    userId: string;
-    lives: number;
-  }[];
+  finishedAt?: string | null;
+  players: ArenaPlayer[];
   currentQuestion: MatchQuestion | null;
 }
 
 interface AnswerResult {
-  correct: boolean;
-  selectedAnswer: number;
-  correctAnswer?: number;
+  playerId: string;
+  result: "correct" | "wrong" | "timeout";
+  isCorrect: boolean;
+  selectedAnswer: number | null;
+  responseTimeMs: number | null;
+  questionFinished: boolean;
+  playerLives: number | null;
+  opponentLives: number | null;
+  match: {
+    finished: boolean;
+    winnerId: string | null;
+    isDraw: boolean;
+  } | null;
 }
 
 const Match = () => {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [match, setMatch] = useState<ArenaMatch | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,6 +66,7 @@ const Match = () => {
 
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answerResult, setAnswerResult] = useState<AnswerResult | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   /*
    * دریافت اطلاعات اولیه Match
@@ -56,7 +78,7 @@ const Match = () => {
       try {
         const response = await api.get(`/arena/matches/${matchId}`);
 
-        setMatch(response.data);
+        setMatch(response.data.match ?? response.data);
       } catch (error: any) {
         console.error("Failed to load match:", error);
 
@@ -131,13 +153,10 @@ const Match = () => {
       });
     };
 
-    const handleAnswerResult = (data: {
-      playerId: string;
-      result: AnswerResult;
-    }) => {
+    const handleAnswerResult = (data: AnswerResult) => {
       console.log("Answer result:", data);
 
-      setAnswerResult(data.result);
+      setAnswerResult(data);
     };
 
     const handleMatchFinished = (data: any) => {
@@ -149,8 +168,13 @@ const Match = () => {
         return {
           ...previous,
           status: "finished",
+          winnerId: data.winnerId ?? null,
+          finishedAt: new Date().toISOString(),
+          currentQuestion: null,
         };
       });
+
+      setSelectedAnswer(null);
     };
 
     socket.on("connect", handleConnect);
@@ -173,6 +197,28 @@ const Match = () => {
       socket.off("arena:match-finished", handleMatchFinished);
     };
   }, [matchId]);
+
+  /*
+   * Question timer
+   */
+  useEffect(() => {
+    const question = match?.currentQuestion;
+
+    if (!question?.startedAt) {
+      setTimeLeft(0);
+      return;
+    }
+
+    const updateTimer = () => {
+      const elapsed = (Date.now() - new Date(question.startedAt!).getTime()) / 1000;
+      setTimeLeft(Math.max(0, Math.ceil(question.timeLimit - elapsed)));
+    };
+
+    updateTimer();
+    const intervalId = window.setInterval(updateTimer, 250);
+
+    return () => window.clearInterval(intervalId);
+  }, [match?.currentQuestion?.matchQuestionId, match?.currentQuestion?.startedAt, match?.currentQuestion?.timeLimit]);
 
   /*
    * شروع مسابقه
@@ -248,8 +294,9 @@ const Match = () => {
 
         {(match.players ?? []).map((player) => (
           <div key={player.userId}>
-            <p>User: {player.userId}</p>
+            <p>User: {player.firstName || player.lastName ? `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() : player.userId}</p>
             <p>Lives: {player.lives}</p>
+            {player.isWinner && <p>Winner</p>}
           </div>
         ))}
       </div>
@@ -260,6 +307,9 @@ const Match = () => {
 
       {match.currentQuestion && (
         <div>
+          <p>سؤال {match.currentQuestion.order} از ۵</p>
+          <p>زمان باقی‌مانده: {timeLeft} ثانیه</p>
+
           <h2>{match.currentQuestion.question.questionText}</h2>
 
           {match.currentQuestion.question.options.map((option, index) => {
@@ -269,7 +319,7 @@ const Match = () => {
               <button
                 key={index}
                 onClick={() => submitAnswer(index)}
-                disabled={selectedAnswer !== null}
+                disabled={selectedAnswer !== null || timeLeft <= 0}
               >
                 {String.fromCharCode(65 + index)}. {option}
                 {isSelected && " ← انتخاب شد"}
@@ -279,7 +329,7 @@ const Match = () => {
 
           {answerResult && (
             <div>
-              {answerResult.correct ? "پاسخ صحیح بود." : "پاسخ اشتباه بود."}
+              {answerResult.isCorrect ? "پاسخ صحیح بود." : "پاسخ اشتباه بود."}
             </div>
           )}
         </div>
@@ -288,6 +338,14 @@ const Match = () => {
       {match.status === "finished" && (
         <div>
           <h2>مسابقه تمام شد.</h2>
+
+          <p>
+            {match.winnerId
+              ? match.winnerId === user?.id
+                ? "تبریک! شما برنده شدید."
+                : "این مسابقه را واگذار کردید."
+              : "مسابقه مساوی شد."}
+          </p>
 
           <button onClick={() => navigate("/arena")}>بازگشت به Arena</button>
         </div>

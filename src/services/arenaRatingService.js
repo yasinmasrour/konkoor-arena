@@ -113,6 +113,15 @@ const updateRatingsAfterMatch = async (matchId) => {
       throw new AppError("Arena match must have exactly two players", 400);
     }
 
+    const ratingGate = await tx.arenaMatch.updateMany({
+      where: { id: matchId, ratingUpdated: false },
+      data: { ratingUpdated: true, ratingUpdatedAt: new Date() },
+    });
+
+    if (ratingGate.count === 0) {
+      return { alreadyUpdated: true };
+    }
+
     const player1 = match.players[0];
     const player2 = match.players[1];
 
@@ -251,11 +260,20 @@ const ensurePlayerRatings = async (leagueId, userIds) => {
 };
 
 const updateRatingsAfterMatchTx = async (tx, match) => {
-  if (match.status !== "finished") {
+  if (match.status !== "finished" || match.ratingUpdated) {
     return null;
   }
 
   const [player1, player2] = match.players;
+
+  const ratingGate = await tx.arenaMatch.updateMany({
+    where: { id: match.id, ratingUpdated: false },
+    data: { ratingUpdated: true, ratingUpdatedAt: new Date() },
+  });
+
+  if (ratingGate.count === 0) {
+    return { alreadyUpdated: true };
+  }
 
   const rating1 = await tx.arenaRating.findUnique({
     where: {

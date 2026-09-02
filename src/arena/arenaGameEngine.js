@@ -22,6 +22,8 @@ const startMatch = async (matchId, playerId) => {
 
   await arenaMatchService.startArenaMatch(matchId);
 
+  arenaSocketEvents.emit("match-started", { matchId });
+
   const question = await startQuestionWithTimer(matchId);
 
   return {
@@ -53,11 +55,19 @@ const submitAnswer = async ({
     playerId,
   });
 
+  if (result.match?.finished && !result.match.alreadyFinished) {
+    emitMatchFinished({ matchId, match: result.match });
+  }
+
   if (result.questionFinished && !result.match?.finished) {
     const nextQuestion =
       await arenaMatchService.startNextArenaQuestion(matchId);
 
-    if (!nextQuestion.matchFinished && nextQuestion.question) {
+    if (nextQuestion.matchFinished) {
+      if (nextQuestion.match && !nextQuestion.match.alreadyFinished) {
+        emitMatchFinished({ matchId, match: nextQuestion.match });
+      }
+    } else if (nextQuestion.question) {
       const payload = buildArenaQuestionPayload({
         matchQuestion: nextQuestion.question,
         question: nextQuestion.question.question,
@@ -74,12 +84,15 @@ const submitAnswer = async ({
       });
     }
 
+    emitMatchStateChanged(matchId);
+
     return {
       ...result,
       nextQuestion,
     };
   }
 
+  emitMatchStateChanged(matchId);
   return result;
 };
 
@@ -89,13 +102,29 @@ const handleQuestionTimeout = async (matchId, matchQuestionId) => {
     matchQuestionId,
   );
 
-  if (result.match?.status === "finished") {
+  if (result.match?.finished && !result.match.alreadyFinished) {
+    emitMatchFinished({
+      matchId,
+      match: result.match,
+    });
     return result;
   }
 
   const nextQuestion = await arenaMatchService.startNextArenaQuestion(matchId);
 
-  if (!nextQuestion.matchFinished && nextQuestion.question) {
+  if (nextQuestion.match?.finished && !nextQuestion.match.alreadyFinished) {
+    emitMatchFinished({
+      matchId,
+      match: nextQuestion.match,
+    });
+    return { ...result, nextQuestion };
+  }
+
+  if (nextQuestion.matchFinished) {
+    if (nextQuestion.match && !nextQuestion.match.alreadyFinished) {
+      emitMatchFinished({ matchId, match: nextQuestion.match });
+    }
+  } else if (nextQuestion.question) {
     const payload = buildArenaQuestionPayload({
       matchQuestion: nextQuestion.question,
       question: nextQuestion.question.question,
@@ -111,6 +140,8 @@ const handleQuestionTimeout = async (matchId, matchQuestionId) => {
       question: nextQuestion.question,
     });
   }
+
+  emitMatchStateChanged(matchId);
 
   return {
     ...result,
@@ -207,6 +238,19 @@ const emitAnswerResult = ({ matchId, result, playerId }) => {
     matchId,
     playerId,
     result: payload,
+  });
+};
+
+const emitMatchStateChanged = (matchId) => {
+  arenaSocketEvents.emit("match-state-changed", { matchId });
+};
+
+const emitMatchFinished = ({ matchId, match }) => {
+  arenaSocketEvents.emit("match-finished", {
+    matchId,
+    winnerId: match.winnerId ?? null,
+    isDraw: Boolean(match.isDraw),
+    rating: match.rating ?? null,
   });
 };
 

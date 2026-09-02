@@ -21,7 +21,8 @@ const startAttempt = asyncHandler(async (req, res) => {
 const getAttemptQuestions = asyncHandler(async (req, res) => {
 
     const result = await attemptService.getAttemptQuestions(
-        req.params.attemptId
+        req.params.attemptId,
+        req.user.id
     );
 
 

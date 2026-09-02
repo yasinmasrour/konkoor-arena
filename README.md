@@ -7,12 +7,12 @@ Konkoor Arena is a backend project for an Iranian educational and exam platform.
 - Node.js
 - Express.js
 - Prisma ORM
-- MongoDB
+- PostgreSQL
 - JWT
 - bcrypt
 - Zod
 - Swagger / OpenAPI
-- Socket.IO — planned for the real-time Arena section
+- Socket.IO — real-time Arena communication
 
 ## Features
 
@@ -165,7 +165,7 @@ API routes are documented through Swagger.
 
 ## Konkoor Arena
 
-The project will also include a real-time PvP section called Konkoor Arena.
+The project includes a real-time PvP section called Konkoor Arena.
 The Arena is designed around competitive exam questions.
 
 Each match will contain:
@@ -178,16 +178,13 @@ Each match will contain:
 - Real-time match state synchronization
 - Winner and draw conditions
 
-The planned Arena system will also include:
+The Arena system also includes:
 
 - Real-time matchmaking
 - Socket.IO communication
 - Player ratings
 - Seasonal leagues
 - Leaderboards
-- Bot opponents with different difficulty levels
-- Referral system
-- Rewards
 
 The real-time game system will be developed separately from the regular exam attempt system while reusing the existing question and user infrastructure where appropriate.
 
@@ -199,7 +196,7 @@ Completed areas include:
 - Project initialization
 - Express server setup
 - Backend architecture
-- MongoDB database connection
+- PostgreSQL database connection
 - User model
 - Authentication infrastructure
 - Password hashing
@@ -213,7 +210,7 @@ Completed areas include:
 - Exam attempts
 - Swagger API documentation
 
-The next major development phase is the implementation of the **Konkoor Arena** real-time PvP system.
+The next development phase is hardening the Arena game flow, reconnect handling, frontend game UI, and ranking/league integration.
 
 ## License
 

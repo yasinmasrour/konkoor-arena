@@ -24,6 +24,10 @@ const startAttempt = async (studentId, examId) => {
       throw new AppError("Exam not found", 404);
     }
 
+    if (exam.status !== "published") {
+      throw new AppError("Exam is not available", 400);
+    }
+
     const existingAttempt = await tx.attempt.findUnique({
       where: {
         studentId_examId: {
@@ -64,7 +68,7 @@ const startAttempt = async (studentId, examId) => {
   });
 };
 
-const getAttemptQuestions = async (attemptId) => {
+const getAttemptQuestions = async (attemptId, userId) => {
   const attempt = await prisma.attempt.findUnique({
     where: {
       id: attemptId,
@@ -97,6 +101,10 @@ const getAttemptQuestions = async (attemptId) => {
 
   if (!attempt) {
     throw new AppError("Attempt not found", 404);
+  }
+
+  if (attempt.studentId !== userId) {
+    throw new AppError("Forbidden", 403);
   }
 
   const questions = attempt.exam.booklets.flatMap((examBooklet) =>
@@ -154,6 +162,10 @@ const submitAnswer = async (attemptId, userId, data) => {
 
     if (attempt.studentId !== userId) {
       throw new AppError("Forbidden", 403);
+    }
+
+    if (attempt.status === "submitted") {
+      throw new AppError("Attempt already submitted", 400);
     }
 
     const questionExists = attempt.exam.booklets.some((examBooklet) =>
@@ -245,21 +257,9 @@ const submitAttempt = async (attemptId, userId) => {
     (answer) => !answer.isCorrect && answer.selectedAnswer !== null,
   ).length;
 
-  const unansweredQuestions = await prisma.bookletQuestion.count({
-    where: {
-      booklet: {
-        examBooklets: {
-          some: {
-            examId: attempt.examId,
-          },
-        },
-      },
-
-      questionId: {
-        notIn: attempt.answers.map((answer) => answer.questionId),
-      },
-    },
-  });
+  const unansweredQuestions = attempt.answers.filter(
+    (answer) => answer.selectedAnswer === null,
+  ).length;
 
   const negativeScore = Math.floor(wrongAnswers / 3);
 

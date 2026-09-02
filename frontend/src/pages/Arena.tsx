@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Swords } from "lucide-react";
 
-import { getActiveLeagues } from "../services/arenaService";
+import { getActiveLeagues } from "../api/arenaApi";
 import type { ArenaLeague } from "../types/arena";
 
 import { useNavigate } from "react-router-dom";

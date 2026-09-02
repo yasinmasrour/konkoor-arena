@@ -2,6 +2,25 @@ const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const arenaRatingService = require("./arenaRatingService");
 
+const runArenaTransaction = async (callback) => {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(callback, {
+        isolationLevel: "Serializable",
+        maxWait: 5000,
+        timeout: 10000,
+      });
+    } catch (error) {
+      // PostgreSQL can abort one of two truly simultaneous Arena actions
+      // under Serializable isolation. Retrying makes the action naturally
+      // converge on the committed match/question state.
+      if (error?.code !== "P2034" || attempt === 3) {
+        throw error;
+      }
+    }
+  }
+};
+
 const createArenaMatch = async (userId1, userId2, leagueId) => {
   if (userId1 === userId2) {
     throw new AppError("Players must be different", 400);
@@ -81,6 +100,7 @@ const createArenaMatch = async (userId1, userId2, leagueId) => {
   const questions = await prisma.question.findMany({
     where: {
       status: "published",
+      lesson: league.lesson,
     },
     select: {
       id: true,
@@ -198,6 +218,15 @@ const getArenaMatchById = async (matchId, userId) => {
           startedAt: true,
 
           status: true,
+
+          question: {
+            select: {
+              id: true,
+              questionText: true,
+              questionImage: true,
+              options: true,
+            },
+          },
         },
       },
     },
@@ -254,74 +283,17 @@ const getArenaMatchById = async (matchId, userId) => {
 
     currentQuestion: currentQuestion
       ? {
-          ...currentQuestion,
+          matchQuestionId: currentQuestion.id,
+          questionId: currentQuestion.questionId,
+          order: currentQuestion.order,
+          timeLimit: currentQuestion.timeLimit,
+          startedAt: currentQuestion.startedAt,
+          status: currentQuestion.status,
           remainingTime,
+          question: currentQuestion.question,
         }
       : null,
   };
-};
-
-const startArenaQuestion = async (matchId, matchQuestionId) => {
-  const matchQuestion = await prisma.arenaMatchQuestion.findUnique({
-    where: {
-      id: matchQuestionId,
-    },
-
-    include: {
-      match: true,
-    },
-  });
-
-  if (!matchQuestion) {
-    throw new AppError("Match question not found", 404);
-  }
-
-  if (matchQuestion.matchId !== matchId) {
-    throw new AppError("Match question does not belong to this match", 400);
-  }
-
-  if (matchQuestion.match.status !== "playing") {
-    throw new AppError("Match is not playing", 400);
-  }
-
-  if (matchQuestion.status !== "pending") {
-    throw new AppError("Question has already started or finished", 400);
-  }
-
-  const startedAt = new Date();
-
-  return await prisma.arenaMatchQuestion.update({
-    where: {
-      id: matchQuestionId,
-    },
-
-    data: {
-      status: "active",
-      startedAt,
-    },
-
-    select: {
-      id: true,
-      matchId: true,
-      questionId: true,
-      order: true,
-      timeLimit: true,
-      status: true,
-      startedAt: true,
-      finishedAt: true,
-      winnerId: true,
-
-      question: {
-        select: {
-          id: true,
-          questionText: true,
-          questionImage: true,
-          options: true,
-          correctAnswer: true,
-        },
-      },
-    },
-  });
 };
 
 const startArenaMatch = async (matchId) => {
@@ -383,141 +355,127 @@ const submitArenaAnswer = async ({
   playerId,
   selectedAnswer,
 }) => {
-  return await prisma.$transaction(async (tx) => {
-    const matchQuestion = await tx.arenaMatchQuestion.findUnique({
-      where: {
-        id: matchQuestionId,
-      },
-
-      include: {
-        match: {
-          include: {
-            players: true,
-          },
-        },
-
-        question: {
-          select: {
-            id: true,
-            correctAnswer: true,
-          },
-        },
-      },
-    });
-
-    if (!matchQuestion) {
-      throw new AppError("Match question not found", 404);
-    }
-
-    if (matchQuestion.matchId !== matchId) {
-      throw new AppError("Match question does not belong to this match", 400);
-    }
-
-    if (matchQuestion.status !== "active") {
-      throw new AppError("Question is not active", 400);
-    }
-
-    const match = matchQuestion.match;
-
-    if (match.status !== "playing") {
-      throw new AppError("Match is not playing", 400);
-    }
-
-    const player = match.players.find((item) => item.userId === playerId);
-
-    if (!player) {
-      throw new AppError("Player is not part of this match", 403);
-    }
-
-    const existingAnswer = await tx.arenaAnswer.findUnique({
-      where: {
-        matchQuestionId_playerId: {
-          matchQuestionId,
-          playerId,
-        },
-      },
-    });
-
-    if (existingAnswer) {
-      throw new AppError("You have already answered this question", 400);
-    }
-
-    if (player.status !== "playing") {
-      throw new AppError("Player is not active", 400);
-    }
-
-    if (!matchQuestion.startedAt) {
-      throw new AppError("Question has not started", 400);
-    }
-
-    const now = new Date();
-
-    const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
-
-    const timeLimitMs = matchQuestion.timeLimit * 1000;
-
-    if (elapsedMs >= timeLimitMs) {
-      throw new AppError("Question time has expired", 400);
-    }
-
-    const isCorrect = selectedAnswer === matchQuestion.question.correctAnswer;
-
-    const responseTimeMs = elapsedMs;
-
-    const answer = await tx.arenaAnswer.create({
-      data: {
-        matchQuestionId,
-        playerId,
-        selectedAnswer,
-        isCorrect,
-        answeredAt: now,
-        responseTimeMs,
-      },
-    });
-
-    const opponent = match.players.find((item) => item.userId !== playerId);
-
-    if (!opponent) {
-      throw new AppError("Opponent not found", 400);
-    }
-
-    if (isCorrect) {
-      const opponentAnswer = await tx.arenaAnswer.findUnique({
-        where: {
-          matchQuestionId_playerId: {
-            matchQuestionId,
-            playerId: opponent.userId,
-          },
+  return await runArenaTransaction(async (tx) => {
+      const matchQuestion = await tx.arenaMatchQuestion.findUnique({
+        where: { id: matchQuestionId },
+        include: {
+          match: { include: { players: true } },
+          question: { select: { id: true, correctAnswer: true } },
+          answers: true,
         },
       });
 
-      const opponentLives = opponentAnswer
-        ? opponent.lives
-        : Math.max(opponent.lives - 1, 0);
-
-      if (!opponentAnswer) {
-        await tx.arenaMatchPlayer.update({
-          where: {
-            id: opponent.id,
-          },
-
-          data: {
-            lives: opponentLives,
-          },
-        });
+      if (!matchQuestion) throw new AppError("Match question not found", 404);
+      if (matchQuestion.matchId !== matchId) {
+        throw new AppError("Match question does not belong to this match", 400);
+      }
+      if (matchQuestion.status !== "active") {
+        throw new AppError("Question is not active", 400);
       }
 
-      await tx.arenaMatchQuestion.update({
-        where: {
-          id: matchQuestionId,
-        },
+      const match = matchQuestion.match;
+      if (match.status !== "playing") throw new AppError("Match is not playing", 400);
 
+      const player = match.players.find((item) => item.userId === playerId);
+      if (!player) throw new AppError("Player is not part of this match", 403);
+      if (player.status !== "playing") throw new AppError("Player is not active", 400);
+
+      if (matchQuestion.answers.some((answer) => answer.playerId === playerId)) {
+        throw new AppError("You have already answered this question", 400);
+      }
+
+      if (!matchQuestion.startedAt) throw new AppError("Question has not started", 400);
+
+      const now = new Date();
+      const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
+      if (elapsedMs >= matchQuestion.timeLimit * 1000) {
+        throw new AppError("Question time has expired", 400);
+      }
+
+      const isCorrect = selectedAnswer === matchQuestion.question.correctAnswer;
+      const answer = await tx.arenaAnswer.create({
+        data: {
+          matchQuestionId,
+          playerId,
+          selectedAnswer,
+          isCorrect,
+          answeredAt: now,
+          responseTimeMs: elapsedMs,
+        },
+      });
+
+      const opponent = match.players.find((item) => item.userId !== playerId);
+      if (!opponent) throw new AppError("Opponent not found", 400);
+
+      const opponentAnswer = matchQuestion.answers.find(
+        (item) => item.playerId === opponent.userId,
+      );
+
+      if (!isCorrect) {
+        // Wrong answers only lock the player for this question. No life is lost.
+        await tx.arenaMatchPlayer.update({
+          where: { id: player.id },
+          data: { status: "locked" },
+        });
+
+        if (!opponentAnswer) {
+          return {
+            answer,
+            result: "wrong",
+            questionFinished: false,
+            playerLives: player.lives,
+            opponentLives: opponent.lives,
+            match: null,
+          };
+        }
+
+        const finishedGate = await tx.arenaMatchQuestion.updateMany({
+          where: { id: matchQuestionId, status: "active" },
+          data: { status: "finished", finishedAt: now },
+        });
+
+        if (finishedGate.count === 0) {
+          throw new AppError("Question is no longer active", 409);
+        }
+
+        const matchResult = await finishArenaMatch(tx, match.id);
+        return {
+          answer,
+          result: "wrong",
+          questionFinished: true,
+          playerLives: player.lives,
+          opponentLives: opponent.lives,
+          match: matchResult,
+        };
+      }
+
+      // The first correct answer atomically claims the active question.
+      const finishedGate = await tx.arenaMatchQuestion.updateMany({
+        where: { id: matchQuestionId, status: "active" },
         data: {
           status: "finished",
           finishedAt: now,
           winnerId: playerId,
         },
       });
+
+      if (finishedGate.count === 0) {
+        throw new AppError("Question is no longer active", 409);
+      }
+
+      // A correct answer costs the opponent a life only when they had not
+      // answered yet. A wrong answer itself never removes a life.
+      let opponentLives = opponent.lives;
+      if (!opponentAnswer) {
+        opponentLives = Math.max(opponent.lives - 1, 0);
+        await tx.arenaMatchPlayer.update({
+          where: { id: opponent.id },
+          data: {
+            lives: opponentLives,
+            status: opponentLives > 0 ? "locked" : "eliminated",
+          },
+        });
+      }
 
       const matchResult = await finishArenaMatch(tx, match.id);
 
@@ -529,89 +487,19 @@ const submitArenaAnswer = async ({
         opponentLives,
         match: matchResult,
       };
-    }
-
-    const playerLives = Math.max(player.lives - 1, 0);
-
-    await tx.arenaMatchPlayer.update({
-      where: {
-        id: player.id,
-      },
-
-      data: {
-        status: "locked",
-        lives: playerLives,
-      },
     });
-
-    const opponentAnswer = await tx.arenaAnswer.findUnique({
-      where: {
-        matchQuestionId_playerId: {
-          matchQuestionId,
-          playerId: opponent.userId,
-        },
-      },
-    });
-
-    if (!opponentAnswer) {
-      return {
-        answer,
-        result: "wrong",
-        questionFinished: false,
-        playerLives,
-        opponentLives: opponent.lives,
-        match: null,
-      };
-    }
-
-    await tx.arenaMatchPlayer.update({
-      where: {
-        id: opponent.id,
-      },
-
-      data: {
-        status: "locked",
-      },
-    });
-
-    await tx.arenaMatchQuestion.update({
-      where: {
-        id: matchQuestionId,
-      },
-
-      data: {
-        status: "finished",
-        finishedAt: now,
-      },
-    });
-
-    const matchResult = await finishArenaMatch(tx, match.id);
-
-    return {
-      answer,
-      result: "wrong",
-      questionFinished: true,
-      playerLives,
-      opponentLives: opponent.lives,
-      match: matchResult,
-    };
-  });
 };
 
-const finishArenaMatch = async (tx, matchId) => {
+const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
   const match = await tx.arenaMatch.findUnique({
-    where: {
-      id: matchId,
-    },
-
+    where: { id: matchId },
     include: {
       players: true,
+      questions: { select: { status: true, winnerId: true } },
     },
   });
 
-  if (!match) {
-    throw new AppError("Arena match not found", 404);
-  }
+  if (!match) throw new AppError("Arena match not found", 404);
 
   if (match.status === "finished") {
     return {
@@ -628,313 +516,227 @@ const finishArenaMatch = async (tx, matchId) => {
   }
 
   const [player1, player2] = match.players;
-
   let winnerId = null;
 
   if (player1.lives <= 0 && player2.lives <= 0) {
-    await tx.arenaMatchPlayer.updateMany({
-      where: {
-        matchId,
-      },
-
-      data: {
-        status: "draw",
-        isWinner: false,
-      },
-    });
+    // Draw.
   } else if (player1.lives <= 0) {
     winnerId = player2.userId;
-
-    await tx.arenaMatchPlayer.update({
-      where: {
-        id: player1.id,
-      },
-
-      data: {
-        status: "eliminated",
-        isWinner: false,
-      },
-    });
-
-    await tx.arenaMatchPlayer.update({
-      where: {
-        id: player2.id,
-      },
-
-      data: {
-        status: "winner",
-        isWinner: true,
-      },
-    });
   } else if (player2.lives <= 0) {
     winnerId = player1.userId;
-
-    await tx.arenaMatchPlayer.update({
-      where: {
-        id: player2.id,
-      },
-
-      data: {
-        status: "eliminated",
-        isWinner: false,
-      },
-    });
-
-    await tx.arenaMatchPlayer.update({
-      where: {
-        id: player1.id,
-      },
-
-      data: {
-        status: "winner",
-        isWinner: true,
-      },
-    });
+  } else if (forceFinish) {
+    // After all five questions: remaining lives are the primary score.
+    // Question wins break a tie. If both are still equal, it is a draw.
+    if (player1.lives > player2.lives) {
+      winnerId = player1.userId;
+    } else if (player2.lives > player1.lives) {
+      winnerId = player2.userId;
+    } else {
+      const wins1 = match.questions.filter((q) => q.winnerId === player1.userId).length;
+      const wins2 = match.questions.filter((q) => q.winnerId === player2.userId).length;
+      if (wins1 > wins2) winnerId = player1.userId;
+      else if (wins2 > wins1) winnerId = player2.userId;
+    }
   }
 
-  if (!winnerId && player1.lives > 0 && player2.lives > 0) {
+  if (!winnerId && player1.lives > 0 && player2.lives > 0 && !forceFinish) {
+    return { finished: false, winnerId: null, isDraw: false, rating: null };
+  }
+
+  const finishedAt = new Date();
+  const finishedGate = await tx.arenaMatch.updateMany({
+    where: { id: matchId, status: "playing" },
+    data: { status: "finished", winnerId, finishedAt },
+  });
+
+  if (finishedGate.count === 0) {
+    const currentMatch = await tx.arenaMatch.findUnique({ where: { id: matchId } });
     return {
-      finished: false,
-      winnerId: null,
-      isDraw: false,
+      finished: currentMatch?.status === "finished",
+      winnerId: currentMatch?.winnerId ?? null,
+      isDraw: !currentMatch?.winnerId,
+      alreadyFinished: true,
       rating: null,
     };
   }
 
-  const finishedAt = new Date();
+  if (!winnerId) {
+    await tx.arenaMatchPlayer.updateMany({
+      where: { matchId },
+      data: { status: "draw", isWinner: false },
+    });
+  } else {
+    await tx.arenaMatchPlayer.update({
+      where: { id: player1.id },
+      data: {
+        status: player1.userId === winnerId ? "winner" : "eliminated",
+        isWinner: player1.userId === winnerId,
+      },
+    });
+    await tx.arenaMatchPlayer.update({
+      where: { id: player2.id },
+      data: {
+        status: player2.userId === winnerId ? "winner" : "eliminated",
+        isWinner: player2.userId === winnerId,
+      },
+    });
+  }
 
-  const finishedMatch = await tx.arenaMatch.update({
-    where: {
-      id: matchId,
-    },
-
-    data: {
-      status: "finished",
-      winnerId,
-      finishedAt,
-    },
-
-    include: {
-      players: true,
-    },
+  const finishedMatch = await tx.arenaMatch.findUnique({
+    where: { id: matchId },
+    include: { players: true },
   });
 
-  const rating = await arenaRatingService.updateRatingsAfterMatchTx(
-    tx,
-    finishedMatch,
-  );
+  const rating = await arenaRatingService.updateRatingsAfterMatchTx(tx, finishedMatch);
 
-  return {
-    finished: true,
-    winnerId,
-    isDraw: !winnerId,
-    rating,
-  };
+  return { finished: true, winnerId, isDraw: !winnerId, rating };
 };
 
 const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
-  return await prisma.$transaction(async (tx) => {
-    const matchQuestion = await tx.arenaMatchQuestion.findUnique({
-      where: {
-        id: matchQuestionId,
-      },
-
-      include: {
-        match: {
-          include: {
-            players: true,
-          },
-        },
-
-        answers: true,
-      },
-    });
-
-    if (!matchQuestion) {
-      throw new AppError("Match question not found", 404);
-    }
-
-    if (matchQuestion.matchId !== matchId) {
-      throw new AppError("Match question does not belong to this match", 400);
-    }
-
-    if (matchQuestion.status !== "active") {
-      throw new AppError("Question is not active", 400);
-    }
-
-    if (!matchQuestion.startedAt) {
-      throw new AppError("Question has not started", 400);
-    }
-
-    if (matchQuestion.match.status !== "playing") {
-      throw new AppError("Match is not playing", 400);
-    }
-
-    const now = new Date();
-    const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
-    const timeLimitMs = matchQuestion.timeLimit * 1000;
-
-    if (elapsedMs < timeLimitMs) {
-      throw new AppError("Question time has not expired", 400);
-    }
-
-    const players = matchQuestion.match.players;
-
-    if (players.length !== 2) {
-      throw new AppError("Invalid number of players", 400);
-    }
-
-    const answeredPlayerIds = new Set(
-      matchQuestion.answers.map((answer) => answer.playerId),
-    );
-
-    const playersToLoseLife = players.filter(
-      (player) => !answeredPlayerIds.has(player.userId),
-    );
-
-    for (const player of playersToLoseLife) {
-      await tx.arenaMatchPlayer.update({
-        where: {
-          id: player.id,
-        },
-
-        data: {
-          lives: Math.max(player.lives - 1, 0),
-          status: "playing",
+  return await runArenaTransaction(async (tx) => {
+      const matchQuestion = await tx.arenaMatchQuestion.findUnique({
+        where: { id: matchQuestionId },
+        include: {
+          match: { include: { players: true } },
+          answers: true,
         },
       });
-    }
 
-    await tx.arenaMatchQuestion.update({
-      where: {
-        id: matchQuestionId,
-      },
+      if (!matchQuestion) throw new AppError("Match question not found", 404);
+      if (matchQuestion.matchId !== matchId) {
+        throw new AppError("Match question does not belong to this match", 400);
+      }
+      if (matchQuestion.status !== "active") {
+        throw new AppError("Question is not active", 409);
+      }
+      if (!matchQuestion.startedAt) throw new AppError("Question has not started", 400);
+      if (matchQuestion.match.status !== "playing") {
+        throw new AppError("Match is not playing", 400);
+      }
 
-      data: {
-        status: "finished",
-        finishedAt: now,
-      },
+      const now = new Date();
+      const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
+      if (elapsedMs < matchQuestion.timeLimit * 1000) {
+        throw new AppError("Question time has not expired", 400);
+      }
+
+      if (matchQuestion.match.players.length !== 2) {
+        throw new AppError("Invalid number of players", 400);
+      }
+
+      const answeredPlayerIds = new Set(
+        matchQuestion.answers.map((answer) => answer.playerId),
+      );
+
+      // Claim the active question before mutating lives so a duplicate timeout
+      // callback can never deduct lives twice.
+      const finishedGate = await tx.arenaMatchQuestion.updateMany({
+        where: { id: matchQuestionId, status: "active" },
+        data: { status: "finished", finishedAt: now },
+      });
+
+      if (finishedGate.count === 0) {
+        throw new AppError("Question is no longer active", 409);
+      }
+
+      const playersWhoLostLife = [];
+
+      for (const player of matchQuestion.match.players) {
+        if (!answeredPlayerIds.has(player.userId)) {
+          const lives = Math.max(player.lives - 1, 0);
+          await tx.arenaMatchPlayer.update({
+            where: { id: player.id },
+            data: {
+              lives,
+              status: lives > 0 ? "playing" : "eliminated",
+            },
+          });
+          playersWhoLostLife.push({ playerId: player.userId, lives });
+        }
+      }
+
+      const matchResult = await finishArenaMatch(tx, matchQuestion.match.id);
+
+      return {
+        questionFinished: true,
+        result: "timeout",
+        playersWhoLostLife,
+        match: matchResult,
+      };
     });
-
-    const matchResult = await finishArenaMatch(tx, matchQuestion.match.id);
-
-    return {
-      questionFinished: true,
-      result: "timeout",
-      playersWhoLostLife: playersToLoseLife.map((player) => ({
-        playerId: player.userId,
-        lives: Math.max(player.lives - 1, 0),
-      })),
-      match: matchResult,
-    };
-  });
 };
 
 const startNextArenaQuestion = async (matchId) => {
-  return await prisma.$transaction(async (tx) => {
-    const match = await tx.arenaMatch.findUnique({
-      where: {
-        id: matchId,
-      },
+  return await runArenaTransaction(async (tx) => {
+      const match = await tx.arenaMatch.findUnique({
+        where: { id: matchId },
+        include: { questions: { orderBy: { order: "asc" } } },
+      });
 
-      include: {
-        questions: {
-          orderBy: {
-            order: "asc",
+      if (!match) throw new AppError("Match not found", 404);
+
+      if (match.status !== "playing") {
+        return {
+          matchFinished: match.status === "finished",
+          question: null,
+          match: match.status === "finished"
+            ? {
+                finished: true,
+                winnerId: match.winnerId,
+                isDraw: !match.winnerId,
+                alreadyFinished: true,
+                rating: null,
+              }
+            : null,
+        };
+      }
+
+      const nextQuestion = match.questions.find((q) => q.status === "pending");
+
+      if (!nextQuestion) {
+        const matchResult = await finishArenaMatch(tx, matchId, { forceFinish: true });
+        return { matchFinished: true, question: null, match: matchResult };
+      }
+
+      const startedAt = new Date();
+
+      await tx.arenaMatchPlayer.updateMany({
+        where: { matchId, lives: { gt: 0 } },
+        data: { status: "playing" },
+      });
+
+      const startedQuestion = await tx.arenaMatchQuestion.update({
+        where: { id: nextQuestion.id },
+        data: { status: "active", startedAt },
+        select: {
+          id: true,
+          matchId: true,
+          questionId: true,
+          order: true,
+          timeLimit: true,
+          status: true,
+          startedAt: true,
+          finishedAt: true,
+          winnerId: true,
+          question: {
+            select: {
+              id: true,
+              questionText: true,
+              questionImage: true,
+              options: true,
+              correctAnswer: true,
+            },
           },
-        },
-      },
-    });
-
-    if (!match) {
-      throw new AppError("Match not found", 404);
-    }
-
-    if (match.status !== "playing") {
-      throw new AppError("Match is not playing", 400);
-    }
-
-    const nextQuestion = match.questions.find(
-      (question) => question.status === "pending",
-    );
-
-    if (!nextQuestion) {
-      await tx.arenaMatch.update({
-        where: {
-          id: matchId,
-        },
-
-        data: {
-          status: "finished",
-          finishedAt: new Date(),
         },
       });
 
-      return {
-        matchFinished: true,
-        question: null,
-      };
-    }
-
-    const startedAt = new Date();
-
-    await tx.arenaMatchPlayer.updateMany({
-      where: {
-        matchId,
-        lives: {
-          gt: 0,
-        },
-      },
-
-      data: {
-        status: "playing",
-      },
+      return { matchFinished: false, question: startedQuestion, match: null };
     });
-
-    const startedQuestion = await tx.arenaMatchQuestion.update({
-      where: {
-        id: nextQuestion.id,
-      },
-
-      data: {
-        status: "active",
-        startedAt,
-      },
-
-      select: {
-        id: true,
-        matchId: true,
-        questionId: true,
-        order: true,
-        timeLimit: true,
-        status: true,
-        startedAt: true,
-        finishedAt: true,
-        winnerId: true,
-
-        question: {
-          select: {
-            id: true,
-            questionText: true,
-            questionImage: true,
-            options: true,
-            correctAnswer: true,
-          },
-        },
-      },
-    });
-
-    return {
-      matchFinished: false,
-      question: startedQuestion,
-    };
-  });
 };
 
 module.exports = {
   createArenaMatch,
   getArenaMatchById,
-  startArenaQuestion,
   startArenaMatch,
   finishArenaMatch,
   submitArenaAnswer,

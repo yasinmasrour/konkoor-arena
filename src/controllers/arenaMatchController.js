@@ -1,19 +1,5 @@
 const arenaMatchService = require("../services/arenaMatchService");
 const asyncHandler = require("../utils/asyncHandler");
-const arenaSocketEvents = require("../socket/arenaSocketEvents");
-
-const createMatch = asyncHandler(async (req, res) => {
-  const match = await arenaMatchService.createArenaMatch(
-    req.user.id,
-    req.body.opponentId,
-    req.body.leagueId,
-  );
-
-  res.status(201).json({
-    message: "Arena match created successfully",
-    match,
-  });
-});
 
 const getMatchById = asyncHandler(async (req, res) => {
   const match = await arenaMatchService.getArenaMatchById(
@@ -27,6 +13,5 @@ const getMatchById = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  createMatch,
   getMatchById,
 };

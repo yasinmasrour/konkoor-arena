@@ -2,14 +2,17 @@ import api from "./axios";
 
 export interface ArenaLeague {
   id: string;
-  name: string;
+  title: string;
+  lesson: string;
   status: string;
   startDate: string;
   endDate: string;
 }
 
-export const getActiveLeagues = async (): Promise<ArenaLeague[]> => {
-  const response = await api.get("/arena/leagues/active");
+export const getActiveLeagues = async (): Promise<{ leagues: ArenaLeague[] }> => {
+  const response = await api.get<{ leagues: ArenaLeague[] }>(
+    "/arena/leagues/active",
+  );
 
   return response.data;
 };

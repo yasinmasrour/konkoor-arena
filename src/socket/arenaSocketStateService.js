@@ -13,6 +13,12 @@ const getMatchState = async (matchId) => {
           lives: true,
           status: true,
           isWinner: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
         },
       },
 
@@ -34,6 +40,14 @@ const getMatchState = async (matchId) => {
           timeLimit: true,
           status: true,
           startedAt: true,
+          question: {
+            select: {
+              id: true,
+              questionText: true,
+              questionImage: true,
+              options: true,
+            },
+          },
         },
       },
     },
@@ -58,15 +72,29 @@ const getMatchState = async (matchId) => {
   return {
     matchId: match.id,
     status: match.status,
+    winnerId: match.winnerId,
     startedAt: match.startedAt,
     finishedAt: match.finishedAt,
 
-    players: match.players,
+    players: match.players.map((player) => ({
+      userId: player.userId,
+      lives: player.lives,
+      status: player.status,
+      isWinner: player.isWinner,
+      firstName: player.user.firstName,
+      lastName: player.user.lastName,
+    })),
 
     currentQuestion: currentQuestion
       ? {
-          ...currentQuestion,
+          matchQuestionId: currentQuestion.id,
+          questionId: currentQuestion.questionId,
+          order: currentQuestion.order,
+          timeLimit: currentQuestion.timeLimit,
+          startedAt: currentQuestion.startedAt,
+          status: currentQuestion.status,
           remainingTime,
+          question: currentQuestion.question,
         }
       : null,
   };
