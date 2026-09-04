@@ -208,8 +208,9 @@ const buildArenaQuestionPayload = ({ matchQuestion, question }) => {
   };
 };
 
-const buildArenaAnswerResultPayload = ({ result, playerId }) => {
+const buildArenaAnswerResultPayload = ({ result, playerId, matchId }) => {
   return {
+    matchId,
     playerId,
     result: result.result,
     isCorrect: result.answer.isCorrect,
@@ -232,6 +233,7 @@ const emitAnswerResult = ({ matchId, result, playerId }) => {
   const payload = buildArenaAnswerResultPayload({
     result,
     playerId,
+    matchId,
   });
 
   arenaSocketEvents.emit("answer-result", {

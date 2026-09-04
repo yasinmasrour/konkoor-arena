@@ -16,6 +16,8 @@ interface User {
   lastName: string;
 
   email: string;
+
+  role: string;
 }
 
 interface AuthContextType {
@@ -49,14 +51,17 @@ export const AuthProvider = ({ children }: Props) => {
     const savedUser = localStorage.getItem("user");
 
     if (savedToken) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setToken(savedToken);
       connectSocket(savedToken);
     }
 
     if (savedUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUser(JSON.parse(savedUser));
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(false);
   }, []);
 
@@ -99,6 +104,7 @@ export const AuthProvider = ({ children }: Props) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
 

@@ -1,4 +1,5 @@
 import { ClipboardList, Swords, BookOpen, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const actions = [
   {
@@ -31,6 +32,8 @@ const actions = [
 ];
 
 const QuickActions = () => {
+  const navigate = useNavigate();
+
   return (
     <section>
       <h2
@@ -59,6 +62,12 @@ const QuickActions = () => {
           return (
             <div
               key={item.title}
+              onClick={() => navigate(item.path)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") navigate(item.path);
+              }}
               className="
                   rounded-3xl
                   p-6

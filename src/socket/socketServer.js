@@ -2,16 +2,19 @@ const { Server } = require("socket.io");
 
 const socketAuthMiddleware = require("./socketAuthMiddleware");
 const arenaSocketService = require("./arenaSocketService");
-const arenaMatchService = require("../services/arenaMatchService");
 const arenaSocketStateService = require("./arenaSocketStateService");
 const arenaSocketEvents = require("./arenaSocketEvents");
 const arenaSocketConnectionState = require("./arenaSocketConnectionState");
 const arenaGameEngine = require("../arena/arenaGameEngine");
+const arenaSocketPresence = require("./arenaSocketPresence");
+const { corsOrigins } = require("../config/env");
+const arenaStickerService = require("./arenaStickerService");
 
 const initializeSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
-      origin: "*",
+      origin: corsOrigins,
+      credentials: corsOrigins !== "*",
     },
   });
 
@@ -24,17 +27,17 @@ const initializeSocket = (httpServer) => {
   });
 
   arenaSocketEvents.on("answer-result", ({ playerId, result }) => {
-    const socketId = arenaSocketConnectionState.getPlayerSocket(playerId);
-
-    if (!socketId) {
-      console.log("ANSWER RESULT - PLAYER SOCKET NOT FOUND", {
+    if (!arenaSocketService.emitToMatchPlayer(
+      result.matchId,
+      playerId,
+      "arena:answer-result",
+      result,
+    )) {
+      console.log("ANSWER RESULT - SOCKET SERVER NOT READY", {
         playerId,
+        matchId: result.matchId,
       });
-
-      return;
     }
-
-    io.to(socketId).emit("arena:answer-result", result);
   });
 
   arenaSocketEvents.on("match-started", ({ matchId }) => {
@@ -69,14 +72,18 @@ const initializeSocket = (httpServer) => {
 
   io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id} | User: ${socket.user.id}`);
+    arenaSocketPresence.addSocket(socket.user.id, socket.id);
 
-    arenaSocketConnectionState.addPlayerSocket(socket.user.id, socket.id);
+    socket.join(arenaSocketConnectionState.getPlayerRoomName(socket.user.id));
 
     socket.on("arena:join-match", async (matchId, callback) => {
       try {
         const result = await arenaSocketService.joinMatchRoom(socket, matchId);
 
-        arenaSocketConnectionState.addPlayerSocket(socket.user.id, socket.id);
+        io.to(arenaSocketService.getArenaRoomName(matchId)).emit("arena:player-presence", {
+          userId: socket.user.id,
+          online: true,
+        });
 
         const state = await arenaSocketStateService.getMatchState(matchId);
 
@@ -138,9 +145,73 @@ const initializeSocket = (httpServer) => {
       }
     });
 
+    socket.on("arena:send-sticker", async (data, callback) => {
+      try {
+        const { matchId, stickerId } = data ?? {};
+        const result = await arenaStickerService.sendSticker({
+          socket,
+          matchId,
+          stickerId,
+        });
+
+        callback?.({
+          success: true,
+          ...result,
+        });
+      } catch (error) {
+        callback?.({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    socket.on("arena:network-ping", (data, callback) => {
+      callback?.({
+        success: true,
+        serverTime: Date.now(),
+      });
+    });
+
+    socket.on("arena:network-quality", (data, callback) => {
+      try {
+        const { matchId, latencyMs } = data ?? {};
+        const parsedLatency = Number(latencyMs);
+
+        if (!matchId || !Number.isFinite(parsedLatency) || parsedLatency < 0 || parsedLatency > 10000) {
+          callback?.({ success: false, message: "Invalid network quality data." });
+          return;
+        }
+
+        if (!arenaSocketPresence.isUserInMatch(socket.user.id, matchId)) {
+          callback?.({ success: false, message: "You are not connected to this match." });
+          return;
+        }
+
+        const quality = require("./socketNetworkQuality").buildNetworkQuality(parsedLatency);
+        const roomName = arenaSocketService.getArenaRoomName(matchId);
+
+        io.to(roomName).emit("arena:network-quality", {
+          userId: socket.user.id,
+          ...quality,
+        });
+
+        callback?.({ success: true });
+      } catch (error) {
+        callback?.({ success: false, message: error.message });
+      }
+    });
+
     socket.on("arena:leave-match", async (matchId, callback) => {
       try {
         const result = await arenaSocketService.leaveMatchRoom(socket, matchId);
+
+        if (!arenaSocketPresence.isUserInMatch(socket.user.id, matchId)) {
+          io.to(arenaSocketService.getArenaRoomName(matchId)).emit("arena:player-presence", {
+            userId: socket.user.id,
+            online: false,
+          });
+        }
 
         callback?.({
           success: true,
@@ -155,7 +226,20 @@ const initializeSocket = (httpServer) => {
     });
 
     socket.on("disconnect", () => {
-      arenaSocketConnectionState.removePlayerSocket(socket.user.id, socket.id);
+      arenaStickerService.cleanupSocket(socket.id);
+      const matchIds = arenaSocketPresence.removeSocketCompletely(
+        socket.user.id,
+        socket.id,
+      );
+
+      for (const matchId of matchIds) {
+        if (!arenaSocketPresence.isUserInMatch(socket.user.id, matchId)) {
+          io.to(arenaSocketService.getArenaRoomName(matchId)).emit("arena:player-presence", {
+            userId: socket.user.id,
+            online: false,
+          });
+        }
+      }
 
       console.log(
         `Socket disconnected: ${socket.id} | User: ${socket.user.id}`,

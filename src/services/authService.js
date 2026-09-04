@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const AppError = require("../utils/appError");
 const prisma = require("../config/prisma");
 const ROLES = require("../constants/roles");
+const { jwtSecret, jwtExpiresIn } = require("../config/env");
 
 const registerUser = async (userData) => {
 
@@ -98,10 +99,10 @@ const loginUser = async (email, password) => {
             id: user.id
         },
 
-        process.env.JWT_SECRET,
+        jwtSecret,
 
         {
-            expiresIn: process.env.JWT_EXPIRES_IN
+            expiresIn: jwtExpiresIn
         }
 
     );

@@ -25,6 +25,10 @@ const Navbar = () => {
       path: "/tests",
     },
     {
+      title: "اشتراک",
+      path: "/subscriptions",
+    },
+    {
       title: "Arena",
       path: "/arena",
     },

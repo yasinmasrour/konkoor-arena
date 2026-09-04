@@ -1,12 +1,12 @@
 const protect = require("../middleware/authMiddleware");
 const validate = require("../middleware/validate");
-const { registerSchema } = require("../validations/authValidation");
+const { registerSchema, loginSchema } = require("../validations/authValidation");
 
 const express = require("express");
 const authController = require("../controllers/authController");
 
 const router = express.Router();
-const rateLimiter = require("../middleware/rateLimiter");
+const { authRateLimiter } = require("../middleware/rateLimiter");
 
 /**
  * @swagger
@@ -15,8 +15,6 @@ const rateLimiter = require("../middleware/rateLimiter");
  *     summary: Register a new user
  *     tags:
  *       - Authentication
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -51,7 +49,7 @@ const rateLimiter = require("../middleware/rateLimiter");
  */
 router.post(
   "/register",
-  rateLimiter,
+  authRateLimiter,
   validate(registerSchema),
   authController.register,
 );
@@ -63,8 +61,6 @@ router.post(
  *     summary: Login user
  *     tags:
  *       - Authentication
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -87,7 +83,7 @@ router.post(
  *       401:
  *         description: Invalid email or password
  */
-router.post("/login", rateLimiter, authController.login);
+router.post("/login", authRateLimiter, validate(loginSchema), authController.login);
 
 router.get("/me", protect, (req, res) => {
   res.status(200).json({

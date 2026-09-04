@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from "react-router-dom";
+import PageLoading from "../components/common/PageLoading";
 import { useAuth } from "../context/AuthContext";
 
 const GuestRoute = () => {
   const { token, loading } = useAuth();
 
   if (loading) {
-    return null;
+    return <PageLoading />;
   }
 
   if (token) {

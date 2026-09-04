@@ -5,6 +5,7 @@ const questionRoutes = require("./questionRoutes");
 const bookletRoutes = require("./bookletRoutes");
 const examRoutes = require("./examRoutes");
 const attemptRoutes = require("./attemptRoutes");
+const aiAnalysisRoutes = require("./aiAnalysisRoutes");
 const arenaMatchRoutes = require("./arenaMatchRoutes");
 const arenaRankingRoutes = require("./arenaRankingRoutes");
 const arenaStandingRoutes = require("./arenaStandingRoutes");
@@ -12,6 +13,9 @@ const arenaProfileRoutes = require("./arenaProfileRoutes");
 const arenaMatchHistoryRoutes = require("./arenaMatchHistoryRoutes");
 const arenaLeagueRoutes = require("./arenaLeagueRoutes");
 const arenaQueueRoutes = require("./arenaQueueRoutes");
+const subscriptionRoutes = require("./subscriptionRoutes");
+const subscriptionUserRoutes = require("./subscriptionUserRoutes");
+const paymentRoutes = require("./paymentRoutes");
 
 const router = express.Router();
 
@@ -27,6 +31,7 @@ router.use("/questions", questionRoutes);
 router.use("/booklets", bookletRoutes);
 router.use("/exams", examRoutes);
 router.use("/attempts", attemptRoutes);
+router.use("/attempts", aiAnalysisRoutes);
 router.use("/arena", arenaMatchHistoryRoutes);
 router.use("/arena", arenaRankingRoutes);
 router.use("/arena/matches", arenaMatchRoutes);
@@ -34,5 +39,8 @@ router.use("/arena", arenaStandingRoutes);
 router.use("/arena", arenaProfileRoutes);
 router.use("/arena", arenaLeagueRoutes);
 router.use("/arena/queue", arenaQueueRoutes);
+router.use("/subscription-plans", subscriptionRoutes);
+router.use("/subscriptions", subscriptionUserRoutes);
+router.use("/payments", paymentRoutes);
 
 module.exports = router;

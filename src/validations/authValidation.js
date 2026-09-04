@@ -1,25 +1,44 @@
 const { z } = require("zod");
 
-
 const registerSchema = z.object({
-    firstName: z
-        .string()
-        .min(2, "First name must be at least 2 characters"),
+  firstName: z
+    .string()
+    .trim()
+    .min(2, "First name must be at least 2 characters")
+    .max(100, "First name must be at most 100 characters"),
 
-    lastName: z
-        .string()
-        .min(2, "Last name must be at least 2 characters"),
+  lastName: z
+    .string()
+    .trim()
+    .min(2, "Last name must be at least 2 characters")
+    .max(100, "Last name must be at most 100 characters"),
 
-    email: z
-        .string()
-        .email("Invalid email format"),
+  email: z
+    .string()
+    .trim()
+    .email("Invalid email format")
+    .transform((value) => value.toLowerCase()),
 
-    password: z
-        .string()
-        .min(6, "Password must be at least 6 characters")
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .max(72, "Password must be at most 72 characters"),
 });
 
+const loginSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email("Invalid email format")
+    .transform((value) => value.toLowerCase()),
+
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .max(72, "Password must be at most 72 characters"),
+});
 
 module.exports = {
-    registerSchema
+  registerSchema,
+  loginSchema,
 };

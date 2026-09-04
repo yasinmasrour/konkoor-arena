@@ -1,4 +1,4 @@
-import api from "../config/api";
+import api from "../api/axios";
 import type { Exam } from "../types/exam";
 
 export interface ExamsResponse {

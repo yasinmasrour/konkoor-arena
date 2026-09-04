@@ -3,6 +3,8 @@ import StatsCard from "../components/dashboard/StatsCard";
 import QuickActions from "../components/dashboard/QuickActions";
 import ActivityCard from "../components/dashboard/ActivityCard";
 import MyAttempts from "../components/dashboard/MyAttempts";
+import ArenaDashboardCard from "../components/dashboard/ArenaDashboardCard";
+import SubscriptionDashboardCard from "../components/dashboard/SubscriptionDashboardCard";
 const Dashboard = () => {
   return (
     <main
@@ -24,6 +26,10 @@ const Dashboard = () => {
         <WelcomeCard />
 
         <StatsCard />
+
+        <ArenaDashboardCard />
+
+        <SubscriptionDashboardCard />
 
         <QuickActions />
 

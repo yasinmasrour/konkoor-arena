@@ -1,23 +1,15 @@
-const playerSockets = new Map();
+// Socket.IO user rooms are the source of truth for player connections.
+// This module is kept as a compatibility shim for older imports.
 
-const addPlayerSocket = (userId, socketId) => {
-  playerSockets.set(userId, socketId);
+const getPlayerRoomName = (userId) => {
+  return `arena:user:${userId}`;
 };
 
-const removePlayerSocket = (userId, socketId) => {
-  const currentSocketId = playerSockets.get(userId);
-
-  if (currentSocketId === socketId) {
-    playerSockets.delete(userId);
-  }
-};
-
-const getPlayerSocket = (userId) => {
-  return playerSockets.get(userId) || null;
+const getPlayerMatchRoomName = (matchId, userId) => {
+  return `arena:match:${matchId}:player:${userId}`;
 };
 
 module.exports = {
-  addPlayerSocket,
-  removePlayerSocket,
-  getPlayerSocket,
+  getPlayerRoomName,
+  getPlayerMatchRoomName,
 };

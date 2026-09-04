@@ -1,132 +1,152 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 
-const startAttempt = async (studentId, examId) => {
-  return await prisma.$transaction(async (tx) => {
-    const exam = await tx.exam.findUnique({
-      where: {
-        id: examId,
-      },
-      include: {
-        booklets: {
-          include: {
-            booklet: {
-              include: {
-                questions: true,
-              },
-            },
-          },
-        },
-      },
-    });
+const ATTEMPT_STATUS_STARTED = "started";
+const ATTEMPT_STATUS_SUBMITTED = "submitted";
 
-    if (!exam) {
-      throw new AppError("Exam not found", 404);
-    }
-
-    if (exam.status !== "published") {
-      throw new AppError("Exam is not available", 400);
-    }
-
-    const existingAttempt = await tx.attempt.findUnique({
-      where: {
-        studentId_examId: {
-          studentId,
-          examId,
-        },
-      },
-    });
-
-    if (existingAttempt) {
-      throw new AppError("Attempt already exists", 400);
-    }
-
-    const attempt = await tx.attempt.create({
-      data: {
-        studentId,
-        examId,
-        startedAt: new Date(),
-      },
-    });
-
-    const questions = exam.booklets.flatMap(
-      (examBooklet) => examBooklet.booklet.questions,
-    );
-
-    await tx.attemptAnswer.createMany({
-      data: questions.map((item) => ({
-        attemptId: attempt.id,
-
-        questionId: item.questionId,
-      })),
-    });
-
-    return {
-      attempt,
-      exam,
-    };
+const loadAttemptForStudent = async (tx, attemptId, userId) => {
+  const attempt = await tx.attempt.findUnique({
+    where: { id: attemptId },
+    include: {
+      exam: { select: { id: true, title: true } },
+    },
   });
+
+  if (!attempt) throw new AppError("Attempt not found", 404);
+  if (attempt.studentId !== userId) throw new AppError("Forbidden", 403);
+
+  return attempt;
 };
 
-const getAttemptQuestions = async (attemptId, userId) => {
-  const attempt = await prisma.attempt.findUnique({
-    where: {
-      id: attemptId,
-    },
-
-    include: {
-      exam: {
+const startAttempt = async (studentId, examId) => {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const exam = await tx.exam.findUnique({
+        where: { id: examId },
         include: {
           booklets: {
             include: {
               booklet: {
                 include: {
-                  questions: {
-                    include: {
-                      question: true,
-                    },
-
-                    orderBy: {
-                      order: "asc",
-                    },
-                  },
+                  questions: { include: { question: true }, orderBy: { order: "asc" } },
                 },
               },
             },
+            orderBy: { order: "asc" },
           },
         },
+      });
+
+      if (!exam) throw new AppError("Exam not found", 404);
+      if (exam.status !== "published") {
+        throw new AppError("Exam is not available", 400);
+      }
+
+      const questions = exam.booklets.flatMap(
+        (examBooklet) => examBooklet.booklet.questions,
+      );
+
+      if (questions.length === 0) {
+        throw new AppError("Exam has no questions", 400);
+      }
+
+      const questionIds = new Set();
+      for (const item of questions) {
+        if (questionIds.has(item.questionId)) {
+          throw new AppError("Exam contains a duplicate question", 400);
+        }
+        questionIds.add(item.questionId);
+
+        if (item.question.options.length < 2) {
+          throw new AppError("Exam contains a question with invalid options", 400);
+        }
+
+        if (item.question.correctAnswer < 0 || item.question.correctAnswer >= item.question.options.length) {
+          throw new AppError("Exam contains a question with an invalid correct answer", 400);
+        }
+      }
+
+      const existingAttempt = await tx.attempt.findUnique({
+        where: { studentId_examId: { studentId, examId } },
+      });
+
+      if (existingAttempt) {
+        throw new AppError("Attempt already exists", 400);
+      }
+
+      const attempt = await tx.attempt.create({
+        data: {
+          studentId,
+          examId,
+          startedAt: new Date(),
+          status: ATTEMPT_STATUS_STARTED,
+        },
+      });
+
+      await tx.attemptAnswer.createMany({
+        data: questions.map((item) => ({
+          attemptId: attempt.id,
+          questionId: item.questionId,
+          questionTextSnapshot: item.question.questionText,
+          questionImageSnapshot: item.question.questionImage,
+          optionsSnapshot: item.question.options,
+          correctAnswerSnapshot: item.question.correctAnswer,
+          explanationSnapshot: item.question.explanation,
+          difficultySnapshot: item.question.difficulty,
+          lessonSnapshot: item.question.lesson,
+          chapterSnapshot: item.question.chapter,
+          scoreSnapshot: item.score,
+        })),
+      });
+
+      return {
+        attempt,
+        exam: {
+          id: exam.id,
+          title: exam.title,
+          examDate: exam.examDate,
+          startTime: exam.startTime,
+          endTime: exam.endTime,
+        },
+        totalQuestions: questions.length,
+      };
+    });
+  } catch (error) {
+    if (error.code === "P2002") {
+      throw new AppError("Attempt already exists", 400);
+    }
+    throw error;
+  }
+};
+
+const getAttemptQuestions = async (attemptId, userId) => {
+  const attempt = await prisma.attempt.findUnique({
+    where: { id: attemptId },
+    include: {
+      exam: { select: { id: true, title: true } },
+      answers: {
+        orderBy: { createdAt: "asc" },
+        include: { question: true },
       },
     },
   });
 
-  if (!attempt) {
-    throw new AppError("Attempt not found", 404);
-  }
-
-  if (attempt.studentId !== userId) {
-    throw new AppError("Forbidden", 403);
-  }
-
-  const questions = attempt.exam.booklets.flatMap((examBooklet) =>
-    examBooklet.booklet.questions.map((item) => ({
-      id: item.question.id,
-      questionText: item.question.questionText,
-      questionImage: item.question.questionImage,
-      options: item.question.options,
-      difficulty: item.question.difficulty,
-      score: item.score,
-    })),
-  );
+  if (!attempt) throw new AppError("Attempt not found", 404);
+  if (attempt.studentId !== userId) throw new AppError("Forbidden", 403);
 
   return {
     attemptId: attempt.id,
-
-    exam: {
-      id: attempt.exam.id,
-      title: attempt.exam.title,
-    },
-
-    questions,
+    status: attempt.status,
+    exam: attempt.exam,
+    questions: attempt.answers.map((answer) => ({
+      id: answer.questionId,
+      questionText: answer.questionTextSnapshot ?? answer.question.questionText,
+      questionImage: answer.questionImageSnapshot ?? answer.question.questionImage,
+      options: answer.optionsSnapshot?.length ? answer.optionsSnapshot : answer.question.options,
+      difficulty: answer.difficultySnapshot ?? answer.question.difficulty,
+      score: answer.scoreSnapshot,
+      selectedAnswer: answer.selectedAnswer,
+    })),
   };
 };
 
@@ -135,176 +155,78 @@ const submitAnswer = async (attemptId, userId, data) => {
 
   return await prisma.$transaction(async (tx) => {
     const attempt = await tx.attempt.findUnique({
-      where: {
-        id: attemptId,
-      },
-
+      where: { id: attemptId },
       include: {
-        exam: {
-          include: {
-            booklets: {
-              include: {
-                booklet: {
-                  include: {
-                    questions: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+        answers: { where: { questionId }, include: { question: true } },
       },
     });
 
-    if (!attempt) {
-      throw new AppError("Attempt not found", 404);
-    }
-
-    if (attempt.studentId !== userId) {
-      throw new AppError("Forbidden", 403);
-    }
-
-    if (attempt.status === "submitted") {
+    if (!attempt) throw new AppError("Attempt not found", 404);
+    if (attempt.studentId !== userId) throw new AppError("Forbidden", 403);
+    if (attempt.status === ATTEMPT_STATUS_SUBMITTED) {
       throw new AppError("Attempt already submitted", 400);
     }
 
-    const questionExists = attempt.exam.booklets.some((examBooklet) =>
-      examBooklet.booklet.questions.some(
-        (question) => question.questionId === questionId,
-      ),
-    );
+    const answer = attempt.answers[0];
+    if (!answer) throw new AppError("Question does not belong to this exam", 400);
 
-    if (!questionExists) {
-      throw new AppError("Question does not belong to this exam", 400);
+    const optionCount = answer.optionsSnapshot?.length || answer.question.options.length;
+    if (selectedAnswer >= optionCount) {
+      throw new AppError("Selected answer is out of range", 400);
     }
 
-    const question = await tx.question.findUnique({
-      where: {
-        id: questionId,
-      },
-    });
+    const correctAnswer = answer.correctAnswerSnapshot ?? answer.question.correctAnswer;
+    const isCorrect = correctAnswer === selectedAnswer;
 
-    if (!question) {
-      throw new AppError("Question not found", 404);
-    }
-
-    const isCorrect = question.correctAnswer === selectedAnswer;
-
-    return await tx.attemptAnswer.upsert({
-      where: {
-        attemptId_questionId: {
-          attemptId,
-
-          questionId,
-        },
-      },
-
-      update: {
+    return await tx.attemptAnswer.update({
+      where: { id: answer.id },
+      data: {
         selectedAnswer,
-
         isCorrect,
-
-        answeredAt: new Date(),
-      },
-
-      create: {
-        attemptId,
-
-        questionId,
-
-        selectedAnswer,
-
-        isCorrect,
-
         answeredAt: new Date(),
       },
     });
   });
 };
 
-const submitAttempt = async (attemptId, userId) => {
-  const attempt = await prisma.attempt.findUnique({
-    where: {
-      id: attemptId,
-    },
-
-    include: {
-      answers: {
-        include: {
-          question: true,
-        },
-      },
-    },
-  });
-
-  if (!attempt) {
-    throw new AppError("Attempt not found", 404);
-  }
-
-  if (attempt.studentId !== userId) {
-    throw new AppError("Forbidden", 403);
-  }
-
-  if (attempt.status === "submitted") {
-    throw new AppError("Attempt already submitted", 400);
-  }
-
-  const correctAnswers = attempt.answers.filter(
-    (answer) => answer.isCorrect,
-  ).length;
-
-  const wrongAnswers = attempt.answers.filter(
+const calculateAnalysis = (answers) => {
+  const correctAnswers = answers.filter((answer) => answer.isCorrect).length;
+  const wrongAnswers = answers.filter(
     (answer) => !answer.isCorrect && answer.selectedAnswer !== null,
   ).length;
-
-  const unansweredQuestions = attempt.answers.filter(
+  const unansweredQuestions = answers.filter(
     (answer) => answer.selectedAnswer === null,
   ).length;
 
   const negativeScore = Math.floor(wrongAnswers / 3);
-
   const finalScore = Math.max(correctAnswers - negativeScore, 0);
-
-  const totalQuestions = correctAnswers + wrongAnswers + unansweredQuestions;
-
+  const totalQuestions = answers.length;
   const percentage =
     totalQuestions > 0
       ? Number(((finalScore / totalQuestions) * 100).toFixed(2))
       : 0;
 
   const subjectMap = {};
-  for (const answer of attempt.answers) {
+  for (const answer of answers) {
     const lesson = answer.question.lesson;
-
     if (!subjectMap[lesson]) {
-      subjectMap[lesson] = {
-        lesson,
-        correct: 0,
-        wrong: 0,
-        unanswered: 0,
-      };
+      subjectMap[lesson] = { lesson, correct: 0, wrong: 0, unanswered: 0 };
     }
-    if (answer.selectedAnswer === null) {
-      subjectMap[lesson].unanswered++;
-    } else if (answer.isCorrect) {
-      subjectMap[lesson].correct++;
-    } else {
-      subjectMap[lesson].wrong++;
-    }
+    if (answer.selectedAnswer === null) subjectMap[lesson].unanswered++;
+    else if (answer.isCorrect) subjectMap[lesson].correct++;
+    else subjectMap[lesson].wrong++;
   }
 
   const subjects = Object.values(subjectMap).map((subject) => {
     const total = subject.correct + subject.wrong + subject.unanswered;
-
     return {
       ...subject,
-
       percentage:
         total > 0 ? Number(((subject.correct / total) * 100).toFixed(2)) : 0,
     };
   });
 
-  const analysis = {
+  return {
     totalQuestions,
     correctAnswers,
     wrongAnswers,
@@ -314,24 +236,44 @@ const submitAttempt = async (attemptId, userId) => {
     percentage,
     subjects,
   };
+};
 
-  const updatedAttempt = await prisma.attempt.update({
-    where: {
-      id: attemptId,
-    },
+const submitAttempt = async (attemptId, userId) => {
+  return await prisma.$transaction(async (tx) => {
+    const attempt = await loadAttemptForStudent(tx, attemptId, userId);
 
-    data: {
-      status: "submitted",
+    if (attempt.status === ATTEMPT_STATUS_SUBMITTED) {
+      throw new AppError("Attempt already submitted", 400);
+    }
 
-      submittedAt: new Date(),
+    const answers = await tx.attemptAnswer.findMany({
+      where: { attemptId },
+      include: { question: true },
+      orderBy: { createdAt: "asc" },
+    });
 
-      score: finalScore,
+    if (answers.length === 0) {
+      throw new AppError("Attempt has no questions", 400);
+    }
 
-      analysis,
-    },
+    const analysis = calculateAnalysis(answers);
+
+    const updatedAttempt = await tx.attempt.updateMany({
+      where: { id: attemptId, status: ATTEMPT_STATUS_STARTED },
+      data: {
+        status: ATTEMPT_STATUS_SUBMITTED,
+        submittedAt: new Date(),
+        score: analysis.finalScore,
+        analysis,
+      },
+    });
+
+    if (updatedAttempt.count !== 1) {
+      throw new AppError("Attempt was already submitted", 400);
+    }
+
+    return await tx.attempt.findUnique({ where: { id: attemptId } });
   });
-
-  return updatedAttempt;
 };
 
 const getAttemptResult = async (attemptId, userId) => {
@@ -339,21 +281,20 @@ const getAttemptResult = async (attemptId, userId) => {
     where: { id: attemptId },
     include: { exam: { select: { id: true, title: true } } },
   });
-  if (!attempt) {
-    throw new AppError("Attempt not found", 404);
-  }
-  if (attempt.studentId !== userId) {
-    throw new AppError("Forbidden", 403);
-  }
+  if (!attempt) throw new AppError("Attempt not found", 404);
+  if (attempt.studentId !== userId) throw new AppError("Forbidden", 403);
+
   const analysis = attempt.analysis || {};
   const totalQuestions = analysis.totalQuestions || 0;
   const percentage =
     totalQuestions > 0
       ? Number(((attempt.score / totalQuestions) * 100).toFixed(2))
       : 0;
+
   return {
     attemptId: attempt.id,
     exam: attempt.exam,
+    status: attempt.status,
     result: {
       score: attempt.score,
       totalQuestions,
@@ -369,108 +310,56 @@ const getAttemptResult = async (attemptId, userId) => {
 
 const getMyAttempts = async (studentId) => {
   const attempts = await prisma.attempt.findMany({
-    where: {
-      studentId,
-    },
-
-    include: {
-      exam: {
-        select: {
-          id: true,
-
-          title: true,
-
-          examDate: true,
-        },
-      },
-    },
-
-    orderBy: {
-      createdAt: "desc",
-    },
+    where: { studentId },
+    include: { exam: { select: { id: true, title: true, examDate: true } } },
+    orderBy: { createdAt: "desc" },
   });
 
   return attempts.map((attempt) => ({
     id: attempt.id,
-
     exam: attempt.exam,
-
     status: attempt.status,
-
     score: attempt.score,
-
     percentage: attempt.analysis?.percentage ?? 0,
-
     submittedAt: attempt.submittedAt,
   }));
 };
 
 const getAttemptReview = async (attemptId, userId) => {
   const attempt = await prisma.attempt.findUnique({
-    where: {
-      id: attemptId,
-    },
-
+    where: { id: attemptId },
     include: {
-      exam: {
-        select: {
-          id: true,
-
-          title: true,
-        },
-      },
-
+      exam: { select: { id: true, title: true } },
       answers: {
-        include: {
-          question: true,
-        },
-
-        orderBy: {
-          createdAt: "asc",
-        },
+        include: { question: true },
+        orderBy: { createdAt: "asc" },
       },
     },
   });
 
-  if (!attempt) {
-    throw new AppError("Attempt not found", 404);
-  }
-
-  if (attempt.studentId !== userId) {
-    throw new AppError("Forbidden", 403);
+  if (!attempt) throw new AppError("Attempt not found", 404);
+  if (attempt.studentId !== userId) throw new AppError("Forbidden", 403);
+  if (attempt.status !== ATTEMPT_STATUS_SUBMITTED) {
+    throw new AppError("Attempt has not been submitted", 400);
   }
 
   return {
     attemptId: attempt.id,
-
     exam: attempt.exam,
-
     score: attempt.score,
-
     questions: attempt.answers.map((answer) => ({
-      id: answer.question.id,
-
-      questionText: answer.question.questionText,
-
-      questionImage: answer.question.questionImage,
-
-      options: answer.question.options,
-
+      id: answer.questionId,
+      questionText: answer.questionTextSnapshot ?? answer.question.questionText,
+      questionImage: answer.questionImageSnapshot ?? answer.question.questionImage,
+      options: answer.optionsSnapshot?.length ? answer.optionsSnapshot : answer.question.options,
       selectedAnswer: answer.selectedAnswer,
-
-      correctAnswer: answer.question.correctAnswer,
-
+      correctAnswer: answer.correctAnswerSnapshot ?? answer.question.correctAnswer,
       isCorrect: answer.isCorrect,
-
-      explanation: answer.question.explanation,
-
+      explanation: answer.explanationSnapshot ?? answer.question.explanation,
       explanationPdf: answer.question.explanationPdf,
-
-      difficulty: answer.question.difficulty,
-
-      lesson: answer.question.lesson,
-
-      chapter: answer.question.chapter,
+      difficulty: answer.difficultySnapshot ?? answer.question.difficulty,
+      lesson: answer.lessonSnapshot ?? answer.question.lesson,
+      chapter: answer.chapterSnapshot ?? answer.question.chapter,
     })),
   };
 };

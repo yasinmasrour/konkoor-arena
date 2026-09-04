@@ -30,6 +30,7 @@ model User {
   role   Role   @relation(fields: [roleId], references: [id])
 
   subscriptions Subscription[]
+  payments Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,6 +52,8 @@ model User {
   arenaRatingHistory ArenaRatingHistory[]
 
   arenaLeagueStandings ArenaLeagueStanding[]
+
+  aiAnalyses AIAnalysis[]
 }
 
 model SubscriptionPlan {
@@ -63,6 +66,7 @@ model SubscriptionPlan {
   durationDays Int
 
   subscriptions Subscription[]
+  payments Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -84,6 +88,32 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id String @id @default(cuid())
+
+  userId String
+  planId String
+
+  user User @relation(fields: [userId], references: [id])
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  amount Int
+  status String
+  gateway String
+  merchantOrderId String @unique
+  authority String? @unique
+  transactionId String? @unique
+  paidAt DateTime?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([userId, status])
 }
 
 model Question {
@@ -262,6 +292,8 @@ model Attempt {
 
   analysis Json @default("{}")
 
+  aiAnalysis AIAnalysis?
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -269,6 +301,28 @@ model Attempt {
   @@unique([studentId, examId])
   @@index([studentId])
   @@index([examId])
+  @@index([studentId, status])
+}
+
+model AIAnalysis {
+  id String @id @default(cuid())
+
+  attemptId String @unique
+  userId String
+
+  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  model String
+  status String
+  result Json
+  responseId String? @unique
+  generatedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
 }
 
 model AttemptAnswer {
@@ -284,6 +338,17 @@ model AttemptAnswer {
 
   selectedAnswer Int?
 
+  // Immutable question data captured when the attempt starts.
+  questionTextSnapshot String?
+  questionImageSnapshot String?
+  optionsSnapshot String[] @default([])
+  correctAnswerSnapshot Int?
+  explanationSnapshot String?
+  difficultySnapshot String?
+  lessonSnapshot String?
+  chapterSnapshot String?
+  scoreSnapshot Float @default(1)
+
   isCorrect Boolean @default(false)
 
   answeredAt DateTime?
@@ -291,6 +356,7 @@ model AttemptAnswer {
   createdAt DateTime @default(now())
 
   @@unique([attemptId, questionId])
+  @@index([attemptId, selectedAnswer])
 }
 
 model ArenaMatch {
@@ -463,6 +529,7 @@ model ArenaRatingHistory {
   user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   match  ArenaMatch  @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
+  @@unique([matchId, userId])
   @@index([leagueId, userId])
   @@index([matchId])
 }

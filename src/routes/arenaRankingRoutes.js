@@ -33,7 +33,7 @@ const router = express.Router();
  *       404:
  *         description: League not found
  */
-router.get("/leagues/:leagueId/ranking", getLeagueRanking);
+router.get("/leagues/:leagueId/ranking", authMiddleware, getLeagueRanking);
 
 /**
  * @swagger
@@ -101,6 +101,6 @@ router.get(
  *       404:
  *         description: League not found
  */
-router.get("/leagues/:leagueId/top", getTopLeaguePlayers);
+router.get("/leagues/:leagueId/top", authMiddleware, getTopLeaguePlayers);
 
 module.exports = router;

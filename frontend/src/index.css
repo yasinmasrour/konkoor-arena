@@ -34,3 +34,59 @@ body {
   --font-heading: "Vazirmatn", sans-serif;
   --font-english: "Inter", sans-serif;
 }
+/* Griffin Arena battle surface */
+.arena-battle {
+  background:
+    radial-gradient(circle at 50% -15%, rgba(197, 139, 42, 0.13), transparent 34%),
+    linear-gradient(180deg, #f8f8f5 0%, #f1f2ef 100%);
+}
+.dark .arena-battle {
+  background:
+    radial-gradient(circle at 50% -15%, rgba(197, 139, 42, 0.13), transparent 34%),
+    linear-gradient(180deg, #090d15 0%, #06080d 100%);
+}
+.arena-panel {
+  border: 1px solid rgba(148,163,184,.22);
+  background: rgba(255,255,255,.72);
+  box-shadow: 0 30px 100px rgba(15,23,42,.10);
+  backdrop-filter: blur(24px);
+}
+.dark .arena-panel { border-color: rgba(255,255,255,.08); background: rgba(255,255,255,.045); box-shadow: 0 30px 100px rgba(0,0,0,.28); }
+.arena-orb { position:absolute; border-radius:999px; pointer-events:none; filter:blur(70px); opacity:.22; }
+.arena-orb-one { width:240px; height:240px; right:-120px; top:180px; background:rgba(197,139,42,.35); }
+.arena-orb-two { width:220px; height:220px; left:-110px; bottom:80px; background:rgba(139,92,246,.16); }
+
+/* Arena battle motion */
+.arena-question-enter { animation: arena-question-enter .42s cubic-bezier(.2,.8,.2,1); }
+.arena-transition-card { animation: arena-transition-pop .5s cubic-bezier(.2,.9,.2,1); }
+.arena-roundbar { margin-bottom: 0; }
+@keyframes arena-question-enter {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes arena-transition-pop {
+  from { opacity: 0; transform: scale(.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Arena matchmaking surface */
+.arena-search-progress {
+  animation: arena-search-progress 1.8s ease-in-out infinite;
+}
+@keyframes arena-search-progress {
+  0% { transform: translateX(120%); opacity: .35; }
+  50% { opacity: 1; }
+  100% { transform: translateX(-220%); opacity: .35; }
+}
+
+@keyframes arenaStickerPop {
+  0% { opacity: 0; transform: translateY(14px) scale(0.65) rotate(-6deg); }
+  18% { opacity: 1; transform: translateY(0) scale(1.08) rotate(3deg); }
+  35% { transform: scale(0.96) rotate(-1deg); }
+  55% { transform: scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(-12px) scale(0.9); }
+}
+
+.arena-sticker-pop {
+  animation: arenaStickerPop 2.2s cubic-bezier(.2,.8,.2,1) both;
+}

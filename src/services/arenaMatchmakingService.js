@@ -6,12 +6,18 @@ const arenaMatchmakingSocketService = require("../socket/arenaMatchmakingSocketS
 const INITIAL_RATING_RANGE = 100;
 const RATING_RANGE_INCREMENT = 100;
 const MAX_RATING_RANGE = 1000;
+const QUEUE_TTL_MS = 60 * 1000;
 
 const findOpponent = async (userId, leagueId, rating) => {
+  const cutoff = new Date(Date.now() - QUEUE_TTL_MS);
+
   const queueEntries = await prisma.arenaQueue.findMany({
     where: {
       leagueId,
       status: "waiting",
+      joinedAt: {
+        gte: cutoff,
+      },
       userId: {
         not: userId,
       },
@@ -49,6 +55,25 @@ const findOpponent = async (userId, leagueId, rating) => {
   const randomIndex = Math.floor(Math.random() * candidates.length);
 
   return candidates[randomIndex];
+};
+
+const cleanupStaleQueues = async (leagueId = null) => {
+  const cutoff = new Date(Date.now() - QUEUE_TTL_MS);
+
+  const result = await prisma.arenaQueue.updateMany({
+    where: {
+      status: "waiting",
+      joinedAt: {
+        lt: cutoff,
+      },
+      ...(leagueId ? { leagueId } : {}),
+    },
+    data: {
+      status: "cancelled",
+    },
+  });
+
+  return result.count;
 };
 
 const joinQueue = async (userId, leagueId) => {
@@ -123,6 +148,8 @@ const joinQueue = async (userId, leagueId) => {
   if (existingQueue?.status === "waiting") {
     throw new AppError("Player is already in matchmaking queue", 400);
   }
+
+  await cleanupStaleQueues(leagueId);
 
   const opponent = await findOpponent(userId, leagueId, playerRating);
 
@@ -342,4 +369,5 @@ module.exports = {
   joinQueue,
   leaveQueue,
   getQueueStatus,
+  cleanupStaleQueues,
 };

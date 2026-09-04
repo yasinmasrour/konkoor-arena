@@ -29,7 +29,7 @@ const getTopLeaguePlayers = async (req, res, next) => {
   try {
     const result = await arenaRankingService.getTopLeaguePlayers(
       req.params.leagueId,
-      Number(req.query.limit) || 10,
+      Math.min(Math.max(Number(req.query.limit) || 10, 1), 50),
     );
 
     res.status(200).json(result);

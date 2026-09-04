@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const arenaSocketConnectionState = require("./arenaSocketConnectionState");
+const arenaSocketPresence = require("./arenaSocketPresence");
 
 const getArenaRoomName = (matchId) => {
   return `arena:match:${matchId}`;
@@ -32,6 +33,11 @@ const joinMatchRoom = async (socket, matchId) => {
   const roomName = getArenaRoomName(matchId);
 
   await socket.join(roomName);
+  await socket.join(
+    arenaSocketConnectionState.getPlayerMatchRoomName(matchId, socket.user.id),
+  );
+
+  arenaSocketPresence.trackMatch(socket.id, matchId);
 
   return {
     roomName,
@@ -43,8 +49,14 @@ const joinMatchRoom = async (socket, matchId) => {
 
 const leaveMatchRoom = async (socket, matchId) => {
   const roomName = getArenaRoomName(matchId);
+  const playerRoomName = arenaSocketConnectionState.getPlayerMatchRoomName(
+    matchId,
+    socket.user.id,
+  );
 
   await socket.leave(roomName);
+  await socket.leave(playerRoomName);
+  arenaSocketPresence.untrackMatch(socket.id, matchId);
 
   return {
     roomName,
@@ -59,13 +71,24 @@ const emitToPlayer = (userId, event, payload) => {
     return false;
   }
 
-  const socketId = arenaSocketConnectionState.getPlayerSocket(userId);
+  io.to(arenaSocketConnectionState.getPlayerRoomName(userId)).emit(
+    event,
+    payload,
+  );
 
-  if (!socketId) {
+  return true;
+};
+
+const emitToMatchPlayer = (matchId, userId, event, payload) => {
+  const io = global.io;
+
+  if (!io) {
     return false;
   }
 
-  io.to(socketId).emit(event, payload);
+  io.to(
+    arenaSocketConnectionState.getPlayerMatchRoomName(matchId, userId),
+  ).emit(event, payload);
 
   return true;
 };
@@ -75,4 +98,5 @@ module.exports = {
   joinMatchRoom,
   leaveMatchRoom,
   emitToPlayer,
+  emitToMatchPlayer,
 };

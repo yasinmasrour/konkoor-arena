@@ -6,11 +6,13 @@ const authMiddleware = require("../middleware/authMiddleware");
 const validate = require("../middleware/validate");
 
 const arenaQueueController = require("../controllers/arenaQueueController");
+const { arenaQueueLimiter } = require("../middleware/arenaRateLimiter");
 const { joinQueueSchema } = require("../validations/arenaQueueValidation");
 
 router.post(
   "/",
   authMiddleware,
+  arenaQueueLimiter,
   validate(joinQueueSchema),
   arenaQueueController.joinQueue,
 );

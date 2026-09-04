@@ -4,6 +4,8 @@ const {
   getLeagueStandings,
 } = require("../controllers/arenaStandingController");
 
+const authMiddleware = require("../middleware/authMiddleware");
+
 const router = express.Router();
 
 /**
@@ -32,6 +34,6 @@ const router = express.Router();
  *       404:
  *         description: League not found
  */
-router.get("/leagues/:leagueId/standings", getLeagueStandings);
+router.get("/leagues/:leagueId/standings", authMiddleware, getLeagueStandings);
 
 module.exports = router;

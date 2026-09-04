@@ -1,4 +1,4 @@
-import api from "../config/api";
+import api from "../api/axios";
 
 interface LoginData {
   email: string;

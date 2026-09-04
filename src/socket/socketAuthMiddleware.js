@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
+const { jwtSecret } = require("../config/env");
 
 const socketAuthMiddleware = async (socket, next) => {
   try {
@@ -9,7 +10,7 @@ const socketAuthMiddleware = async (socket, next) => {
       return next(new Error("Unauthorized"));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, jwtSecret);
 
     const user = await prisma.user.findUnique({
       where: {

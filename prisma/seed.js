@@ -27,7 +27,7 @@ async function main() {
         }
     });
 
-    const hashedPassword = await bcrypt.hash("yasin.85.masrour", 10);
+    const hashedPassword = await bcrypt.hash(seedAdminPassword, 12);
 
     // ساخت ادمین
     await prisma.user.upsert({
@@ -38,7 +38,7 @@ async function main() {
         create: {
             firstName: "Yasin",
             lastName: "Masrour",
-            email: "yasinmasrour01@gmail.com",
+            email: seedAdminEmail,
             password: hashedPassword,
             roleId: adminRole.id
         }

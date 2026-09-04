@@ -12,6 +12,7 @@ import {
 import { getAttemptResult } from "../services/attemptService";
 
 import type { AttemptResultResponse } from "../types/attempt";
+import AIAnalysisSection from "./components/AIAnalysisSection";
 
 const AttemptResult = () => {
   const { id } = useParams();
@@ -486,6 +487,9 @@ const AttemptResult = () => {
             </div>
           </div>
         )}
+
+        {/* AI Analysis */}
+        <AIAnalysisSection attemptId={data.attemptId} />
 
         {/* Actions */}
         <div

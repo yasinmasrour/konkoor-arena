@@ -3,6 +3,7 @@ const prisma = require("../config/prisma");
 
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/appError");
+const { jwtSecret } = require("../config/env");
 
 const protect = asyncHandler(async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -11,9 +12,13 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new AppError("Unauthorized", 401);
   }
 
-  const token = authHeader.split(" ")[1];
+  const [scheme, token] = authHeader.trim().split(/\s+/);
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    throw new AppError("Invalid authorization header", 401);
+  }
+
+  const decoded = jwt.verify(token, jwtSecret);
 
   const user = await prisma.user.findUnique({
     where: {

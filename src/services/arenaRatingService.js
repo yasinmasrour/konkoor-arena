@@ -230,12 +230,11 @@ const updateRatingsAfterMatch = async (matchId) => {
   });
 };
 
-const ensurePlayerRatings = async (leagueId, userIds) => {
-  return await prisma.$transaction(async (tx) => {
-    const ratings = [];
+const ensurePlayerRatingsTx = async (tx, leagueId, userIds) => {
+  const ratings = [];
 
-    for (const userId of userIds) {
-      const rating = await tx.arenaRating.upsert({
+  for (const userId of userIds) {
+    const rating = await tx.arenaRating.upsert({
         where: {
           leagueId_userId: {
             leagueId,
@@ -252,11 +251,16 @@ const ensurePlayerRatings = async (leagueId, userIds) => {
         },
       });
 
-      ratings.push(rating);
-    }
+    ratings.push(rating);
+  }
 
-    return ratings;
-  });
+  return ratings;
+};
+
+const ensurePlayerRatings = async (leagueId, userIds) => {
+  return await prisma.$transaction((tx) =>
+    ensurePlayerRatingsTx(tx, leagueId, userIds),
+  );
 };
 
 const updateRatingsAfterMatchTx = async (tx, match) => {
@@ -419,5 +423,6 @@ module.exports = {
   calculateNewRating,
   updateRatingsAfterMatch,
   ensurePlayerRatings,
+  ensurePlayerRatingsTx,
   updateRatingsAfterMatchTx,
 };

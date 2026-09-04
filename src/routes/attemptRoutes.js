@@ -126,6 +126,7 @@ router.post(
 router.post(
   "/:id/submit",
   authMiddleware,
+  roleMiddleware(ROLES.STUDENT),
   attemptController.submitAttempt,
 );
 
@@ -148,7 +149,12 @@ router.post(
  *       200:
  *         description: Attempt result
  */
-router.get("/:id/result", authMiddleware, attemptController.getAttemptResult);
+router.get(
+  "/:id/result",
+  authMiddleware,
+  roleMiddleware(ROLES.STUDENT),
+  attemptController.getAttemptResult,
+);
 
 /**
  * @swagger
@@ -163,7 +169,12 @@ router.get("/:id/result", authMiddleware, attemptController.getAttemptResult);
  *       200:
  *         description: List of user's attempts
  */
-router.get("/my", authMiddleware, attemptController.getMyAttempts);
+router.get(
+  "/my",
+  authMiddleware,
+  roleMiddleware(ROLES.STUDENT),
+  attemptController.getMyAttempts,
+);
 
 /**
  * @swagger
@@ -184,5 +195,10 @@ router.get("/my", authMiddleware, attemptController.getMyAttempts);
  *       200:
  *         description: Attempt review data
  */
-router.get("/:id/review", authMiddleware, attemptController.getAttemptReview);
+router.get(
+  "/:id/review",
+  authMiddleware,
+  roleMiddleware(ROLES.STUDENT),
+  attemptController.getAttemptReview,
+);
 module.exports = router;

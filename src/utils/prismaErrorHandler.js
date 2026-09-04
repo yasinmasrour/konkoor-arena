@@ -1,6 +1,10 @@
 const AppError = require("./appError");
 
 const prismaErrorHandler = (error) => {
+  if (error.code === "P2034") {
+    return new AppError("Transaction conflict, please retry", 409);
+  }
+
   if (error.code === "P2002") {
     const field = error.meta?.target?.[0] || "Field";
 

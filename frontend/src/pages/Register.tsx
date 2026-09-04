@@ -16,7 +16,7 @@ const Register = () => {
     confirmPassword: "",
   });
 
-  const [errors] = useState<any>({});
+  const [errors] = useState<Record<string, string[]>>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -26,7 +26,7 @@ const Register = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     try {

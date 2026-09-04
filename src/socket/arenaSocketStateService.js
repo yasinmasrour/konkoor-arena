@@ -70,6 +70,7 @@ const getMatchState = async (matchId) => {
   }
 
   return {
+    id: match.id,
     matchId: match.id,
     status: match.status,
     winnerId: match.winnerId,
