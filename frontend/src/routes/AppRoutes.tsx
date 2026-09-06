@@ -24,6 +24,10 @@ import RoleRoute from "./RoleRoute";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 import Forbidden from "../pages/Forbidden";
 import Subscriptions from "../pages/Subscriptions";
+import QuestionBank from "../pages/Questions/QuestionBank";
+import QuestionAnalyticsPage from "../pages/Questions/QuestionAnalytics";
+import QuestionImport from "../pages/Questions/QuestionImport";
+import QuestionDesigner from "../pages/Questions/QuestionDesigner";
 
 const router = createBrowserRouter([
   {
@@ -126,6 +130,16 @@ const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={["ADMIN"]} />,
         children: [{ path: "admin", element: <AdminDashboard /> }],
+      },
+      {
+        element: <RoleRoute allowedRoles={["ADMIN", "QUESTION_DESIGNER"]} />,
+        children: [
+          { path: "question-bank", element: <QuestionBank /> },
+          { path: "question-analytics", element: <QuestionAnalyticsPage /> },
+          { path: "question-import", element: <QuestionImport /> },
+          { path: "question-designer", element: <QuestionDesigner /> },
+          { path: "question-designer/:id", element: <QuestionDesigner /> },
+        ],
       },
       {
         path: "*",

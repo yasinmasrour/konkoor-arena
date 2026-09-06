@@ -162,6 +162,15 @@ const Navbar = () => {
               داشبورد
             </Link>
 
+            {(user.role === "ADMIN" || user.role === "QUESTION_DESIGNER") && (
+              <Link
+                to="/question-bank"
+                className="text-sm dark:text-white"
+              >
+                بانک سؤال
+              </Link>
+            )}
+
             <button
               onClick={logout}
               className="

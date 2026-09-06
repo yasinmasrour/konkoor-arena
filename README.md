@@ -29,3 +29,20 @@ Run:
 8. Try starting the same exam twice for one student; only one attempt may exist.
 9. Confirm review is blocked before submission and works after submission.
 10. Confirm existing Arena flows remain unaffected.
+
+
+## V43 — Question Designer Core
+
+The project now includes the backend foundation for a dedicated Question Designer workflow.
+
+- Question lifecycle: `draft`, `review`, `published`, `archived`
+- Server-side ownership checks for question designers
+- Designer-only question-bank visibility
+- Search across question text, code, and topic
+- Filters for lesson, grade, major, chapter, difficulty, status, and creator
+- Extended sorting options
+- Draft submission for review
+- Admin-controlled status transitions
+- Used questions are protected from deletion and should be archived instead
+
+See `README-v43.md` for the V43 details.
