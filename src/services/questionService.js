@@ -4,6 +4,7 @@ const getPagination = require("../utils/pagination");
 const ROLES = require("../constants/roles");
 const { QUESTION_STATUS } = require("../constants/question");
 const XLSX = require("xlsx");
+const { QUESTION_REVIEW_DECISION } = require("../constants/questionReview");
 
 const questionAuthorSelect = {
   id: true,
@@ -499,6 +500,141 @@ const deleteQuestion = async (id) => {
   });
 };
 
+const reviewerSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+};
+
+const getReviewQueue = async (query, user) => {
+  if (user.role !== ROLES.ADMIN) {
+    throw new AppError("Only an admin can access the question review queue", 403);
+  }
+
+  const { page, limit, skip } = getPagination(query);
+  const search = typeof query.search === "string" ? query.search.trim() : "";
+
+  const where = {
+    status: QUESTION_STATUS.REVIEW,
+    ...(search && {
+      OR: [
+        { questionText: { contains: search, mode: "insensitive" } },
+        { code: { contains: search, mode: "insensitive" } },
+        { topic: { contains: search, mode: "insensitive" } },
+      ],
+    }),
+    ...(query.lesson && { lesson: query.lesson }),
+    ...(query.grade && { grade: query.grade }),
+    ...(query.major && { major: query.major }),
+    ...(query.difficulty && { difficulty: query.difficulty }),
+  };
+
+  const [questions, total] = await Promise.all([
+    prisma.question.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        createdBy: { select: questionAuthorSelect },
+      },
+      orderBy: { updatedAt: "asc" },
+    }),
+    prisma.question.count({ where }),
+  ]);
+
+  return {
+    questions,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+const getQuestionReviewDetails = async (id, user) => {
+  if (user.role !== ROLES.ADMIN) {
+    throw new AppError("Only an admin can review questions", 403);
+  }
+
+  const question = await prisma.question.findUnique({
+    where: { id },
+    include: {
+      createdBy: { select: questionAuthorSelect },
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        include: { reviewer: { select: reviewerSelect } },
+      },
+    },
+  });
+
+  if (!question) {
+    throw new AppError("Question not found", 404);
+  }
+
+  return question;
+};
+
+const reviewQuestion = async (id, decision, note, user) => {
+  if (user.role !== ROLES.ADMIN) {
+    throw new AppError("Only an admin can review questions", 403);
+  }
+
+  const normalizedNote = typeof note === "string" ? note.trim() : "";
+  if (decision === QUESTION_REVIEW_DECISION.CHANGES_REQUESTED && !normalizedNote) {
+    throw new AppError("A review note is required when requesting changes", 400);
+  }
+
+  const nextStatus = {
+    [QUESTION_REVIEW_DECISION.APPROVED]: QUESTION_STATUS.PUBLISHED,
+    [QUESTION_REVIEW_DECISION.CHANGES_REQUESTED]: QUESTION_STATUS.DRAFT,
+    [QUESTION_REVIEW_DECISION.ARCHIVED]: QUESTION_STATUS.ARCHIVED,
+  }[decision];
+
+  if (!nextStatus) {
+    throw new AppError("Invalid review decision", 400);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const question = await tx.question.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+
+    if (!question) {
+      throw new AppError("Question not found", 404);
+    }
+
+    if (question.status !== QUESTION_STATUS.REVIEW) {
+      throw new AppError("Only questions in review can be reviewed", 409);
+    }
+
+    await tx.questionReview.create({
+      data: {
+        questionId: id,
+        reviewerId: user.id,
+        decision,
+        note: normalizedNote,
+      },
+    });
+
+    const updatedQuestion = await tx.question.update({
+      where: { id },
+      data: { status: nextStatus },
+      include: {
+        createdBy: { select: questionAuthorSelect },
+        reviews: {
+          orderBy: { createdAt: "desc" },
+          include: { reviewer: { select: reviewerSelect } },
+        },
+      },
+    });
+
+    return updatedQuestion;
+  });
+};
+
 module.exports = {
   createQuestion,
   getQuestions,
@@ -511,4 +647,7 @@ module.exports = {
   deleteQuestion,
   exportQuestions,
   getQuestionAnalytics,
+  getReviewQueue,
+  getQuestionReviewDetails,
+  reviewQuestion,
 };

@@ -28,6 +28,7 @@ import QuestionBank from "../pages/Questions/QuestionBank";
 import QuestionAnalyticsPage from "../pages/Questions/QuestionAnalytics";
 import QuestionImport from "../pages/Questions/QuestionImport";
 import QuestionDesigner from "../pages/Questions/QuestionDesigner";
+import QuestionReview from "../pages/Questions/QuestionReview";
 
 const router = createBrowserRouter([
   {
@@ -129,7 +130,10 @@ const router = createBrowserRouter([
       },
       {
         element: <RoleRoute allowedRoles={["ADMIN"]} />,
-        children: [{ path: "admin", element: <AdminDashboard /> }],
+        children: [
+          { path: "admin", element: <AdminDashboard /> },
+          { path: "question-review", element: <QuestionReview /> },
+        ],
       },
       {
         element: <RoleRoute allowedRoles={["ADMIN", "QUESTION_DESIGNER"]} />,

@@ -54,6 +54,7 @@ model User {
   arenaLeagueStandings ArenaLeagueStanding[]
 
   aiAnalyses AIAnalysis[]
+  questionReviews QuestionReview[] @relation("QuestionReviewReviewer")
 }
 
 model SubscriptionPlan {
@@ -165,6 +166,8 @@ model Question {
 
   attemptAnswers AttemptAnswer[]
 
+  reviews QuestionReview[]
+
   arenaMatchQuestions ArenaMatchQuestion[]
 
   createdAt DateTime @default(now())
@@ -175,6 +178,26 @@ model Question {
   @@index([grade])
   @@index([major])
   @@index([difficulty])
+}
+
+
+model QuestionReview {
+  id String @id @default(cuid())
+
+  questionId String
+  reviewerId String
+
+  decision String
+  note String @default("")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  reviewer User @relation("QuestionReviewReviewer", fields: [reviewerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([questionId, createdAt])
+  @@index([reviewerId, createdAt])
+  @@index([decision, createdAt])
 }
 
 model Booklet {

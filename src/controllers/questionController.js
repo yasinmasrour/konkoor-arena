@@ -109,6 +109,30 @@ const getQuestionAnalytics = asyncHandler(async (req, res) => {
   res.status(200).json({ analytics });
 });
 
+const getReviewQueue = asyncHandler(async (req, res) => {
+  const result = await questionService.getReviewQueue(req.query, req.user);
+  res.status(200).json(result);
+});
+
+const getQuestionReviewDetails = asyncHandler(async (req, res) => {
+  const question = await questionService.getQuestionReviewDetails(req.params.id, req.user);
+  res.status(200).json({ question });
+});
+
+const reviewQuestion = asyncHandler(async (req, res) => {
+  const question = await questionService.reviewQuestion(
+    req.params.id,
+    req.body.decision,
+    req.body.note,
+    req.user,
+  );
+
+  res.status(200).json({
+    message: "Question review decision applied successfully",
+    question,
+  });
+});
+
 const deleteQuestion = asyncHandler(async (req, res) => {
   await questionService.deleteQuestion(req.params.id);
 
@@ -129,4 +153,7 @@ module.exports = {
   deleteQuestion,
   exportQuestions,
   getQuestionAnalytics,
+  getReviewQueue,
+  getQuestionReviewDetails,
+  reviewQuestion,
 };

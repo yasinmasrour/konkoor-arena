@@ -171,6 +171,16 @@ const Navbar = () => {
               </Link>
             )}
 
+            {user.role === "ADMIN" && (
+              <Link
+                to="/question-review"
+                className="text-sm dark:text-white"
+              >
+                بررسی سؤال‌ها
+              </Link>
+            )}
+
+
             <button
               onClick={logout}
               className="

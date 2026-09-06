@@ -54,6 +54,7 @@ const {
   questionStatusSchema,
   bulkQuestionStatusSchema,
 } = require("../validations/questionValidation");
+const { questionReviewDecisionSchema } = require("../validations/questionReviewValidation");
 
 /**
  * @swagger
@@ -204,6 +205,28 @@ router.get(
   authMiddleware,
   roleMiddleware(ROLES.ADMIN, ROLES.QUESTION_DESIGNER),
   questionController.getQuestionAnalytics,
+);
+
+router.get(
+  "/review",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  questionController.getReviewQueue,
+);
+
+router.get(
+  "/review/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  questionController.getQuestionReviewDetails,
+);
+
+router.post(
+  "/review/:id/decision",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  validate(questionReviewDecisionSchema),
+  questionController.reviewQuestion,
 );
 
 router.post(
