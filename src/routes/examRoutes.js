@@ -135,6 +135,27 @@ router.get("/", authMiddleware, controller.getExams);
  *       404:
  *         description: exam not found
  */
+router.post(
+  "/:id/booklets",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR),
+  controller.addBookletsToExam,
+);
+
+router.delete(
+  "/:id/booklets/:bookletId",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR),
+  controller.removeBookletFromExam,
+);
+
+router.patch(
+  "/:id/booklets/order",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR),
+  controller.updateBookletOrder,
+);
+
 router.get("/:id", authMiddleware, controller.getExamById);
 
 /**

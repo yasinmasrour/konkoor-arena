@@ -31,11 +31,11 @@ const ArenaProfile = () => {
     if (!profile || !selectedLeague) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRatingHistory([]);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setHistoryLoading(false);
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setHistoryLoading(true);
     getArenaRatingHistory(selectedLeague).then((data) => setRatingHistory(data.history)).catch(() => setRatingHistory([])).finally(() => setHistoryLoading(false));
   }, [profile, selectedLeague]);

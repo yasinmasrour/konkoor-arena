@@ -14,7 +14,7 @@ const ArenaSeasonResults = () => {
     if (!leagueId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setError("");
     getArenaLeagueStandings(leagueId)
       .then(setData)

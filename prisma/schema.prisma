@@ -203,6 +203,8 @@ model QuestionReview {
 model Booklet {
   id String @id @default(cuid())
 
+  title String @default("")
+
   lesson String
 
   grade String

@@ -59,11 +59,9 @@ const QuestionImport = () => {
 
   const handlePreview = async () => {
     if (!file || loading) return;
-
     setLoading(true);
     setError("");
     setSuccess("");
-
     try {
       setPreview(await previewQuestionImport(file));
     } catch (err: unknown) {
@@ -75,18 +73,14 @@ const QuestionImport = () => {
 
   const handleImport = async () => {
     if (!file || !preview || preview.invalidRows > 0 || importing) return;
-
     setImporting(true);
     setError("");
     setSuccess("");
-
     try {
       const result = await importQuestions(file);
-
       setSuccess(
         `${result.importedCount} سؤال با موفقیت و با وضعیت «پیش‌نویس» وارد شد.`,
       );
-
       setPreview(result.preview);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "وارد کردن سؤال‌ها انجام نشد."));

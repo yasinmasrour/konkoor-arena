@@ -29,6 +29,8 @@ import QuestionAnalyticsPage from "../pages/Questions/QuestionAnalytics";
 import QuestionImport from "../pages/Questions/QuestionImport";
 import QuestionDesigner from "../pages/Questions/QuestionDesigner";
 import QuestionReview from "../pages/Questions/QuestionReview";
+import BookletBuilder from "../pages/Booklets/BookletBuilder";
+import ExamBuilder from "../pages/ExamBuilder";
 
 const router = createBrowserRouter([
   {
@@ -133,6 +135,16 @@ const router = createBrowserRouter([
         children: [
           { path: "admin", element: <AdminDashboard /> },
           { path: "question-review", element: <QuestionReview /> },
+        ],
+      },
+      {
+        element: <RoleRoute allowedRoles={["ADMIN", "COUNSELOR"]} />,
+        children: [
+          { path: "booklets", element: <BookletBuilder /> },
+          { path: "booklet-builder", element: <BookletBuilder /> },
+          { path: "booklet-builder/:id", element: <BookletBuilder /> },
+          { path: "exam-builder", element: <ExamBuilder /> },
+          { path: "exam-builder/:id", element: <ExamBuilder /> },
         ],
       },
       {

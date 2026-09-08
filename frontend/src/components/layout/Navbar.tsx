@@ -171,6 +171,15 @@ const Navbar = () => {
               </Link>
             )}
 
+            {(user.role === "ADMIN" || user.role === "COUNSELOR") && (
+              <Link
+                to="/booklets"
+                className="text-sm dark:text-white"
+              >
+                دفترچه‌ها
+              </Link>
+            )}
+
             {user.role === "ADMIN" && (
               <Link
                 to="/question-review"
