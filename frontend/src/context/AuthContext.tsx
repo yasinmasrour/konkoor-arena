@@ -57,11 +57,11 @@ export const AuthProvider = ({ children }: Props) => {
     }
 
     if (savedUser) {
-       
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUser(JSON.parse(savedUser));
     }
 
-     
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(false);
   }, []);
 

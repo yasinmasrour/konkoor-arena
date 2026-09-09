@@ -64,8 +64,13 @@ export const createExam = async (payload: ExamPayload) => {
   return response.data.exam;
 };
 
-export const updateExam = async (id: string, payload: Partial<Omit<ExamPayload, "bookletIds">> & { status?: ExamStatus }) => {
+export const updateExam = async (id: string, payload: Partial<Omit<ExamPayload, "bookletIds">>) => {
   const response = await api.patch<{ exam: Exam }>(`/exams/${id}`, payload);
+  return response.data.exam;
+};
+
+export const changeExamStatus = async (id: string, status: ExamStatus) => {
+  const response = await api.patch<{ exam: Exam }>(`/exams/${id}/status`, { status });
   return response.data.exam;
 };
 
@@ -81,6 +86,11 @@ export const removeExamBooklet = async (id: string, bookletId: string) => {
 
 export const reorderExamBooklets = async (id: string, booklets: Array<{ id: string; order: number }>) => {
   const response = await api.patch<{ exam: Exam }>(`/exams/${id}/booklets/order`, { booklets });
+  return response.data.exam;
+};
+
+export const duplicateExam = async (id: string) => {
+  const response = await api.post<{ exam: Exam }>(`/exams/${id}/duplicate`);
   return response.data.exam;
 };
 

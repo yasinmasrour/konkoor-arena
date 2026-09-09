@@ -19,6 +19,16 @@ const updateExam = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Exam updated", exam });
 });
 
+const changeExamStatus = asyncHandler(async (req, res) => {
+  const exam = await examService.changeExamStatus(req.params.id, req.body.status, req.user);
+  res.status(200).json({ message: "Exam status updated", exam });
+});
+
+const duplicateExam = asyncHandler(async (req, res) => {
+  const exam = await examService.duplicateExam(req.params.id, req.user);
+  res.status(201).json({ message: "Exam duplicated", exam });
+});
+
 const deleteExam = asyncHandler(async (req, res) => {
   await examService.deleteExam(req.params.id, req.user);
   res.status(200).json({ message: "Exam deleted" });
@@ -44,7 +54,9 @@ module.exports = {
   getExams,
   getExamById,
   updateExam,
+  changeExamStatus,
   deleteExam,
+  duplicateExam,
   addBookletsToExam,
   removeBookletFromExam,
   updateBookletOrder,

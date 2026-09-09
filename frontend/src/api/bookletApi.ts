@@ -38,7 +38,7 @@ export interface Booklet {
   createdAt: string;
   updatedAt: string;
   createdBy?: { id: string; firstName: string; lastName: string };
-  questions: BookletQuestion[];
+  questions?: BookletQuestion[];
   _count?: { questions: number; examBooklets: number };
 }
 

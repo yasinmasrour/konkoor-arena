@@ -37,8 +37,6 @@ const updateExamSchema = z.object({
     endTime: z.string()
         .optional(),
 
-    status: z.string()
-        .optional()
 
 })
 

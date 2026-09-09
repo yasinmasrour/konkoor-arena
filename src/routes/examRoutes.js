@@ -185,6 +185,20 @@ router.get("/:id", authMiddleware, controller.getExamById);
  *       404:
  *         description: exam not found
  */
+router.post(
+  "/:id/duplicate",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR),
+  controller.duplicateExam,
+);
+
+router.patch(
+  "/:id/status",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR),
+  controller.changeExamStatus,
+);
+
 router.patch(
   "/:id",
   authMiddleware,
