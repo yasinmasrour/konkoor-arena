@@ -21,134 +21,145 @@ const runArenaTransaction = async (callback) => {
   }
 };
 
-const createArenaMatch = async (userId1, userId2, leagueId) => {
+const normalizeLesson = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\u200c\u200d\s]+/g, "");
+
+const getLessonAliases = (lesson) => {
+  const normalized = normalizeLesson(lesson);
+
+  const groups = [
+    ["mathematics", "math", "ریاضی"],
+    ["physics", "فیزیک"],
+    ["chemistry", "شیمی"],
+    ["biology", "زیست", "زیستشناسی"],
+  ];
+
+  for (const group of groups) {
+    if (group.some((item) => normalizeLesson(item) === normalized)) {
+      return new Set(group.map(normalizeLesson));
+    }
+  }
+
+  return new Set([normalized]);
+};
+
+const selectArenaQuestions = async (tx, lesson) => {
+  const publishedQuestions = await tx.question.findMany({
+    where: { status: "published" },
+    select: { id: true, lesson: true },
+  });
+
+  const aliases = getLessonAliases(lesson);
+  const lessonQuestions = publishedQuestions.filter((question) =>
+    aliases.has(normalizeLesson(question.lesson)),
+  );
+
+  // Arena leagues historically stored lesson names in both Persian and English.
+  // Prefer the league subject when at least five questions exist, otherwise use
+  // the global published pool so a naming mismatch cannot make Arena unusable.
+  const pool = lessonQuestions.length >= 5 ? lessonQuestions : publishedQuestions;
+
+  if (pool.length < 5) {
+    throw new AppError(
+      `Not enough published questions available. Required: 5, available: ${pool.length}.`,
+      400,
+    );
+  }
+
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled.slice(0, 5).map((question) => question.id);
+};
+
+const createArenaMatchTx = async (tx, userId1, userId2, leagueId) => {
   if (userId1 === userId2) {
     throw new AppError("Players must be different", 400);
   }
 
-  return await runArenaTransaction(async (tx) => {
-    // All preconditions and writes happen in the same serializable
-    // transaction. This prevents two concurrent requests from creating
-    // multiple active matches for the same player.
-    const [league, users] = await Promise.all([
-      tx.arenaLeague.findUnique({
-        where: { id: leagueId },
-      }),
-      tx.user.findMany({
-        where: {
-          id: { in: [userId1, userId2] },
-        },
-        select: { id: true },
-      }),
-    ]);
-
-    if (!league) {
-      throw new AppError("League not found", 404);
-    }
-
-    const now = new Date();
-
-    if (
-      league.status !== "active" ||
-      now < league.startDate ||
-      now > league.endDate
-    ) {
-      throw new AppError("League is not active", 400);
-    }
-
-    if (users.length !== 2) {
-      throw new AppError("One or both players not found", 404);
-    }
-
-    const activeMatch = await tx.arenaMatch.findFirst({
-      where: {
-        status: { in: ["waiting", "playing"] },
-        players: {
-          some: {
-            userId: { in: [userId1, userId2] },
-          },
-        },
-      },
-      select: {
-        id: true,
-        players: {
-          select: { userId: true },
-        },
-      },
-    });
-
-    if (activeMatch) {
-      const playerAlreadyMatched = activeMatch.players.some(
-        (player) => player.userId === userId1,
-      );
-
-      throw new AppError(
-        playerAlreadyMatched
-          ? "Player already has an active match"
-          : "Opponent already has an active match",
-        400,
-      );
-    }
-
-    const questions = await tx.question.findMany({
-      where: {
-        status: "published",
-        lesson: league.lesson,
-      },
+  const [league, users] = await Promise.all([
+    tx.arenaLeague.findUnique({ where: { id: leagueId } }),
+    tx.user.findMany({
+      where: { id: { in: [userId1, userId2] } },
       select: { id: true },
-    });
+    }),
+  ]);
 
-    if (questions.length < 5) {
-      throw new AppError("Not enough published questions available", 400);
-    }
+  if (!league) throw new AppError("League not found", 404);
 
-    const shuffledQuestions = questions
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 5);
+  const now = new Date();
+  if (
+    league.status !== "active" ||
+    now < league.startDate ||
+    now > league.endDate
+  ) {
+    throw new AppError("League is not active", 400);
+  }
 
-    await arenaRatingService.ensurePlayerRatingsTx(tx, leagueId, [
-      userId1,
-      userId2,
-    ]);
+  if (users.length !== 2) {
+    throw new AppError("One or both players not found", 404);
+  }
 
-    return await tx.arenaMatch.create({
-      data: {
-        leagueId,
-        status: "waiting",
+  const activeMatch = await tx.arenaMatch.findFirst({
+    where: {
+      status: { in: ["waiting", "playing"] },
+      players: { some: { userId: { in: [userId1, userId2] } } },
+    },
+    select: { id: true, players: { select: { userId: true } } },
+  });
 
-        players: {
-          create: [
-            {
-              userId: userId1,
-              lives: 3,
-            },
-            {
-              userId: userId2,
-              lives: 3,
-            },
-          ],
-        },
+  if (activeMatch) {
+    const playerAlreadyMatched = activeMatch.players.some(
+      (player) => player.userId === userId1,
+    );
+    throw new AppError(
+      playerAlreadyMatched
+        ? "Player already has an active match"
+        : "Opponent already has an active match",
+      400,
+    );
+  }
 
-        questions: {
-          create: shuffledQuestions.map((question, index) => ({
-            questionId: question.id,
-            order: index + 1,
-            timeLimit: 60,
-          })),
-        },
+  const questionIds = await selectArenaQuestions(tx, league.lesson);
+
+  await arenaRatingService.ensurePlayerRatingsTx(tx, leagueId, [
+    userId1,
+    userId2,
+  ]);
+
+  return tx.arenaMatch.create({
+    data: {
+      leagueId,
+      status: "waiting",
+      players: {
+        create: [
+          { userId: userId1, lives: 3 },
+          { userId: userId2, lives: 3 },
+        ],
       },
-
-      include: {
-        players: true,
-        questions: {
-          orderBy: {
-            order: "asc",
-          },
-        },
+      questions: {
+        create: questionIds.map((questionId, index) => ({
+          questionId,
+          order: index + 1,
+          timeLimit: 60,
+        })),
       },
-    });
+    },
+    include: {
+      players: true,
+      questions: { orderBy: { order: "asc" } },
+    },
   });
 };
+
+const createArenaMatch = async (userId1, userId2, leagueId) =>
+  runArenaTransaction((tx) => createArenaMatchTx(tx, userId1, userId2, leagueId));
 
 const getArenaMatchById = async (matchId, userId) => {
   const match = await prisma.arenaMatch.findUnique({
@@ -756,6 +767,7 @@ const startNextArenaQuestion = async (matchId) => {
 
 module.exports = {
   createArenaMatch,
+  createArenaMatchTx,
   getArenaMatchById,
   startArenaMatch,
   finishArenaMatch,

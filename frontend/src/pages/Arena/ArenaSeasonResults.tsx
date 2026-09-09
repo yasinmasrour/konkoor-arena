@@ -12,18 +12,26 @@ const ArenaSeasonResults = () => {
 
   useEffect(() => {
     if (!leagueId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setError("");
-    getArenaLeagueStandings(leagueId)
-      .then(setData)
-      .catch((requestError: unknown) => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const result = await getArenaLeagueStandings(leagueId);
+        if (!cancelled) setData(result);
+      } catch (requestError: unknown) {
+        if (cancelled) return;
         const message = requestError instanceof Error ? requestError.message : "";
         console.error("GET ARENA SEASON RESULTS ERROR:", requestError);
         setError(message || "دریافت نتایج فصل با مشکل مواجه شد.");
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => { cancelled = true; };
   }, [leagueId]);
 
   const podium = useMemo(() => data?.standings.slice(0, 3) ?? [], [data]);

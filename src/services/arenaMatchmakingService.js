@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const arenaMatchService = require("./arenaMatchService");
+const arenaRatingService = require("./arenaRatingService");
 const arenaMatchmakingSocketService = require("../socket/arenaMatchmakingSocketService");
 
 const INITIAL_RATING_RANGE = 100;
@@ -8,351 +9,257 @@ const RATING_RANGE_INCREMENT = 100;
 const MAX_RATING_RANGE = 1000;
 const QUEUE_TTL_MS = 60 * 1000;
 
-const findOpponent = async (userId, leagueId, rating) => {
+const getLeagueLockKey = (leagueId) => `arena:matchmaking:${leagueId}`;
+
+const cleanupStaleQueues = async (leagueId = null, db = prisma) => {
   const cutoff = new Date(Date.now() - QUEUE_TTL_MS);
 
-  const queueEntries = await prisma.arenaQueue.findMany({
+  return (
+    await db.arenaQueue.updateMany({
+      where: {
+        status: "waiting",
+        joinedAt: { lt: cutoff },
+        ...(leagueId ? { leagueId } : {}),
+      },
+      data: { status: "cancelled" },
+    })
+  ).count;
+};
+
+const getMatchmakingCandidate = async (tx, userId, leagueId, rating) => {
+  const entries = await tx.arenaQueue.findMany({
     where: {
       leagueId,
       status: "waiting",
-      joinedAt: {
-        gte: cutoff,
-      },
-      userId: {
-        not: userId,
-      },
+      userId: { not: userId },
     },
-
-    orderBy: {
-      joinedAt: "asc",
-    },
+    orderBy: { joinedAt: "asc" },
   });
 
-  if (queueEntries.length === 0) {
-    return null;
-  }
-
-  const waitingTimeMs = Date.now();
-
-  const candidates = queueEntries.filter((entry) => {
-    const waitingSeconds = Math.floor(
-      (waitingTimeMs - entry.joinedAt.getTime()) / 1000,
+  const now = Date.now();
+  const candidates = entries.filter((entry) => {
+    const waitingSeconds = Math.max(
+      0,
+      Math.floor((now - entry.joinedAt.getTime()) / 1000),
     );
-
-    let ratingRange = INITIAL_RATING_RANGE;
-
-    ratingRange += Math.floor(waitingSeconds / 10) * RATING_RANGE_INCREMENT;
-
-    ratingRange = Math.min(ratingRange, MAX_RATING_RANGE);
+    const ratingRange = Math.min(
+      INITIAL_RATING_RANGE +
+        Math.floor(waitingSeconds / 10) * RATING_RANGE_INCREMENT,
+      MAX_RATING_RANGE,
+    );
 
     return Math.abs(entry.rating - rating) <= ratingRange;
   });
 
-  if (candidates.length === 0) {
-    return null;
-  }
+  if (candidates.length === 0) return null;
 
-  const randomIndex = Math.floor(Math.random() * candidates.length);
-
-  return candidates[randomIndex];
-};
-
-const cleanupStaleQueues = async (leagueId = null) => {
-  const cutoff = new Date(Date.now() - QUEUE_TTL_MS);
-
-  const result = await prisma.arenaQueue.updateMany({
-    where: {
-      status: "waiting",
-      joinedAt: {
-        lt: cutoff,
-      },
-      ...(leagueId ? { leagueId } : {}),
-    },
-    data: {
-      status: "cancelled",
-    },
-  });
-
-  return result.count;
+  return candidates[Math.floor(Math.random() * candidates.length)];
 };
 
 const joinQueue = async (userId, leagueId) => {
-  const league = await prisma.arenaLeague.findUnique({
-    where: {
-      id: leagueId,
-    },
-  });
-
-  if (!league) {
-    throw new AppError("League not found", 404);
+  if (!userId || !leagueId) {
+    throw new AppError("User and league are required", 400);
   }
 
-  const now = new Date();
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // Serialize matchmaking decisions per league. This prevents two players
+      // joining simultaneously from both claiming the same opponent.
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${getLeagueLockKey(leagueId)}))
+      `;
 
-  if (
-    league.status !== "active" ||
-    now < league.startDate ||
-    now > league.endDate
-  ) {
-    throw new AppError("League is not active", 400);
-  }
+      const league = await tx.arenaLeague.findUnique({
+        where: { id: leagueId },
+      });
 
-  const existingMatch = await prisma.arenaMatch.findFirst({
-    where: {
-      status: {
-        in: ["waiting", "playing"],
-      },
+      if (!league) throw new AppError("League not found", 404);
 
-      players: {
-        some: {
-          userId,
+      const now = new Date();
+      if (
+        league.status !== "active" ||
+        now < league.startDate ||
+        now > league.endDate
+      ) {
+        throw new AppError("League is not active", 400);
+      }
+
+      await cleanupStaleQueues(leagueId, tx);
+
+      const existingMatch = await tx.arenaMatch.findFirst({
+        where: {
+          status: { in: ["waiting", "playing"] },
+          players: { some: { userId } },
         },
-      },
-    },
-  });
+        select: { id: true },
+      });
 
-  if (existingMatch) {
-    throw new AppError("Player already has an active match", 400);
-  }
+      if (existingMatch) {
+        throw new AppError("Player already has an active match", 409);
+      }
 
-  const rating = await prisma.arenaRating.findUnique({
-    where: {
-      leagueId_userId: {
-        leagueId,
-        userId,
-      },
-    },
-  });
+      const rating = await tx.arenaRating.upsert({
+        where: { leagueId_userId: { leagueId, userId } },
+        update: {},
+        create: { leagueId, userId, rating: 0 },
+      });
 
-  if (!rating) {
-    await prisma.arenaRating.create({
-      data: {
-        leagueId,
-        userId,
-        rating: 0,
-      },
-    });
-  }
+      const existingQueue = await tx.arenaQueue.findUnique({
+        where: { userId_leagueId: { userId, leagueId } },
+      });
 
-  const playerRating = rating?.rating ?? 0;
+      if (existingQueue?.status === "waiting") {
+        return {
+          matched: false,
+          queueId: existingQueue.id,
+          match: null,
+          alreadyQueued: true,
+        };
+      }
 
-  const existingQueue = await prisma.arenaQueue.findUnique({
-    where: {
-      userId_leagueId: {
+      const opponent = await getMatchmakingCandidate(
+        tx,
         userId,
         leagueId,
-      },
-    },
-  });
+        rating.rating,
+      );
 
-  if (existingQueue?.status === "waiting") {
-    throw new AppError("Player is already in matchmaking queue", 400);
-  }
+      if (!opponent) {
+        const queue = existingQueue
+          ? await tx.arenaQueue.update({
+              where: { id: existingQueue.id },
+              data: {
+                rating: rating.rating,
+                status: "waiting",
+                joinedAt: now,
+              },
+            })
+          : await tx.arenaQueue.create({
+              data: {
+                userId,
+                leagueId,
+                rating: rating.rating,
+                status: "waiting",
+                joinedAt: now,
+              },
+            });
 
-  await cleanupStaleQueues(leagueId);
+        return {
+          matched: false,
+          queueId: queue.id,
+          match: null,
+          alreadyQueued: false,
+        };
+      }
 
-  const opponent = await findOpponent(userId, leagueId, playerRating);
+      const claimedOpponent = await tx.arenaQueue.updateMany({
+        where: {
+          id: opponent.id,
+          status: "waiting",
+          userId: { not: userId },
+        },
+        data: { status: "matched" },
+      });
 
-  if (!opponent) {
-    const queue = existingQueue
-      ? await prisma.arenaQueue.update({
+      if (claimedOpponent.count !== 1) {
+        return null;
+      }
+
+      const currentQueue = existingQueue
+        ? await tx.arenaQueue.update({
+            where: { id: existingQueue.id },
+            data: {
+              rating: rating.rating,
+              status: "matched",
+              joinedAt: now,
+            },
+          })
+        : await tx.arenaQueue.create({
+            data: {
+              userId,
+              leagueId,
+              rating: rating.rating,
+              status: "matched",
+              joinedAt: now,
+            },
+          });
+
+      try {
+        const match = await arenaMatchService.createArenaMatchTx(
+          tx,
+          userId,
+          opponent.userId,
+          leagueId,
+        );
+
+        await tx.arenaQueue.updateMany({
           where: {
-            id: existingQueue.id,
-          },
-
-          data: {
-            rating: playerRating,
-            status: "waiting",
-            joinedAt: now,
-          },
-        })
-      : await prisma.arenaQueue.create({
-          data: {
-            userId,
             leagueId,
-            rating: playerRating,
-            status: "waiting",
-            joinedAt: now,
+            userId: { in: [userId, opponent.userId] },
+            status: "matched",
           },
+          data: { status: "completed" },
         });
 
-    return {
-      matched: false,
-      queueId: queue.id,
-      match: null,
-    };
-  }
+        return {
+          matched: true,
+          queueId: null,
+          match,
+          alreadyQueued: false,
+          opponentQueueId: currentQueue.id,
+        };
+      } catch (error) {
+        // The outer transaction will roll back both queue claims and the match
+        // if match creation fails. No stale "matched" state can survive.
+        throw error;
+      }
+    },
+    {
+      isolationLevel: "Serializable",
+      maxWait: 5000,
+      timeout: 15000,
+    },
+  );
 
-  const match = await prisma.$transaction(async (tx) => {
-    const currentQueue = await tx.arenaQueue.findUnique({
-      where: {
-        id: opponent.id,
-      },
-    });
-
-    if (!currentQueue || currentQueue.status !== "waiting") {
-      return null;
-    }
-
-    const updatedOpponent = await tx.arenaQueue.updateMany({
-      where: {
-        id: opponent.id,
-        status: "waiting",
-      },
-
-      data: {
-        status: "matched",
-      },
-    });
-
-    if (updatedOpponent.count !== 1) {
-      return null;
-    }
-
-    if (existingQueue) {
-      await tx.arenaQueue.upsert({
-        where: {
-          userId_leagueId: {
-            userId,
-            leagueId,
-          },
-        },
-
-        update: {
-          rating: playerRating,
-          status: "matched",
-          joinedAt: now,
-        },
-
-        create: {
-          userId,
-          leagueId,
-          rating: playerRating,
-          status: "matched",
-          joinedAt: now,
-        },
-      });
-    } else {
-      await tx.arenaQueue.create({
-        data: {
-          userId,
-          leagueId,
-          rating: playerRating,
-          status: "matched",
-          joinedAt: now,
-        },
-      });
-    }
-
-    return true;
-  });
-
-  if (!match) {
+  if (!result) {
     throw new AppError(
       "Opponent is no longer available. Please try again.",
       409,
     );
   }
 
-  let arenaMatch;
-
-  try {
-    arenaMatch = await arenaMatchService.createArenaMatch(
-      userId,
-      opponent.userId,
-      leagueId,
-    );
-  } catch (error) {
-    await prisma.arenaQueue.updateMany({
-      where: {
-        leagueId,
-        userId: {
-          in: [userId, opponent.userId],
-        },
-        status: "matched",
-      },
-
-      data: {
-        status: "waiting",
-        joinedAt: new Date(),
-      },
-    });
-
-    throw error;
+  if (result.match) {
+    arenaMatchmakingSocketService.notifyMatchFound(result.match);
   }
 
-  await prisma.arenaQueue.updateMany({
-    where: {
-      leagueId,
-      userId: {
-        in: [userId, opponent.userId],
-      },
-      status: "matched",
-    },
-
-    data: {
-      status: "completed",
-    },
-  });
-
-  arenaMatchmakingSocketService.notifyMatchFound(arenaMatch);
-
-  return {
-    matched: true,
-    queueId: null,
-    match: arenaMatch,
-  };
+  return result;
 };
 
 const leaveQueue = async (userId, leagueId) => {
   const queue = await prisma.arenaQueue.findUnique({
-    where: {
-      userId_leagueId: {
-        userId,
-        leagueId,
-      },
-    },
+    where: { userId_leagueId: { userId, leagueId } },
   });
 
-  if (!queue) {
-    throw new AppError("Player is not in matchmaking queue", 404);
-  }
-
-  if (queue.status !== "waiting") {
-    throw new AppError("Player is not waiting in matchmaking queue", 400);
+  if (!queue || queue.status !== "waiting") {
+    return { success: true, alreadyLeft: true };
   }
 
   await prisma.arenaQueue.update({
-    where: {
-      id: queue.id,
-    },
-
-    data: {
-      status: "cancelled",
-    },
+    where: { id: queue.id },
+    data: { status: "cancelled" },
   });
 
-  return {
-    success: true,
-  };
+  return { success: true, alreadyLeft: false };
 };
 
 const getQueueStatus = async (userId, leagueId) => {
+  await cleanupStaleQueues(leagueId);
+
   const queue = await prisma.arenaQueue.findUnique({
-    where: {
-      userId_leagueId: {
-        userId,
-        leagueId,
-      },
-    },
+    where: { userId_leagueId: { userId, leagueId } },
   });
 
-  if (!queue) {
-    return {
-      inQueue: false,
-      queue: null,
-    };
-  }
+  if (!queue) return { inQueue: false, queue: null };
 
   return {
     inQueue: queue.status === "waiting",

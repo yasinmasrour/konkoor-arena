@@ -13,7 +13,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { joinArenaQueue, leaveArenaQueue } from "../../api/arenaApi";
+import { getArenaQueueStatus, joinArenaQueue, leaveArenaQueue } from "../../api/arenaApi";
 import { socket } from "../../socket/socket";
 
 type MatchmakingLocationState = {
@@ -51,11 +51,7 @@ const Matchmaking = () => {
   }, [leagueId, navigate]);
 
   useEffect(() => {
-    if (!searching) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setElapsedSeconds(0);
-      return;
-    }
+    if (!searching) return;
 
     const timer = window.setInterval(() => {
       setElapsedSeconds((value) => value + 1);
@@ -63,6 +59,37 @@ const Matchmaking = () => {
 
     return () => window.clearInterval(timer);
   }, [searching]);
+
+  useEffect(() => {
+    if (!leagueId) return;
+
+    let cancelled = false;
+
+    const loadQueueStatus = async () => {
+      try {
+        const result = await getArenaQueueStatus(leagueId);
+        if (cancelled) return;
+
+        if (result.inQueue) {
+          const joinedAt = new Date(result.queue?.joinedAt ?? Date.now()).getTime();
+          const elapsed = Math.max(0, Math.floor((Date.now() - joinedAt) / 1000));
+          setElapsedSeconds(elapsed);
+          setSearching(true);
+        } else {
+          setElapsedSeconds(0);
+          setSearching(false);
+        }
+      } catch (requestError) {
+        if (!cancelled) console.error("Queue status error:", requestError);
+      }
+    };
+
+    void loadQueueStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [leagueId]);
 
   const elapsedLabel = useMemo(() => {
     const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, "0");
@@ -75,9 +102,10 @@ const Matchmaking = () => {
 
     try {
       setError("");
-      setSearching(true);
 
       const result = await joinArenaQueue(leagueId);
+
+      setSearching(true);
 
       if (result.matched && result.match) {
         navigate(`/arena/match/${result.match.id}`);
@@ -85,7 +113,13 @@ const Matchmaking = () => {
     } catch (requestError: unknown) {
       console.error("Matchmaking error:", requestError);
       setSearching(false);
-      setError(requestError instanceof Error ? requestError.message : "خطایی در پیدا کردن حریف رخ داد.");
+      setError(
+        requestError && typeof requestError === "object" && "response" in requestError
+          ? String((requestError as { response?: { data?: { message?: string } } }).response?.data?.message ?? "خطایی در پیدا کردن حریف رخ داد.")
+          : requestError instanceof Error
+            ? requestError.message
+            : "خطایی در پیدا کردن حریف رخ داد.",
+      );
     }
   };
 
@@ -95,6 +129,7 @@ const Matchmaking = () => {
     try {
       await leaveArenaQueue(leagueId);
       setSearching(false);
+      setElapsedSeconds(0);
     } catch (requestError) {
       console.error("Cancel matchmaking error:", requestError);
     }

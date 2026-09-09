@@ -61,8 +61,28 @@ export const getActiveLeagues = async (): Promise<{ leagues: ArenaLeague[] }> =>
   return response.data;
 };
 
+export interface ArenaQueueStatus {
+  inQueue: boolean;
+  queue: {
+    id: string;
+    status: string;
+    rating: number;
+    joinedAt: string;
+  } | null;
+}
+
 export const joinArenaQueue = async (leagueId: string) => {
   const response = await api.post("/arena/queue", { leagueId });
+  return response.data as {
+    matched: boolean;
+    queueId: string | null;
+    match: { id: string } | null;
+    alreadyQueued?: boolean;
+  };
+};
+
+export const getArenaQueueStatus = async (leagueId: string): Promise<ArenaQueueStatus> => {
+  const response = await api.get<ArenaQueueStatus>(`/arena/queue/${leagueId}`);
   return response.data;
 };
 

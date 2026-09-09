@@ -23,7 +23,6 @@ const ArenaStickerPanel = ({ disabled = false, onSend }: ArenaStickerPanelProps)
               aria-label={sticker.label}
               onClick={() => {
                 onSend(sticker);
-                setOpen(false);
               }}
               className="group flex aspect-square items-center justify-center rounded-2xl border border-transparent bg-slate-100/70 p-2 transition hover:-translate-y-0.5 hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/10 dark:bg-white/[0.05]"
             >

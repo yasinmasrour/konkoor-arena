@@ -16,11 +16,13 @@ const PlayerStatus = ({ name, lives, isCurrentUser = false, status, online = tru
 
   useEffect(() => {
     if (lives < previousLives.current) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLifePulse(true);
+      const startPulseId = window.setTimeout(() => setLifePulse(true), 0);
       const timeoutId = window.setTimeout(() => setLifePulse(false), 650);
       previousLives.current = lives;
-      return () => window.clearTimeout(timeoutId);
+      return () => {
+        window.clearTimeout(startPulseId);
+        window.clearTimeout(timeoutId);
+      };
     }
 
     previousLives.current = lives;

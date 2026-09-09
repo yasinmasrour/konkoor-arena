@@ -15,7 +15,21 @@ const ArenaProfile = () => {
   const [matchHistoryLoading, setMatchHistoryLoading] = useState(true);
 
   useEffect(() => {
-    getArenaProfile().then((data) => { setProfile(data); setSelectedLeague(data.leagues[0]?.leagueId ?? ""); }).catch(() => setError("دریافت پروفایل Arena با مشکل مواجه شد.")).finally(() => setLoading(false));
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await getArenaProfile();
+        if (cancelled) return;
+        setProfile(data);
+        setSelectedLeague(data.leagues[0]?.leagueId ?? "");
+      } catch {
+        if (!cancelled) setError("دریافت پروفایل Arena با مشکل مواجه شد.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
 
   const winRate = useMemo(() => {
@@ -24,20 +38,42 @@ const ArenaProfile = () => {
   }, [profile]);
 
   useEffect(() => {
-    getArenaMatchHistory().then((data) => setMatchHistory(data.matches)).catch(() => setMatchHistory([])).finally(() => setMatchHistoryLoading(false));
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await getArenaMatchHistory();
+        if (!cancelled) setMatchHistory(data.matches);
+      } catch {
+        if (!cancelled) setMatchHistory([]);
+      } finally {
+        if (!cancelled) setMatchHistoryLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (!profile || !selectedLeague) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRatingHistory([]);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHistoryLoading(false);
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHistoryLoading(true);
-    getArenaRatingHistory(selectedLeague).then((data) => setRatingHistory(data.history)).catch(() => setRatingHistory([])).finally(() => setHistoryLoading(false));
+
+    let cancelled = false;
+    const load = async () => {
+      setHistoryLoading(true);
+      try {
+        const data = await getArenaRatingHistory(selectedLeague);
+        if (!cancelled) setRatingHistory(data.history);
+      } catch {
+        if (!cancelled) setRatingHistory([]);
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, [profile, selectedLeague]);
 
   const chart = useMemo(() => {

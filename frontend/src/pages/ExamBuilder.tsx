@@ -79,22 +79,37 @@ export default function ExamBuilder() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError("");
-    if (isList) {
-      getExams({ page: 1, limit: 8, sort: "createdAt", order: "desc" })
-        .then((result) => { if (!cancelled) setExams(result.exams ?? []); })
-        .catch((err) => { if (!cancelled) setError(apiError(err, "دریافت آزمون‌ها انجام نشد.")); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-      return () => { cancelled = true; };
-    }
-    if (isNew) {
-      setExam(null); setForm(emptyForm); setPendingBooklets([]); setPickerOpen(false);
-      setPickerSelected([]); setLoading(false);
-      return () => { cancelled = true; };
-    }
-    getExam(id)
-      .then((result) => {
+
+    const load = async () => {
+      setLoading(true);
+      setError("");
+
+      if (isList) {
+        try {
+          const result = await getExams({ page: 1, limit: 8, sort: "createdAt", order: "desc" });
+          if (!cancelled) setExams(result.exams ?? []);
+        } catch (err) {
+          if (!cancelled) setError(apiError(err, "دریافت آزمون‌ها انجام نشد."));
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+        return;
+      }
+
+      if (isNew) {
+        if (!cancelled) {
+          setExam(null);
+          setForm(emptyForm);
+          setPendingBooklets([]);
+          setPickerOpen(false);
+          setPickerSelected([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const result = await getExam(id);
         if (cancelled) return;
         setExam(result);
         setForm({
@@ -103,10 +118,18 @@ export default function ExamBuilder() {
           startTime: result.startTime ?? "08:00",
           endTime: result.endTime ?? "",
         });
-      })
-      .catch((err) => { if (!cancelled) setError(apiError(err, "دریافت آزمون انجام نشد.")); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      } catch (err) {
+        if (!cancelled) setError(apiError(err, "دریافت آزمون انجام نشد."));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, isList, isNew]);
 
   const loadPicker = async (page = 1) => {

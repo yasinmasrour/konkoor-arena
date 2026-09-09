@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export interface ArenaStickerEvent {
   matchId: string;
@@ -16,11 +16,21 @@ interface ArenaStickerOverlayProps {
 }
 
 const ArenaStickerOverlay = ({ event, currentUserId, onDone }: ArenaStickerOverlayProps) => {
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
+
   useEffect(() => {
     if (!event) return;
-    const timeoutId = window.setTimeout(onDone, 2200);
+
+    const timeoutId = window.setTimeout(() => {
+      onDoneRef.current();
+    }, 1600);
+
     return () => window.clearTimeout(timeoutId);
-  }, [event, onDone]);
+  }, [event]);
 
   if (!event) return null;
 
@@ -28,7 +38,7 @@ const ArenaStickerOverlay = ({ event, currentUserId, onDone }: ArenaStickerOverl
 
   return (
     <div className={`pointer-events-none fixed inset-x-0 top-28 z-50 flex ${isMine ? "justify-end pr-5 sm:pr-10" : "justify-start pl-5 sm:pl-10"}`}>
-      <div className="arena-sticker-pop flex max-w-[170px] flex-col items-center gap-1.5">
+      <div key={`${event.sentAt}-${event.senderId}-${event.stickerId}`} className="arena-sticker-pop flex max-w-[170px] flex-col items-center gap-1.5">
         <img
           src={event.asset}
           alt={event.senderName}
