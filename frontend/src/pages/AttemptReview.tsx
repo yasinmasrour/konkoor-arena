@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CheckCircle2, XCircle, MinusCircle, ArrowRight } from "lucide-react";
-
+import MathText from "../components/questions/MathText";
 import { getAttemptReview } from "../services/attemptService";
 import type {
   AttemptReviewQuestion,
@@ -318,7 +318,7 @@ const AttemptReview = () => {
 
           {/* Question Text */}
 
-          <h2
+          <div
             className="
               text-lg
               leading-8
@@ -326,8 +326,8 @@ const AttemptReview = () => {
               dark:text-white
             "
           >
-            {question.questionText}
-          </h2>
+            <MathText content={question.questionText} />
+          </div>
 
           {/* Question Image */}
 
@@ -394,7 +394,7 @@ const AttemptReview = () => {
                     </span>
 
                     <span className="dark:text-gray-200">
-                      {option}
+                      <MathText content={option} />
                     </span>
 
                     <div className="mr-auto">

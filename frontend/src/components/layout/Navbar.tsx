@@ -162,33 +162,24 @@ const Navbar = () => {
               داشبورد
             </Link>
 
-            {(user.role === "ADMIN" || user.role === "QUESTION_DESIGNER") && (
-              <Link
-                to="/question-bank"
-                className="text-sm dark:text-white"
-              >
+            {(user.role.name === "ADMIN" ||
+              user.role.name === "QUESTION_DESIGNER") && (
+              <Link to="/question-bank" className="text-sm dark:text-white">
                 بانک سؤال
               </Link>
             )}
 
-            {(user.role === "ADMIN" || user.role === "COUNSELOR") && (
-              <Link
-                to="/booklets"
-                className="text-sm dark:text-white"
-              >
+            {(user.role.name === "ADMIN" || user.role.name === "COUNSELOR") && (
+              <Link to="/booklets" className="text-sm dark:text-white">
                 دفترچه‌ها
               </Link>
             )}
 
-            {user.role === "ADMIN" && (
-              <Link
-                to="/question-review"
-                className="text-sm dark:text-white"
-              >
+            {user.role.name === "ADMIN" && (
+              <Link to="/question-review" className="text-sm dark:text-white">
                 بررسی سؤال‌ها
               </Link>
             )}
-
 
             <button
               onClick={logout}

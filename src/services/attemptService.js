@@ -70,8 +70,10 @@ const startAttempt = async (studentId, examId) => {
         where: { studentId_examId: { studentId, examId } },
       });
 
+      // Starting an attempt is idempotent. If the student already started this exam,
+      // return the existing attempt instead of blocking the user with a 400 error.
       if (existingAttempt) {
-        throw new AppError("Attempt already exists", 400);
+        return existingAttempt;
       }
 
       const attempt = await tx.attempt.create({

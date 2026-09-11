@@ -1,44 +1,24 @@
 const { z } = require("zod");
 
+const phoneSchema = z.string().trim().regex(/^09\d{9}$/, "شماره همراه باید به شکل 09xxxxxxxxx باشد");
+
 const registerSchema = z.object({
-  firstName: z
-    .string()
-    .trim()
-    .min(2, "First name must be at least 2 characters")
-    .max(100, "First name must be at most 100 characters"),
-
-  lastName: z
-    .string()
-    .trim()
-    .min(2, "Last name must be at least 2 characters")
-    .max(100, "Last name must be at most 100 characters"),
-
-  email: z
-    .string()
-    .trim()
-    .email("Invalid email format")
-    .transform((value) => value.toLowerCase()),
-
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(72, "Password must be at most 72 characters"),
+  firstName: z.string().trim().min(2).max(100),
+  lastName: z.string().trim().min(2).max(100),
+  phoneNumber: phoneSchema,
+  password: z.string().min(6).max(72),
 });
 
 const loginSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .email("Invalid email format")
-    .transform((value) => value.toLowerCase()),
-
-  password: z
-    .string()
-    .min(1, "Password is required")
-    .max(72, "Password must be at most 72 characters"),
+  identifier: z.string().min(3, "Identifier is required"),
+  password: z.string().min(1, "Password is required"),
+  captchaToken: z.string().min(1, "Captcha token is required"),
+  captchaAnswer: z.string().min(1, "Captcha answer is required"),
 });
 
-module.exports = {
-  registerSchema,
-  loginSchema,
-};
+const verificationSchema = z.object({
+  phoneNumber: phoneSchema,
+  code: z.string().trim().regex(/^\d{6}$/, "کد تایید باید ۶ رقمی باشد"),
+});
+
+module.exports = { registerSchema, loginSchema, verificationSchema, phoneSchema };

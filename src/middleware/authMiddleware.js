@@ -41,7 +41,25 @@ const protect = asyncHandler(async (req, res, next) => {
 
     lastName: user.lastName,
 
+    phoneNumber: user.phoneNumber,
+
     email: user.email,
+
+    phoneVerifiedAt: user.phoneVerifiedAt,
+
+    birthDate: user.birthDate,
+
+    major: user.major,
+
+    grade: user.grade,
+
+    nationalId: user.nationalId,
+
+    address: user.address,
+
+    city: user.city,
+
+    province: user.province,
 
     role: user.role.name,
   };

@@ -21,7 +21,6 @@ import ArenaRanking from "../pages/Arena/ArenaRanking";
 import ArenaSeasonResults from "../pages/Arena/ArenaSeasonResults";
 import ErrorPage from "../components/common/ErrorPage";
 import RoleRoute from "./RoleRoute";
-import AdminDashboard from "../pages/Admin/AdminDashboard";
 import Forbidden from "../pages/Forbidden";
 import Subscriptions from "../pages/Subscriptions";
 import QuestionBank from "../pages/Questions/QuestionBank";
@@ -133,7 +132,6 @@ const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={["ADMIN"]} />,
         children: [
-          { path: "admin", element: <AdminDashboard /> },
           { path: "question-review", element: <QuestionReview /> },
         ],
       },

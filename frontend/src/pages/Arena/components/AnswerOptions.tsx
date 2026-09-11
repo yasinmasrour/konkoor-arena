@@ -1,5 +1,5 @@
 import { Check, CircleX, Lock } from "lucide-react";
-
+import MathText from "../../../components/questions/MathText";
 interface AnswerOptionsProps {
   options: string[];
   selectedAnswer: number | null;
@@ -43,7 +43,7 @@ const AnswerOptions = ({ options, selectedAnswer, disabled, onSelect, answerResu
           }`}>
             {isCorrectSelection ? <Check className="h-5 w-5" /> : isWrongSelection ? <CircleX className="h-5 w-5" /> : label}
           </span>
-          <span className="flex-1 leading-7">{option}</span>
+          <span className="flex-1 leading-7"><MathText content={option} /></span>
           {disabled && !selected && <Lock className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-700" />}
         </button>
       );

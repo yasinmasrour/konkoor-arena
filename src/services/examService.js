@@ -3,13 +3,14 @@ const AppError = require("../utils/appError");
 const getPagination = require("../utils/pagination");
 
 const getExamOwnerWhere = (user) =>
-  user?.role === "ADMIN" ? {} : { createdById: user.id };
+  user?.role?.name === "ADMIN" ? {} : { createdById: user.id };
 
 const createExam = async (data) => {
   const { createdBy, bookletIds, ...examData } = data;
 
   const uniqueBookletIds = [...new Set(bookletIds)];
-  if (!uniqueBookletIds.length) throw new AppError("At least one booklet is required", 400);
+  if (!uniqueBookletIds.length)
+    throw new AppError("At least one booklet is required", 400);
 
   const booklets = await prisma.booklet.findMany({
     where: { id: { in: uniqueBookletIds }, status: "published" },
@@ -90,8 +91,14 @@ const getExams = async (query) => {
       lesson: exam.booklets[0]?.booklet?.lesson || "",
       grade: exam.booklets[0]?.booklet?.grade || "",
       major: exam.booklets[0]?.booklet?.major || "",
-      duration: exam.booklets.reduce((sum, item) => sum + (item.booklet?.duration || 0), 0),
-      questionCount: exam.booklets.reduce((sum, item) => sum + (item.booklet?.questions?.length || 0), 0),
+      duration: exam.booklets.reduce(
+        (sum, item) => sum + (item.booklet?.duration || 0),
+        0,
+      ),
+      questionCount: exam.booklets.reduce(
+        (sum, item) => sum + (item.booklet?.questions?.length || 0),
+        0,
+      ),
       createdBy: exam.createdBy,
     })),
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
@@ -112,9 +119,9 @@ const examInclude = {
   createdBy: { select: { id: true, firstName: true, lastName: true } },
 };
 
-const getExamById = async (id, user) => {
-  const exam = await prisma.exam.findFirst({
-    where: { id, ...getExamOwnerWhere(user) },
+const getExamById = async (id) => {
+  const exam = await prisma.exam.findUnique({
+    where: { id },
     include: examInclude,
   });
 
@@ -163,7 +170,10 @@ const updateExam = async (id, data, user) => {
     throw new AppError("Use the exam status endpoint to change status", 400);
   }
   if (bookletIds !== undefined) {
-    throw new AppError("Use the exam booklet endpoints to manage booklets", 400);
+    throw new AppError(
+      "Use the exam booklet endpoints to manage booklets",
+      400,
+    );
   }
 
   const updated = await prisma.exam.update({
@@ -187,10 +197,17 @@ const changeExamStatus = async (id, nextStatus, user) => {
   if (exam.status === "draft" && nextStatus !== "review") {
     throw new AppError("Draft exams can only be sent for review", 409);
   }
-  if (exam.status === "review" && !["draft", "published"].includes(nextStatus)) {
+  if (
+    exam.status === "review" &&
+    !["draft", "published"].includes(nextStatus)
+  ) {
     throw new AppError("Invalid exam status transition", 409);
   }
-  if (exam.status === "review" && nextStatus === "published" && user?.role !== "ADMIN") {
+  if (
+    exam.status === "review" &&
+    nextStatus === "published" &&
+    user?.role?.name !== "ADMIN"
+  ) {
     throw new AppError("Only admins can publish exams", 403);
   }
   assertHasBooklets(exam);
@@ -209,7 +226,10 @@ const getPublishedBooklets = async (bookletIds) => {
     select: { id: true },
   });
   if (booklets.length !== uniqueIds.length) {
-    throw new AppError("One or more booklets are not published or were not found", 409);
+    throw new AppError(
+      "One or more booklets are not published or were not found",
+      409,
+    );
   }
   return uniqueIds;
 };
@@ -226,10 +246,16 @@ const addBookletsToExam = async (id, bookletIds, user) => {
   const existing = new Set(exam.booklets.map((item) => item.bookletId));
   const toAdd = uniqueIds.filter((bookletId) => !existing.has(bookletId));
   if (!toAdd.length) {
-    throw new AppError("All selected booklets are already attached to this exam", 409);
+    throw new AppError(
+      "All selected booklets are already attached to this exam",
+      409,
+    );
   }
 
-  const maxOrder = exam.booklets.reduce((max, item) => Math.max(max, item.order), 0);
+  const maxOrder = exam.booklets.reduce(
+    (max, item) => Math.max(max, item.order),
+    0,
+  );
   await prisma.examBooklet.createMany({
     data: toAdd.map((bookletId, index) => ({
       examId: id,
@@ -247,7 +273,8 @@ const removeBookletFromExam = async (id, bookletId, user) => {
   assertHasBooklets(exam);
 
   const relation = exam.booklets.find((item) => item.bookletId === bookletId);
-  if (!relation) throw new AppError("Booklet is not attached to this exam", 404);
+  if (!relation)
+    throw new AppError("Booklet is not attached to this exam", 404);
   if (exam.booklets.length === 1) {
     throw new AppError("An exam must contain at least one booklet", 409);
   }
@@ -287,13 +314,19 @@ const updateBookletOrder = async (id, booklets, user) => {
     currentIds.length !== requestedIds.length ||
     currentIds.some((value, index) => value !== requestedIds[index])
   ) {
-    throw new AppError("Booklet order must contain exactly the current booklets", 400);
+    throw new AppError(
+      "Booklet order must contain exactly the current booklets",
+      400,
+    );
   }
 
   const orders = booklets.map((item) => Number(item.order));
   const validOrders =
     new Set(orders).size === orders.length &&
-    orders.every((order) => Number.isInteger(order) && order >= 1 && order <= booklets.length);
+    orders.every(
+      (order) =>
+        Number.isInteger(order) && order >= 1 && order <= booklets.length,
+    );
   if (!validOrders) throw new AppError("Booklet order values are invalid", 400);
 
   await prisma.$transaction(
@@ -310,7 +343,8 @@ const updateBookletOrder = async (id, booklets, user) => {
 
 const duplicateExam = async (id, user) => {
   const source = await getOwnedExamWithBooklets(id, user);
-  if (!source.booklets.length) throw new AppError("An exam must contain at least one booklet", 409);
+  if (!source.booklets.length)
+    throw new AppError("An exam must contain at least one booklet", 409);
 
   return prisma.$transaction(async (tx) => {
     const copy = await tx.exam.create({
@@ -338,7 +372,8 @@ const duplicateExam = async (id, user) => {
 
 const deleteExam = async (id, user) => {
   const exam = await getOwnedExam(id, user);
-  if (exam.status === "published") throw new AppError("Published exams cannot be deleted", 409);
+  if (exam.status === "published")
+    throw new AppError("Published exams cannot be deleted", 409);
   await prisma.exam.delete({ where: { id } });
 };
 

@@ -20,5 +20,6 @@ const router = express.Router();
  *         description: Unauthorized
  */
 router.get("/me", protect, userController.getProfile);
+router.patch("/me", protect, userController.updateProfile);
 
 module.exports = router;

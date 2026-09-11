@@ -9,6 +9,7 @@ import type {
   AttemptQuestionsResponse,
 } from "../types/attempt";
 import { useNavigate, useParams } from "react-router-dom";
+import MathText from "../components/questions/MathText";
 
 const Attempt = () => {
   const { attemptId } = useParams();
@@ -205,7 +206,7 @@ const Attempt = () => {
             </span>
           </div>
 
-          <h2
+          <div
             className="
               text-lg
               leading-8
@@ -213,8 +214,8 @@ const Attempt = () => {
               dark:text-white
             "
           >
-            {question.questionText}
-          </h2>
+            <MathText content={question.questionText} />
+          </div>
 
           {/* Question Image */}
 
@@ -270,7 +271,7 @@ const Attempt = () => {
                 >
                   <span className="font-semibold ml-3">{index + 1}.</span>
 
-                  {option}
+                  <MathText content={option} />
                 </button>
               );
             })}

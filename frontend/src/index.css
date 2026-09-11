@@ -88,5 +88,5 @@ body {
 }
 
 .arena-sticker-pop {
-  animation: arenaStickerPop 5s cubic-bezier(.2,.8,.2,1) both;
+  animation: arenaStickerPop 1.6s cubic-bezier(.2,.8,.2,1) both;
 }

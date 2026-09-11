@@ -12,9 +12,14 @@ const RoleRoute = ({ allowedRoles }: RoleRouteProps) => {
 
   if (loading) return <PageLoading />;
   if (!token) {
-    return <Navigate to={`/login?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`} replace />;
+    return (
+      <Navigate
+        to={`/login?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`}
+        replace
+      />
+    );
   }
-  if (!user || !allowedRoles.includes(user.role)) {
+  if (!user || !allowedRoles.includes(user.role.name)) {
     return <Navigate to="/403" replace />;
   }
   return <Outlet />;

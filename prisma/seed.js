@@ -1,3 +1,4 @@
+require("dotenv").config();
 const bcrypt = require("bcrypt");
 const { PrismaClient } = require("@prisma/client");
 
@@ -27,17 +28,20 @@ async function main() {
         }
     });
 
+    const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
+    const seedAdminPhone = process.env.SEED_ADMIN_PHONE || "09120000000";
+    const seedAdminEmail = process.env.SEED_ADMIN_EMAIL || "admin@griffin.local";
     const hashedPassword = await bcrypt.hash(seedAdminPassword, 12);
 
     // ساخت ادمین
     await prisma.user.upsert({
-        where: {
-            email: "yasinmasrour01@gmail.com"
-        },
-        update: {},
+        where: { phoneNumber: seedAdminPhone },
+        update: { email: seedAdminEmail },
         create: {
             firstName: "Yasin",
             lastName: "Masrour",
+            phoneNumber: seedAdminPhone,
+            phoneVerifiedAt: new Date(),
             email: seedAdminEmail,
             password: hashedPassword,
             roleId: adminRole.id

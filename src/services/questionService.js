@@ -13,18 +13,18 @@ const questionAuthorSelect = {
 };
 
 const ensureQuestionAccess = (question, user) => {
-  if (user.role === ROLES.ADMIN) {
+  if (user.role.name === ROLES.ADMIN) {
     return;
   }
 
   if (
-    user.role === ROLES.QUESTION_DESIGNER &&
+    user.role.name === ROLES.QUESTION_DESIGNER &&
     question.createdById === user.id
   ) {
     return;
   }
 
-  if (user.role === ROLES.COUNSELOR) {
+  if (user.role.name === ROLES.COUNSELOR) {
     return;
   }
 
@@ -53,7 +53,16 @@ const createQuestion = async (data) => {
 };
 
 const buildWhere = (query, user) => {
-  const { search, lesson, grade, major, chapter, difficulty, status, createdById } = query;
+  const {
+    search,
+    lesson,
+    grade,
+    major,
+    chapter,
+    difficulty,
+    status,
+    createdById,
+  } = query;
 
   const where = {
     ...(search && {
@@ -72,7 +81,7 @@ const buildWhere = (query, user) => {
     ...(createdById && { createdById }),
   };
 
-  if (user.role === ROLES.QUESTION_DESIGNER) {
+  if (user.role.name === ROLES.QUESTION_DESIGNER) {
     where.createdById = user.id;
   }
 
@@ -157,13 +166,16 @@ const updateQuestion = async (id, data, user) => {
   ensureQuestionAccess(existing, user);
 
   if (
-    user.role === ROLES.QUESTION_DESIGNER &&
+    user.role.name === ROLES.QUESTION_DESIGNER &&
     existing.status === QUESTION_STATUS.PUBLISHED
   ) {
-    throw new AppError("Published questions cannot be edited by a question designer", 403);
+    throw new AppError(
+      "Published questions cannot be edited by a question designer",
+      403,
+    );
   }
 
-  if (data.status && user.role !== ROLES.ADMIN) {
+  if (data.status && user.role.name !== ROLES.ADMIN) {
     throw new AppError("Only an admin can change question status", 403);
   }
 
@@ -189,8 +201,14 @@ const submitQuestionForReview = async (id, user) => {
     throw new AppError("Question not found", 404);
   }
 
-  if (user.role !== ROLES.QUESTION_DESIGNER && user.role !== ROLES.ADMIN) {
-    throw new AppError("Only a question designer can submit a question for review", 403);
+  if (
+    user.role.name !== ROLES.QUESTION_DESIGNER &&
+    user.role.name !== ROLES.ADMIN
+  ) {
+    throw new AppError(
+      "Only a question designer can submit a question for review",
+      403,
+    );
   }
 
   ensureQuestionAccess(question, user);
@@ -219,14 +237,27 @@ const setQuestionStatus = async (id, status, user) => {
     throw new AppError("Question not found", 404);
   }
 
-  if (user.role !== ROLES.ADMIN) {
-    throw new AppError("Only an admin can approve, publish, or archive questions", 403);
+  if (user.role.name !== ROLES.ADMIN) {
+    throw new AppError(
+      "Only an admin can approve, publish, or archive questions",
+      403,
+    );
   }
 
   const allowedTransitions = {
-    [QUESTION_STATUS.DRAFT]: [QUESTION_STATUS.PUBLISHED, QUESTION_STATUS.ARCHIVED],
-    [QUESTION_STATUS.REVIEW]: [QUESTION_STATUS.DRAFT, QUESTION_STATUS.PUBLISHED, QUESTION_STATUS.ARCHIVED],
-    [QUESTION_STATUS.PUBLISHED]: [QUESTION_STATUS.ARCHIVED, QUESTION_STATUS.DRAFT],
+    [QUESTION_STATUS.DRAFT]: [
+      QUESTION_STATUS.PUBLISHED,
+      QUESTION_STATUS.ARCHIVED,
+    ],
+    [QUESTION_STATUS.REVIEW]: [
+      QUESTION_STATUS.DRAFT,
+      QUESTION_STATUS.PUBLISHED,
+      QUESTION_STATUS.ARCHIVED,
+    ],
+    [QUESTION_STATUS.PUBLISHED]: [
+      QUESTION_STATUS.ARCHIVED,
+      QUESTION_STATUS.DRAFT,
+    ],
     [QUESTION_STATUS.ARCHIVED]: [QUESTION_STATUS.DRAFT],
   };
 
@@ -259,8 +290,14 @@ const duplicateQuestion = async (id, user) => {
 
   ensureQuestionAccess(existing, user);
 
-  if (user.role !== ROLES.ADMIN && user.role !== ROLES.QUESTION_DESIGNER) {
-    throw new AppError("Only an admin or question designer can duplicate questions", 403);
+  if (
+    user.role.name !== ROLES.ADMIN &&
+    user.role.name !== ROLES.QUESTION_DESIGNER
+  ) {
+    throw new AppError(
+      "Only an admin or question designer can duplicate questions",
+      403,
+    );
   }
 
   const baseCode = `${existing.code}-COPY`;
@@ -312,8 +349,11 @@ const duplicateQuestion = async (id, user) => {
 };
 
 const bulkSetQuestionStatus = async (ids, status, user) => {
-  if (user.role !== ROLES.ADMIN) {
-    throw new AppError("Only an admin can change question statuses in bulk", 403);
+  if (user.role.name !== ROLES.ADMIN) {
+    throw new AppError(
+      "Only an admin can change question statuses in bulk",
+      403,
+    );
   }
 
   const questions = await prisma.question.findMany({
@@ -326,15 +366,30 @@ const bulkSetQuestionStatus = async (ids, status, user) => {
   }
 
   const allowedTransitions = {
-    [QUESTION_STATUS.DRAFT]: [QUESTION_STATUS.PUBLISHED, QUESTION_STATUS.ARCHIVED],
-    [QUESTION_STATUS.REVIEW]: [QUESTION_STATUS.DRAFT, QUESTION_STATUS.PUBLISHED, QUESTION_STATUS.ARCHIVED],
-    [QUESTION_STATUS.PUBLISHED]: [QUESTION_STATUS.ARCHIVED, QUESTION_STATUS.DRAFT],
+    [QUESTION_STATUS.DRAFT]: [
+      QUESTION_STATUS.PUBLISHED,
+      QUESTION_STATUS.ARCHIVED,
+    ],
+    [QUESTION_STATUS.REVIEW]: [
+      QUESTION_STATUS.DRAFT,
+      QUESTION_STATUS.PUBLISHED,
+      QUESTION_STATUS.ARCHIVED,
+    ],
+    [QUESTION_STATUS.PUBLISHED]: [
+      QUESTION_STATUS.ARCHIVED,
+      QUESTION_STATUS.DRAFT,
+    ],
     [QUESTION_STATUS.ARCHIVED]: [QUESTION_STATUS.DRAFT],
   };
 
-  const invalid = questions.find((question) => !allowedTransitions[question.status]?.includes(status));
+  const invalid = questions.find(
+    (question) => !allowedTransitions[question.status]?.includes(status),
+  );
   if (invalid) {
-    throw new AppError(`Cannot change question status from ${invalid.status} to ${status}`, 400);
+    throw new AppError(
+      `Cannot change question status from ${invalid.status} to ${status}`,
+      400,
+    );
   }
 
   await prisma.question.updateMany({
@@ -349,12 +404,15 @@ const bulkSetQuestionStatus = async (ids, status, user) => {
   });
 };
 
-
 const exportQuestions = async (query, user) => {
   const format = query.format === "xlsx" ? "xlsx" : "csv";
-  const ids = typeof query.ids === "string"
-    ? query.ids.split(",").map((id) => id.trim()).filter(Boolean)
-    : [];
+  const ids =
+    typeof query.ids === "string"
+      ? query.ids
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : [];
 
   const where = ids.length ? { id: { in: ids } } : buildWhere(query, user);
   const questions = await prisma.question.findMany({
@@ -362,7 +420,10 @@ const exportQuestions = async (query, user) => {
     orderBy: { createdAt: "desc" },
   });
 
-  if (user.role === ROLES.QUESTION_DESIGNER && questions.some((question) => question.createdById !== user.id)) {
+  if (
+    user.role.name === ROLES.QUESTION_DESIGNER &&
+    questions.some((question) => question.createdById !== user.id)
+  ) {
     throw new AppError("Forbidden", 403);
   }
 
@@ -397,12 +458,13 @@ const exportQuestions = async (query, user) => {
   const worksheet = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
 
-  const buffer = format === "xlsx"
-    ? XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
-    : Buffer.concat([
-        Buffer.from("\uFEFF", "utf8"),
-        XLSX.write(workbook, { type: "buffer", bookType: "csv", FS: "," }),
-      ]);
+  const buffer =
+    format === "xlsx"
+      ? XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
+      : Buffer.concat([
+          Buffer.from("\uFEFF", "utf8"),
+          XLSX.write(workbook, { type: "buffer", bookType: "csv", FS: "," }),
+        ]);
 
   return {
     buffer,
@@ -412,10 +474,9 @@ const exportQuestions = async (query, user) => {
   };
 };
 
-
 const getQuestionAnalytics = async (user) => {
   const where = {};
-  if (user.role === ROLES.QUESTION_DESIGNER) {
+  if (user.role.name === ROLES.QUESTION_DESIGNER) {
     where.createdById = user.id;
   }
 
@@ -437,29 +498,68 @@ const getQuestionAnalytics = async (user) => {
   ] = await Promise.all([
     prisma.question.count({ where }),
     prisma.question.groupBy({ by: ["status"], where, _count: { _all: true } }),
-    prisma.question.groupBy({ by: ["difficulty"], where, _count: { _all: true } }),
-    prisma.question.groupBy({ by: ["lesson"], where, _count: { _all: true }, orderBy: { _count: { id: "desc" } }, take: 10 }),
-    prisma.question.groupBy({ by: ["grade"], where, _count: { _all: true }, orderBy: { _count: { id: "desc" } } }),
-    prisma.question.groupBy({ by: ["major"], where, _count: { _all: true }, orderBy: { _count: { id: "desc" } } }),
+    prisma.question.groupBy({
+      by: ["difficulty"],
+      where,
+      _count: { _all: true },
+    }),
+    prisma.question.groupBy({
+      by: ["lesson"],
+      where,
+      _count: { _all: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 10,
+    }),
+    prisma.question.groupBy({
+      by: ["grade"],
+      where,
+      _count: { _all: true },
+      orderBy: { _count: { id: "desc" } },
+    }),
+    prisma.question.groupBy({
+      by: ["major"],
+      where,
+      _count: { _all: true },
+      orderBy: { _count: { id: "desc" } },
+    }),
     prisma.question.aggregate({ where, _sum: { usageCount: true } }),
     prisma.question.count({ where: { ...where, usageCount: 0 } }),
-    prisma.question.count({ where: { ...where, usageCount: 0, status: QUESTION_STATUS.PUBLISHED } }),
-    prisma.question.count({ where: { ...where, status: QUESTION_STATUS.REVIEW } }),
-    prisma.question.count({ where: { ...where, status: QUESTION_STATUS.DRAFT } }),
-    prisma.question.count({ where: { ...where, status: QUESTION_STATUS.PUBLISHED } }),
-    prisma.question.count({ where: { ...where, status: QUESTION_STATUS.ARCHIVED } }),
+    prisma.question.count({
+      where: { ...where, usageCount: 0, status: QUESTION_STATUS.PUBLISHED },
+    }),
+    prisma.question.count({
+      where: { ...where, status: QUESTION_STATUS.REVIEW },
+    }),
+    prisma.question.count({
+      where: { ...where, status: QUESTION_STATUS.DRAFT },
+    }),
+    prisma.question.count({
+      where: { ...where, status: QUESTION_STATUS.PUBLISHED },
+    }),
+    prisma.question.count({
+      where: { ...where, status: QUESTION_STATUS.ARCHIVED },
+    }),
     prisma.question.findMany({
       where,
       orderBy: { updatedAt: "desc" },
       take: 8,
-      select: { id: true, code: true, lesson: true, status: true, difficulty: true, usageCount: true, updatedAt: true },
+      select: {
+        id: true,
+        code: true,
+        lesson: true,
+        status: true,
+        difficulty: true,
+        usageCount: true,
+        updatedAt: true,
+      },
     }),
   ]);
 
-  const toGroups = (groups, key) => groups.map((group) => ({
-    [key]: group[key],
-    count: group._count._all,
-  }));
+  const toGroups = (groups, key) =>
+    groups.map((group) => ({
+      [key]: group[key],
+      count: group._count._all,
+    }));
 
   return {
     totals: {
@@ -492,7 +592,10 @@ const deleteQuestion = async (id) => {
   }
 
   if (existing.usageCount > 0) {
-    throw new AppError("Used questions cannot be deleted; archive the question instead", 409);
+    throw new AppError(
+      "Used questions cannot be deleted; archive the question instead",
+      409,
+    );
   }
 
   await prisma.question.delete({
@@ -507,8 +610,11 @@ const reviewerSelect = {
 };
 
 const getReviewQueue = async (query, user) => {
-  if (user.role !== ROLES.ADMIN) {
-    throw new AppError("Only an admin can access the question review queue", 403);
+  if (user.role.name !== ROLES.ADMIN) {
+    throw new AppError(
+      "Only an admin can access the question review queue",
+      403,
+    );
   }
 
   const { page, limit, skip } = getPagination(query);
@@ -554,7 +660,7 @@ const getReviewQueue = async (query, user) => {
 };
 
 const getQuestionReviewDetails = async (id, user) => {
-  if (user.role !== ROLES.ADMIN) {
+  if (user.role.name !== ROLES.ADMIN) {
     throw new AppError("Only an admin can review questions", 403);
   }
 
@@ -577,13 +683,19 @@ const getQuestionReviewDetails = async (id, user) => {
 };
 
 const reviewQuestion = async (id, decision, note, user) => {
-  if (user.role !== ROLES.ADMIN) {
+  if (user.role.name !== ROLES.ADMIN) {
     throw new AppError("Only an admin can review questions", 403);
   }
 
   const normalizedNote = typeof note === "string" ? note.trim() : "";
-  if (decision === QUESTION_REVIEW_DECISION.CHANGES_REQUESTED && !normalizedNote) {
-    throw new AppError("A review note is required when requesting changes", 400);
+  if (
+    decision === QUESTION_REVIEW_DECISION.CHANGES_REQUESTED &&
+    !normalizedNote
+  ) {
+    throw new AppError(
+      "A review note is required when requesting changes",
+      400,
+    );
   }
 
   const nextStatus = {
