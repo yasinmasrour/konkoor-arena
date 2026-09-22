@@ -1,25 +1,30 @@
 const express = require("express");
 const protect = require("../middleware/authMiddleware");
+const validate = require("../middleware/validate");
 const userController = require("../controllers/userController");
+const { changePasswordRateLimiter } = require("../middleware/rateLimiter");
+const {
+  changePasswordSchema,
+  updateProfileSchema,
+} = require("../validations/authValidation");
 
 const router = express.Router();
 
-/**
- * @swagger
- * /users/me:
- *   get:
- *     summary: Get current user profile
- *     tags:
- *       - Users
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User profile retrieved successfully
- *       401:
- *         description: Unauthorized
- */
 router.get("/me", protect, userController.getProfile);
-router.patch("/me", protect, userController.updateProfile);
+
+router.patch(
+  "/me",
+  protect,
+  validate(updateProfileSchema),
+  userController.updateProfile,
+);
+
+router.post(
+  "/me/change-password",
+  protect,
+  changePasswordRateLimiter,
+  validate(changePasswordSchema),
+  userController.changePassword,
+);
 
 module.exports = router;

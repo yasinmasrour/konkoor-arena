@@ -7,17 +7,31 @@ import {
   LoaderCircle,
   ShieldCheck,
   Sparkles,
+  Zap,
+  X,
+  Calendar,
+  BadgeCheck,
+  TrendingUp,
+  Wallet,
+  CreditCard,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   getMySubscription,
   getMySubscriptionHistory,
   getSubscriptionPlans,
+  purchaseSubscription,
   type Subscription,
   type SubscriptionPlan,
 } from "../api/subscriptionApi";
+import { FEATURE_LABELS } from "../constants/features";
+import RevealOnScroll from "../components/common/RevealOnScroll";
+import { useAuth } from "../context/AuthContext";
 
 const formatPrice = (price: number) =>
-  new Intl.NumberFormat("fa-IR").format(price);
+  new Intl.NumberFormat("fa-IR").format(Math.floor(price / 10));
 
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("fa-IR", {
@@ -32,45 +46,53 @@ const getRemainingDays = (endDate: string) => {
 };
 
 const Subscriptions = () => {
+  const navigate = useNavigate();
+  const { refreshFeatures } = useAuth();
+
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [history, setHistory] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // 🆕 خرید
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(
+    null,
+  );
+  const [showGatewayModal, setShowGatewayModal] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState("");
+  const [purchaseSuccess, setPurchaseSuccess] = useState<{
+    planTitle: string;
+    refundAmount: number;
+  } | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [plansData, currentData, historyData] = await Promise.all([
+        getSubscriptionPlans(),
+        getMySubscription(),
+        getMySubscriptionHistory(),
+      ]);
+
+      setPlans(plansData.plans);
+      setSubscription(currentData.subscription);
+      setHistory(historyData.subscriptions);
+    } catch {
+      setError(
+        "دریافت اطلاعات اشتراک با مشکل مواجه شد. لطفاً دوباره تلاش کنید.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const [plansData, currentData, historyData] = await Promise.all([
-          getSubscriptionPlans(),
-          getMySubscription(),
-          getMySubscriptionHistory(),
-        ]);
-
-        if (cancelled) return;
-
-        setPlans(plansData.plans);
-        setSubscription(currentData.subscription);
-        setHistory(historyData.subscriptions);
-      } catch {
-        if (!cancelled) {
-          setError("دریافت اطلاعات اشتراک با مشکل مواجه شد. لطفاً دوباره تلاش کنید.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const remainingDays = useMemo(
@@ -78,170 +100,484 @@ const Subscriptions = () => {
     [subscription],
   );
 
-  return (
-    <main className="min-h-screen bg-[#f7f7f4] px-4 py-8 dark:bg-[#080b12] sm:px-6 sm:py-12">
-      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white/55 p-5 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.035] sm:p-8 lg:p-10">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl" />
+  const progress = useMemo(() => {
+    if (!subscription) return 0;
+    const total =
+      (new Date(subscription.endDate).getTime() -
+        new Date(subscription.startDate).getTime()) /
+      (1000 * 60 * 60 * 24);
+    const used = total - remainingDays;
+    return Math.min(100, Math.max(0, (used / total) * 100));
+  }, [subscription, remainingDays]);
 
-        <div className="relative">
-          <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-black tracking-[0.22em] text-[var(--griffin-gold)]">
+  const recommendedIndex = useMemo(() => {
+    if (plans.length < 2) return -1;
+    return Math.floor(plans.length / 2);
+  }, [plans]);
+
+  // 🆕 شروع خرید
+  const handlePurchaseClick = (plan: SubscriptionPlan) => {
+    setSelectedPlan(plan);
+    setShowGatewayModal(true);
+    setPurchaseError("");
+  };
+
+  // 🆕 انجام خرید
+  const handlePurchase = async (gateway: "wallet" | "mock") => {
+    if (!selectedPlan) return;
+
+    setPurchasing(true);
+    setPurchaseError("");
+
+    try {
+      const result = await purchaseSubscription(selectedPlan.id, gateway);
+
+      if (result.payment.status === "paid") {
+        await refreshFeatures();
+        await load();
+
+        setPurchaseSuccess({
+          planTitle: selectedPlan.title,
+          refundAmount: result.refundInfo?.refundAmount || 0,
+        });
+
+        setShowGatewayModal(false);
+        setSelectedPlan(null);
+      } else {
+        navigate(
+          `/payment/verify?paymentId=${result.payment.id}&type=subscription`,
+        );
+      }
+    } catch (err) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "خرید اشتراک با مشکل مواجه شد";
+      setPurchaseError(message);
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen px-4 py-10 sm:px-6 sm:py-16">
+      <div className="max-w-7xl mx-auto space-y-12">
+        {/* ===== هدر ===== */}
+        <RevealOnScroll>
+          <header className="text-center space-y-5">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/30">
+              <Crown size={14} className="text-[var(--griffin-gold)]" />
+              <span className="text-xs font-bold text-[var(--griffin-gold)] tracking-wider">
                 GRIFFIN MEMBERSHIP
-              </p>
-              <h1 className="mt-2 text-3xl font-black text-slate-900 dark:text-white sm:text-4xl">
-                اشتراک گریفین
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 dark:text-slate-400">
-                پلن مناسب خودت را انتخاب کن و امکانات آموزشی گریفین را بدون محدودیت‌های معمول دنبال کن.
-              </p>
+              </span>
             </div>
-            <div className="inline-flex items-center gap-2 self-start rounded-full border border-[var(--griffin-gold)]/20 bg-[var(--griffin-gold)]/10 px-4 py-2 text-xs font-bold text-[var(--griffin-gold)] sm:self-auto">
-              <ShieldCheck size={15} /> پرداخت امن در مرحله بعد
+
+            <h1 className="font-heading text-4xl md:text-6xl font-black leading-tight text-gray-900 dark:text-white">
+              اشتراک{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-l from-[var(--griffin-gold)] to-amber-300">
+                گریفین
+              </span>
+            </h1>
+
+            <div className="w-20 h-1 bg-[var(--griffin-gold)] mx-auto rounded-full" />
+
+            <p className="max-w-2xl mx-auto text-gray-600 dark:text-gray-300 leading-8">
+              پلن مناسب خودت را انتخاب کن و امکانات آموزشی گریفین را بدون
+              محدودیت‌های معمول دنبال کن.
+            </p>
+
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+              <ShieldCheck size={14} />
+              پرداخت امن
             </div>
           </header>
+        </RevealOnScroll>
 
-          {loading ? (
-            <div className="flex min-h-[360px] items-center justify-center gap-3 text-sm font-bold text-slate-500 dark:text-slate-400">
-              <LoaderCircle className="animate-spin" size={20} />
-              در حال دریافت اطلاعات اشتراک...
-            </div>
-          ) : error ? (
-            <div className="mt-10 rounded-3xl border border-red-200 bg-red-50 p-8 text-center text-sm font-bold text-red-600 dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-400">
-              {error}
-            </div>
-          ) : (
-            <>
-              {subscription && (
-                <section className="mt-8 overflow-hidden rounded-3xl border border-[var(--griffin-gold)]/20 bg-gradient-to-br from-[var(--griffin-gold)]/10 to-white/50 p-5 dark:to-white/[0.02] sm:p-6">
-                  <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--griffin-gold)] text-white shadow-lg shadow-[var(--griffin-gold)]/20">
-                        <Crown size={23} />
+        {/* ===== محتوای اصلی ===== */}
+        {loading ? (
+          <div className="flex min-h-[360px] items-center justify-center gap-3 text-sm font-bold text-gray-500 dark:text-gray-400">
+            <LoaderCircle className="animate-spin" size={22} />
+            در حال دریافت اطلاعات اشتراک...
+          </div>
+        ) : error ? (
+          <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center text-sm font-bold text-red-600 dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-400">
+            {error}
+          </div>
+        ) : (
+          <>
+            {/* ===== اشتراک فعال ===== */}
+            {subscription && (
+              <RevealOnScroll>
+                <section className="relative rounded-[2rem] overflow-hidden border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/15 via-amber-500/5 to-transparent backdrop-blur-xl p-6 sm:p-8">
+                  <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/20 blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/10 blur-3xl pointer-events-none" />
+
+                  <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-60 animate-pulse" />
+                        <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-2xl shadow-[var(--griffin-gold)]/40">
+                          <Crown size={28} strokeWidth={2.2} />
+                        </div>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-[var(--griffin-gold)]">اشتراک فعال</p>
-                        <h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            فعال
+                          </span>
+                        </div>
+                        <h2 className="font-heading mt-1.5 text-2xl font-black text-gray-900 dark:text-white">
                           {subscription.plan.title}
                         </h2>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          تا {formatDate(subscription.endDate)} معتبر است.
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          تا {formatDate(subscription.endDate)} معتبر است
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 dark:bg-black/10">
-                      <Clock3 size={19} className="text-[var(--griffin-gold)]" />
-                      <div>
-                        <p className="text-xs text-slate-400">زمان باقی‌مانده</p>
-                        <p className="text-lg font-black text-slate-900 dark:text-white">
-                          {remainingDays.toLocaleString("fa-IR")} روز
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              )}
 
-              <section className="mt-10">
-                <div className="mb-5 flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-bold text-slate-400">PLANS</p>
-                    <h2 className="mt-1 text-2xl font-black text-slate-900 dark:text-white">
-                      پلن‌های اشتراک
-                    </h2>
-                  </div>
-                  <Sparkles className="text-[var(--griffin-gold)]" size={24} />
-                </div>
-
-                {plans.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
-                    در حال حاضر پلن اشتراکی برای خرید وجود ندارد.
-                  </div>
-                ) : (
-                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {plans.map((plan, index) => (
-                      <article
-                        key={plan.id}
-                        className={`relative overflow-hidden rounded-3xl border p-6 transition hover:-translate-y-1 ${
-                          index === 1
-                            ? "border-[var(--griffin-gold)]/35 bg-[var(--griffin-gold)]/[0.07] shadow-xl shadow-[var(--griffin-gold)]/5"
-                            : "border-slate-200/70 bg-white/55 dark:border-white/10 dark:bg-white/[0.025]"
-                        }`}
-                      >
-                        {index === 1 && (
-                          <span className="absolute left-5 top-5 rounded-full bg-[var(--griffin-gold)] px-3 py-1 text-[10px] font-black text-white">
-                            پیشنهادی
-                          </span>
-                        )}
-                        <p className="text-sm font-bold text-[var(--griffin-gold)]">{plan.title}</p>
-                        <div className="mt-5 flex items-end gap-2">
-                          <span className="text-3xl font-black text-slate-900 dark:text-white">
-                            {formatPrice(plan.price)}
-                          </span>
-                          <span className="mb-1 text-xs text-slate-400">تومان</span>
+                    <div className="lg:mr-auto grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div className="rounded-2xl bg-white/70 dark:bg-white/5 border border-white/40 dark:border-white/10 backdrop-blur-sm px-4 py-3">
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 mb-1">
+                          <Clock3
+                            size={12}
+                            className="text-[var(--griffin-gold)]"
+                          />
+                          <span>باقی‌مانده</span>
                         </div>
-                        <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                          {plan.durationDays.toLocaleString("fa-IR")} روز اعتبار
+                        <p className="font-heading text-2xl font-black text-gray-900 dark:text-white">
+                          {remainingDays.toLocaleString("fa-IR")}
+                          <span className="text-xs font-bold text-gray-400 mr-1">
+                            روز
+                          </span>
                         </p>
-                        {plan.description && (
-                          <p className="mt-5 min-h-12 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            {plan.description}
-                          </p>
-                        )}
-                        <ul className="mt-5 space-y-3 border-t border-slate-200/70 pt-5 text-xs font-bold text-slate-600 dark:border-white/10 dark:text-slate-300">
-                          <li className="flex items-center gap-2"><Check size={15} className="text-[var(--griffin-gold)]" /> دسترسی به امکانات آموزشی</li>
-                          <li className="flex items-center gap-2"><Check size={15} className="text-[var(--griffin-gold)]" /> فعال‌سازی پس از پرداخت موفق</li>
-                        </ul>
-                        <button
-                          type="button"
-                          disabled
-                          title="پرداخت در مرحله بعد پیاده‌سازی می‌شود"
-                          className="mt-6 w-full cursor-not-allowed rounded-xl bg-slate-200 py-3 text-sm font-black text-slate-400 dark:bg-white/10 dark:text-slate-500"
-                        >
-                          خرید اشتراک — به‌زودی
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </section>
+                      </div>
 
-              <section className="mt-12 rounded-3xl border border-slate-200/70 bg-white/45 p-5 dark:border-white/10 dark:bg-white/[0.02] sm:p-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900">
-                    <History size={19} />
+                      <div className="rounded-2xl bg-white/70 dark:bg-white/5 border border-white/40 dark:border-white/10 backdrop-blur-sm px-4 py-3">
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 mb-1">
+                          <Calendar
+                            size={12}
+                            className="text-[var(--griffin-gold)]"
+                          />
+                          <span>شروع</span>
+                        </div>
+                        <p className="font-heading text-sm font-black text-gray-900 dark:text-white">
+                          {formatDate(subscription.startDate)}
+                        </p>
+                      </div>
+
+                      <div className="col-span-2 sm:col-span-1 rounded-2xl bg-white/70 dark:bg-white/5 border border-white/40 dark:border-white/10 backdrop-blur-sm px-4 py-3">
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 mb-2">
+                          <TrendingUp
+                            size={12}
+                            className="text-[var(--griffin-gold)]"
+                          />
+                          <span>پیشرفت</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-l from-[var(--griffin-gold)] to-amber-400 transition-all duration-1000"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <p className="mt-1.5 text-[10px] text-gray-500 dark:text-gray-400">
+                          {Math.round(progress).toLocaleString("fa-IR")}٪
+                          مصرف‌شده
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {subscription.plan.features &&
+                    subscription.plan.features.length > 0 && (
+                      <div className="relative mt-6 pt-6 border-t border-white/20 dark:border-white/5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+                          امکانات فعال شما
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {subscription.plan.features.map((feature) => (
+                            <span
+                              key={feature}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black"
+                            >
+                              <Check size={10} strokeWidth={3} />
+                              {FEATURE_LABELS[feature] || feature}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                </section>
+              </RevealOnScroll>
+            )}
+
+            {/* ===== پلن‌ها ===== */}
+            <section>
+              <RevealOnScroll>
+                <div className="text-center mb-10">
+                  <div className="inline-flex items-center gap-2 mb-3">
+                    <Sparkles
+                      size={18}
+                      className="text-[var(--griffin-gold)]"
+                    />
+                    <span className="text-xs font-black tracking-widest text-gray-400 dark:text-gray-500 uppercase">
+                      Plans
+                    </span>
+                  </div>
+                  <h2 className="font-heading text-3xl md:text-4xl font-black text-gray-900 dark:text-white">
+                    پلن‌های اشتراک
+                  </h2>
+                  <div className="w-20 h-1 bg-[var(--griffin-gold)] mx-auto mt-4 rounded-full" />
+                  <p className="mt-5 text-gray-600 dark:text-gray-300">
+                    پلنی که با نیازت هماهنگه رو انتخاب کن
+                  </p>
+                </div>
+              </RevealOnScroll>
+
+              {plans.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-gray-300 dark:border-white/10 p-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                  در حال حاضر پلن اشتراکی برای خرید وجود ندارد.
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 items-stretch">
+                  {plans.map((plan, index) => {
+                    const isRecommended = index === recommendedIndex;
+                    return (
+                      <RevealOnScroll key={plan.id} delay={index * 120}>
+                        <article
+                          className={`
+                            group relative h-full flex flex-col
+                            rounded-[2rem] overflow-hidden
+                            border transition-all duration-500
+                            hover:-translate-y-2
+                            ${
+                              isRecommended
+                                ? "border-[var(--griffin-gold)]/50 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-amber-500/5 to-transparent backdrop-blur-xl shadow-2xl shadow-[var(--griffin-gold)]/20"
+                                : "border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm hover:border-[var(--griffin-gold)]/30 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/10"
+                            }
+                          `}
+                        >
+                          <div className="absolute -top-24 -right-24 w-56 h-56 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                          <div
+                            className={`h-1.5 ${
+                              isRecommended
+                                ? "bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent"
+                                : "bg-gradient-to-r from-transparent via-gray-300/50 dark:via-white/10 to-transparent"
+                            }`}
+                          />
+
+                          {isRecommended && (
+                            <div className="absolute top-5 left-5 z-10">
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-[var(--griffin-gold)] to-amber-600 text-white text-[10px] font-black shadow-lg shadow-[var(--griffin-gold)]/40">
+                                <Crown size={11} />
+                                پیشنهادی
+                              </div>
+                            </div>
+                          )}
+
+                          {plan.badge && !isRecommended && (
+                            <div className="absolute top-5 left-5 z-10">
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500 text-white text-[10px] font-black shadow-lg">
+                                <Sparkles size={11} />
+                                {plan.badge}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="relative p-7 flex-1 flex flex-col">
+                            <div
+                              className={`
+                                w-14 h-14 rounded-2xl flex items-center justify-center mb-5
+                                transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3
+                                ${
+                                  isRecommended
+                                    ? "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 text-white shadow-lg shadow-[var(--griffin-gold)]/40"
+                                    : "bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300"
+                                }
+                              `}
+                            >
+                              <Zap size={24} strokeWidth={2.2} />
+                            </div>
+
+                            <h3 className="font-heading text-xl font-black text-gray-900 dark:text-white">
+                              {plan.title}
+                            </h3>
+
+                            <div className="mt-5 flex items-end gap-2">
+                              <span
+                                className={`
+                                  font-heading text-4xl font-black
+                                  ${
+                                    isRecommended
+                                      ? "text-[var(--griffin-gold)]"
+                                      : "text-gray-900 dark:text-white"
+                                  }
+                                `}
+                              >
+                                {formatPrice(plan.price)}
+                              </span>
+                              <span className="mb-1.5 text-xs font-bold text-gray-400">
+                                تومان
+                              </span>
+                            </div>
+
+                            <div className="mt-3 inline-flex items-center gap-1.5 self-start px-3 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-xs font-bold text-gray-600 dark:text-gray-400">
+                              <Clock3 size={12} />
+                              {plan.durationDays.toLocaleString("fa-IR")} روز
+                              اعتبار
+                            </div>
+
+                            {plan.description && (
+                              <p className="mt-5 text-sm leading-7 text-gray-500 dark:text-gray-400">
+                                {plan.description}
+                              </p>
+                            )}
+
+                            {plan.features && plan.features.length > 0 && (
+                              <ul className="mt-6 pt-6 border-t border-gray-100 dark:border-white/10 space-y-3 flex-1">
+                                {plan.features.map((feature) => (
+                                  <li
+                                    key={feature}
+                                    className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300"
+                                  >
+                                    <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                                      <Check
+                                        size={12}
+                                        className="text-emerald-500"
+                                        strokeWidth={3}
+                                      />
+                                    </div>
+                                    <span>
+                                      {FEATURE_LABELS[feature] || feature}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handlePurchaseClick(plan)}
+                              disabled={purchasing}
+                              className={`
+                                mt-7 w-full flex items-center justify-center gap-2
+                                rounded-xl py-3.5 text-sm font-black
+                                transition-all duration-300
+                                disabled:opacity-50 disabled:cursor-not-allowed
+                                ${
+                                  isRecommended
+                                    ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5"
+                                    : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100"
+                                }
+                              `}
+                            >
+                              <Crown size={16} />
+                              {subscription
+                                ? "تغییر به این پلن"
+                                : "خرید این پلن"}
+                            </button>
+                          </div>
+                        </article>
+                      </RevealOnScroll>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* ===== تاریخچه ===== */}
+            <RevealOnScroll>
+              <section className="rounded-[2rem] border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm p-6 sm:p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-white dark:to-gray-200 flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
+                    <History size={22} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-white">تاریخچه اشتراک</h2>
-                    <p className="text-xs text-slate-400">سوابق اشتراک‌های فعال و گذشته</p>
+                    <h2 className="font-heading text-xl font-black text-gray-900 dark:text-white">
+                      تاریخچه اشتراک
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      سوابق اشتراک‌های فعال و گذشته شما
+                    </p>
                   </div>
                 </div>
 
                 {history.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    هنوز سابقه‌ای برای اشتراک شما ثبت نشده است.
+                  <div className="py-12 text-center">
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                      <History
+                        size={24}
+                        className="text-gray-400 dark:text-gray-500"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      هنوز سابقه‌ای برای اشتراک شما ثبت نشده است.
+                    </p>
                   </div>
                 ) : (
-                  <div className="mt-5 overflow-x-auto">
+                  <div className="overflow-x-auto -mx-2">
                     <table className="w-full min-w-[620px] text-right text-sm">
-                      <thead className="border-b border-slate-200/70 text-xs text-slate-400 dark:border-white/10">
-                        <tr>
-                          <th className="px-3 py-3 font-bold">پلن</th>
-                          <th className="px-3 py-3 font-bold">شروع</th>
-                          <th className="px-3 py-3 font-bold">پایان</th>
-                          <th className="px-3 py-3 font-bold">وضعیت</th>
+                      <thead>
+                        <tr className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                          <th className="px-3 pb-4">پلن</th>
+                          <th className="px-3 pb-4">شروع</th>
+                          <th className="px-3 pb-4">پایان</th>
+                          <th className="px-3 pb-4">وضعیت</th>
                         </tr>
                       </thead>
                       <tbody>
                         {history.map((item) => (
-                          <tr key={item.id} className="border-b border-slate-200/50 last:border-0 dark:border-white/5">
-                            <td className="px-3 py-4 font-bold text-slate-800 dark:text-slate-200">{item.plan.title}</td>
-                            <td className="px-3 py-4 text-slate-500 dark:text-slate-400">{formatDate(item.startDate)}</td>
-                            <td className="px-3 py-4 text-slate-500 dark:text-slate-400">{formatDate(item.endDate)}</td>
+                          <tr
+                            key={item.id}
+                            className="border-t border-gray-100 dark:border-white/5 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors"
+                          >
                             <td className="px-3 py-4">
-                              <span className={`rounded-full px-3 py-1 text-[11px] font-black ${item.status === "active" ? "bg-emerald-500/10 text-emerald-500" : item.status === "expired" ? "bg-slate-500/10 text-slate-500" : "bg-rose-500/10 text-rose-500"}`}>
-                                {item.status === "active" ? "فعال" : item.status === "expired" ? "منقضی" : "لغوشده"}
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-[var(--griffin-gold)]/10 flex items-center justify-center text-[var(--griffin-gold)]">
+                                  <Crown size={14} />
+                                </div>
+                                <span className="font-bold text-gray-900 dark:text-white">
+                                  {item.plan.title}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 text-gray-500 dark:text-gray-400 text-xs">
+                              {formatDate(item.startDate)}
+                            </td>
+                            <td className="px-3 py-4 text-gray-500 dark:text-gray-400 text-xs">
+                              {formatDate(item.endDate)}
+                            </td>
+                            <td className="px-3 py-4">
+                              <span
+                                className={`
+                                  inline-flex items-center gap-1.5
+                                  px-3 py-1.5 rounded-full
+                                  text-[10px] font-black
+                                  ${
+                                    item.status === "active"
+                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                      : item.status === "expired"
+                                        ? "bg-gray-500/10 text-gray-500 dark:text-gray-400"
+                                        : "bg-rose-500/10 text-rose-500 dark:text-rose-400"
+                                  }
+                                `}
+                              >
+                                {item.status === "active" ? (
+                                  <>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    فعال
+                                  </>
+                                ) : item.status === "expired" ? (
+                                  <>
+                                    <X size={10} />
+                                    منقضی
+                                  </>
+                                ) : (
+                                  <>
+                                    <X size={10} />
+                                    لغوشده
+                                  </>
+                                )}
                               </span>
                             </td>
                           </tr>
@@ -251,10 +587,204 @@ const Subscriptions = () => {
                   </div>
                 )}
               </section>
-            </>
-          )}
-        </div>
+            </RevealOnScroll>
+
+            {/* ===== CTA ===== */}
+            <RevealOnScroll>
+              <div className="relative rounded-[2rem] overflow-hidden border border-[var(--griffin-gold)]/20 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 backdrop-blur-xl p-8 md:p-10 text-center">
+                <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/20 blur-3xl" />
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/15 blur-3xl" />
+
+                <div className="relative space-y-4">
+                  <BadgeCheck
+                    size={40}
+                    className="mx-auto text-[var(--griffin-gold)]"
+                  />
+                  <h2 className="font-heading text-2xl md:text-3xl font-black text-gray-900 dark:text-white">
+                    سوالی داری؟
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto text-sm leading-7">
+                    اگر در انتخاب پلن مناسب شک داری، تیم پشتیبانی گریفین آماده
+                    کمکت هست.
+                  </p>
+                  <a
+                    href="/contact"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-7 py-3 font-bold text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 transition-all"
+                  >
+                    تماس با پشتیبانی
+                  </a>
+                </div>
+              </div>
+            </RevealOnScroll>
+          </>
+        )}
       </div>
+
+      {/* 🆕 مودال انتخاب درگاه */}
+      {showGatewayModal && selectedPlan && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => !purchasing && setShowGatewayModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0F1419] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative p-6 border-b border-gray-100 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
+                  <Crown size={22} />
+                </div>
+                <div>
+                  <h3 className="font-heading text-lg font-black text-gray-900 dark:text-white">
+                    خرید {selectedPlan.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    روش پرداخت رو انتخاب کن
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-[var(--griffin-gold)]/5 border-b border-[var(--griffin-gold)]/20">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs font-black text-gray-500 dark:text-gray-400">
+                  مبلغ قابل پرداخت
+                </span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-heading text-2xl font-black text-[var(--griffin-gold)]">
+                    {formatPrice(selectedPlan.price)}
+                  </span>
+                  <span className="text-xs font-bold text-gray-500">تومان</span>
+                </div>
+              </div>
+              {subscription && (
+                <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 leading-5">
+                  <AlertCircle size={11} className="inline ml-1" />
+                  اشتراک فعلی شما لغو شده و باقی‌مانده آن به کیف پول برمی‌گردد.
+                </p>
+              )}
+            </div>
+
+            <div className="p-6 space-y-3">
+              <button
+                type="button"
+                onClick={() => handlePurchase("wallet")}
+                disabled={purchasing}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-white/10 hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/5 transition-all disabled:opacity-50"
+              >
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <Wallet size={22} />
+                </div>
+                <div className="flex-1 text-right">
+                  <p className="font-heading text-sm font-black text-gray-900 dark:text-white">
+                    پرداخت از کیف پول
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    کسر از موجودی کیف پول
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handlePurchase("mock")}
+                disabled={purchasing}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-white/10 hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/5 transition-all disabled:opacity-50"
+              >
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                  <CreditCard size={22} />
+                </div>
+                <div className="flex-1 text-right">
+                  <p className="font-heading text-sm font-black text-gray-900 dark:text-white">
+                    پرداخت آنلاین
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    درگاه پرداخت امن
+                  </p>
+                </div>
+              </button>
+
+              {purchaseError && (
+                <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-2">
+                  <AlertCircle
+                    size={14}
+                    className="text-rose-500 shrink-0 mt-0.5"
+                  />
+                  <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                    {purchaseError}
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowGatewayModal(false)}
+                disabled={purchasing}
+                className="w-full py-3 text-xs font-black text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all disabled:opacity-50"
+              >
+                انصراف
+              </button>
+
+              {purchasing && (
+                <div className="flex items-center justify-center gap-2 text-xs font-bold text-[var(--griffin-gold)]">
+                  <LoaderCircle size={14} className="animate-spin" />
+                  در حال پردازش...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🆕 مودال موفقیت */}
+      {purchaseSuccess && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setPurchaseSuccess(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-emerald-500/30 bg-white dark:bg-[#0F1419] shadow-2xl p-8 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative inline-flex mb-5">
+              <div className="absolute inset-0 bg-emerald-500 blur-2xl opacity-50 animate-pulse" />
+              <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white shadow-2xl">
+                <CheckCircle2 size={36} />
+              </div>
+            </div>
+
+            <h3 className="font-heading text-xl font-black text-gray-900 dark:text-white mb-2">
+              اشتراک فعال شد!
+            </h3>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-7 mb-4">
+              اشتراک{" "}
+              <span className="font-black text-[var(--griffin-gold)]">
+                {purchaseSuccess.planTitle}
+              </span>{" "}
+              با موفقیت فعال شد.
+            </p>
+
+            {purchaseSuccess.refundAmount > 0 && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 mb-4">
+                <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                  {formatPrice(purchaseSuccess.refundAmount)} تومان از اشتراک
+                  قبلی به کیف پولت برگشت.
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPurchaseSuccess(null)}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white font-black text-sm shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl transition-all"
+            >
+              متوجه شدم
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

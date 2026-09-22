@@ -32,7 +32,7 @@ const socketAuthMiddleware = async (socket, next) => {
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
       email: user.email,
-      role: user.role.name,
+      role: user.role,
     };
 
     next();

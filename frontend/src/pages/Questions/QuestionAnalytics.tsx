@@ -49,10 +49,10 @@ const QuestionAnalytics = () => {
     return () => window.clearTimeout(timer);
   }, []);
 
-  if (loading && !data) return <main className="min-h-screen bg-gray-50 px-4 py-10 dark:bg-[#080B12]"><div className="mx-auto max-w-7xl text-center text-gray-500">در حال دریافت آمار...</div></main>;
+  if (loading && !data) return <main className="min-h-screen px-4 py-10"><div className="mx-auto max-w-7xl text-center text-gray-500">در حال دریافت آمار...</div></main>;
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8 dark:bg-[#080B12] sm:px-6">
+    <main className="min-h-screen px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-sm text-gray-500 dark:text-gray-400">Griffin Academy · Question Analytics</p><h1 className="mt-1 text-3xl font-bold">آمار بانک سؤال</h1><p className="mt-2 text-sm text-gray-500 dark:text-gray-400">وضعیت و توزیع سؤال‌ها را سریع بررسی کنید.</p></div>

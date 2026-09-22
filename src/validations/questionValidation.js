@@ -1,11 +1,17 @@
 const { z } = require("zod");
-const { QUESTION_STATUS, QUESTION_DIFFICULTY } = require("../constants/question");
+const {
+  QUESTION_STATUS,
+  QUESTION_DIFFICULTY,
+} = require("../constants/question");
 
 const createQuestionSchema = z.object({
   code: z.string().trim().min(2),
   lesson: z.string().trim().min(2),
   grade: z.enum(["10", "11", "12"]),
-  major: z.enum(["math", "experimental", "humanities"]),
+  major: z
+    .string()
+    .transform((v) => v.toLowerCase())
+    .pipe(z.enum(["math", "experimental", "humanities"])),
   chapter: z.string().trim().min(2),
   topic: z.string().trim().optional(),
   questionText: z.string().trim().min(5),
@@ -17,13 +23,16 @@ const createQuestionSchema = z.object({
   source: z.string().trim().optional(),
   author: z.string().trim().optional(),
   year: z.number().int().optional(),
-  difficulty: z.enum([
-    QUESTION_DIFFICULTY.EASY,
-    QUESTION_DIFFICULTY.MEDIUM,
-    QUESTION_DIFFICULTY.HARD,
-    QUESTION_DIFFICULTY.TRICKY,
-  ]).optional(),
+  difficulty: z
+    .enum([
+      QUESTION_DIFFICULTY.EASY,
+      QUESTION_DIFFICULTY.MEDIUM,
+      QUESTION_DIFFICULTY.HARD,
+      QUESTION_DIFFICULTY.TRICKY,
+    ])
+    .optional(),
   tags: z.array(z.string().trim().min(1)).optional(),
+  isArena: z.boolean().optional(),
 });
 
 const updateQuestionSchema = createQuestionSchema.partial();

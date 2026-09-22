@@ -3,6 +3,7 @@ import FeaturesSection from "../components/sections/FeaturesSection";
 import ArenaPreview from "../components/sections/ArenaPreview";
 import WhyGriffin from "../components/sections/WhyGriffin";
 import FinalCTA from "../components/sections/FinalCTA";
+import StatsSection from "../components/sections/StatsSection";
 
 const Home = () => {
   return (
@@ -14,6 +15,8 @@ const Home = () => {
       <ArenaPreview />
 
       <WhyGriffin />
+
+      <StatsSection />
 
       <FinalCTA />
     </>

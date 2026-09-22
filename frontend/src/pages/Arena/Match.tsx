@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Wifi, WifiOff } from "lucide-react";
+import { LogOut, Radio, Shield, Swords, Wifi, WifiOff } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { socket } from "../../socket/socket";
@@ -10,14 +10,23 @@ import AnswerOptions from "./components/AnswerOptions";
 import MatchTimer from "./components/MatchTimer";
 import RoundFeedback from "./components/RoundFeedback";
 import MatchResult from "./components/MatchResult";
-import RoundProgress from "./components/RoundProgress";
-import MatchTransition from "./components/MatchTransition";
 import OpponentConnectionBanner from "./components/OpponentConnectionBanner";
-import NetworkStatus, { type NetworkQuality } from "./components/NetworkStatus";
+import { type NetworkQuality } from "./components/NetworkStatus";
 import ArenaStickerPanel from "./components/ArenaStickerPanel";
 import { type ArenaSticker } from "./components/arenaStickerConstants";
-import ArenaStickerOverlay, { type ArenaStickerEvent } from "./components/ArenaStickerOverlay";
+import ArenaStickerOverlay, {
+  type ArenaStickerEvent,
+} from "./components/ArenaStickerOverlay";
+import MatchTransition from "./components/MatchTransition";
+// 🆕 امنیت
+import { useExamSecurity } from "../../hooks/useExamSecurity";
+import SecurityWatermark from "../../components/security/SecurityWatermark";
 
+// ==================== Timing Constants ====================
+const FEEDBACK_DISPLAY_BEFORE_TRANSITION = 1400;
+const TRANSITION_DISPLAY_DURATION = 1200;
+
+// ==================== Types ====================
 interface MatchQuestion {
   matchQuestionId: string;
   questionId: string;
@@ -75,6 +84,9 @@ const Match = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // 🆕 امنیت آزمون
+  useExamSecurity();
+
   const [match, setMatch] = useState<ArenaMatch | null>(null);
   const matchRef = useRef<ArenaMatch | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,14 +97,37 @@ const Match = () => {
   const [transitionRound, setTransitionRound] = useState<number | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
   const [networkLatency, setNetworkLatency] = useState<number | null>(null);
-  const [networkQuality, setNetworkQuality] = useState<NetworkQuality>("unknown");
-  const [opponentNetwork, setOpponentNetwork] = useState<{ latencyMs: number | null; quality: NetworkQuality }>({ latencyMs: null, quality: "unknown" });
-  const [stickerEvent, setStickerEvent] = useState<ArenaStickerEvent | null>(null);
+  const [networkQuality, setNetworkQuality] =
+    useState<NetworkQuality>("unknown");
+  const [opponentNetwork, setOpponentNetwork] = useState<{
+    latencyMs: number | null;
+    quality: NetworkQuality;
+  }>({ latencyMs: null, quality: "unknown" });
+  const [stickerEvent, setStickerEvent] = useState<ArenaStickerEvent | null>(
+    null,
+  );
+
+  // 🆕 Refs برای مدیریت timeout
+  const feedbackTimeoutRef = useRef<number | null>(null);
+  const transitionTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     matchRef.current = match;
   }, [match]);
 
+  // ==================== Cleanup Timeouts ====================
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        window.clearTimeout(feedbackTimeoutRef.current);
+      }
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ==================== Load match ====================
   useEffect(() => {
     if (!matchId) return;
 
@@ -102,29 +137,50 @@ const Match = () => {
         setMatch(response.data.match ?? response.data);
       } catch (requestError: unknown) {
         console.error("Failed to load match:", requestError);
-        setError(requestError instanceof Error ? requestError.message : "اطلاعات مسابقه دریافت نشد.");
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "اطلاعات مسابقه دریافت نشد.",
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    loadMatch();
+    void loadMatch();
   }, [matchId]);
 
+  // ==================== Socket handlers ====================
   useEffect(() => {
     if (!matchId) return;
 
+    const clearAllTimeouts = () => {
+      if (feedbackTimeoutRef.current) {
+        window.clearTimeout(feedbackTimeoutRef.current);
+        feedbackTimeoutRef.current = null;
+      }
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
+    };
+
     const joinMatch = () => {
       setReconnecting(false);
+      clearAllTimeouts();
       setSelectedAnswer(null);
       setAnswerResult(null);
       setTransitionRound(null);
 
-      socket.emit("arena:join-match", matchId, (response: { success?: boolean; message?: string }) => {
-        if (!response?.success) {
-          console.error("Join match failed:", response);
-        }
-      });
+      socket.emit(
+        "arena:join-match",
+        matchId,
+        (response: { success?: boolean; message?: string }) => {
+          if (!response?.success) {
+            console.error("Join match failed:", response);
+          }
+        },
+      );
     };
 
     const handleMatchState = (state: ArenaMatch) => {
@@ -132,38 +188,43 @@ const Match = () => {
       setMatch(state);
     };
 
-    const handleDisconnect = () => {
-      setReconnecting(true);
-    };
+    const handleDisconnect = () => setReconnecting(true);
+    const handleConnectError = () => setReconnecting(true);
 
-    const handleConnectError = () => {
-      setReconnecting(true);
-    };
-
-    const handleNetworkQuality = (data: { userId: string; latencyMs: number; quality: NetworkQuality }) => {
+    const handleNetworkQuality = (data: {
+      userId: string;
+      latencyMs: number;
+      quality: NetworkQuality;
+    }) => {
       if (data.userId === user?.id) {
         setNetworkLatency(data.latencyMs);
         setNetworkQuality(data.quality);
         return;
       }
-
       setOpponentNetwork({ latencyMs: data.latencyMs, quality: data.quality });
     };
 
-    const handlePlayerPresence = (data: { userId: string; online: boolean }) => {
+    const handlePlayerPresence = (data: {
+      userId: string;
+      online: boolean;
+    }) => {
       setMatch((previous) => {
         if (!previous) return previous;
         return {
           ...previous,
           players: previous.players.map((player) =>
-            player.userId === data.userId ? { ...player, online: data.online } : player,
+            player.userId === data.userId
+              ? { ...player, online: data.online }
+              : player,
           ),
         };
       });
     };
 
     const handleMatchStarted = () => {
-      setMatch((previous) => (previous ? { ...previous, status: "playing" } : previous));
+      setMatch((previous) =>
+        previous ? { ...previous, status: "playing" } : previous,
+      );
     };
 
     const handleQuestionStarted = (question: MatchQuestion) => {
@@ -171,18 +232,27 @@ const Match = () => {
       const nextRound = question.order;
       const shouldTransition = previousRound > 0 && nextRound > previousRound;
 
+      clearAllTimeouts();
+
       if (shouldTransition) {
-        setTransitionRound(nextRound);
-        window.setTimeout(() => {
-          setSelectedAnswer(null);
-          setAnswerResult(null);
-          setMatch((previous) =>
-            previous
-              ? { ...previous, status: "playing", currentQuestion: question }
-              : previous,
-          );
-          setTransitionRound(null);
-        }, 650);
+        feedbackTimeoutRef.current = window.setTimeout(() => {
+          setTransitionRound(nextRound);
+
+          transitionTimeoutRef.current = window.setTimeout(() => {
+            setSelectedAnswer(null);
+            setAnswerResult(null);
+            setMatch((previous) =>
+              previous
+                ? {
+                    ...previous,
+                    status: "playing",
+                    currentQuestion: question,
+                  }
+                : previous,
+            );
+            setTransitionRound(null);
+          }, TRANSITION_DISPLAY_DURATION);
+        }, FEEDBACK_DISPLAY_BEFORE_TRANSITION);
         return;
       }
 
@@ -200,24 +270,25 @@ const Match = () => {
 
       setMatch((previous) => {
         if (!previous) return previous;
-
         return {
           ...previous,
           players: previous.players.map((player) => {
             if (player.userId === data.playerId && data.playerLives !== null) {
               return { ...player, lives: data.playerLives };
             }
-
-            if (player.userId !== data.playerId && data.opponentLives !== null) {
+            if (
+              player.userId !== data.playerId &&
+              data.opponentLives !== null
+            ) {
               return { ...player, lives: data.opponentLives };
             }
-
             return player;
           }),
         };
       });
 
       if (data.match?.finished) {
+        clearAllTimeouts();
         setMatch((previous) =>
           previous
             ? {
@@ -238,6 +309,7 @@ const Match = () => {
     };
 
     const handleMatchFinished = (data: { winnerId?: string | null }) => {
+      clearAllTimeouts();
       setMatch((previous) =>
         previous
           ? {
@@ -271,6 +343,8 @@ const Match = () => {
         socket.emit("arena:leave-match", matchId);
       }
 
+      clearAllTimeouts();
+
       socket.off("connect", joinMatch);
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectError);
@@ -285,6 +359,7 @@ const Match = () => {
     };
   }, [matchId, user?.id]);
 
+  // ==================== Timer ====================
   useEffect(() => {
     const question = match?.currentQuestion;
 
@@ -295,7 +370,8 @@ const Match = () => {
     }
 
     const updateTimer = () => {
-      const elapsed = (Date.now() - new Date(question.startedAt!).getTime()) / 1000;
+      const elapsed =
+        (Date.now() - new Date(question.startedAt!).getTime()) / 1000;
       setTimeLeft(Math.max(0, Math.ceil(question.timeLimit - elapsed)));
     };
 
@@ -303,25 +379,45 @@ const Match = () => {
     const intervalId = window.setInterval(updateTimer, 250);
 
     return () => window.clearInterval(intervalId);
-  }, [match?.currentQuestion, match?.currentQuestion?.matchQuestionId, match?.currentQuestion?.startedAt, match?.currentQuestion?.timeLimit]);
+  }, [
+    match?.currentQuestion,
+    match?.currentQuestion?.matchQuestionId,
+    match?.currentQuestion?.startedAt,
+    match?.currentQuestion?.timeLimit,
+  ]);
 
+  // ==================== Network ping ====================
   const matchStatus = match?.status;
 
   useEffect(() => {
-    if (!matchId || !matchStatus || matchStatus === "finished" || !socket.connected) return;
+    if (
+      !matchId ||
+      !matchStatus ||
+      matchStatus === "finished" ||
+      !socket.connected
+    )
+      return;
 
     let active = true;
 
     const measure = () => {
       const startedAt = performance.now();
-      socket.emit("arena:network-ping", {}, (response: { success?: boolean }) => {
-        if (!active || !response?.success) return;
-        const latency = Math.max(0, Math.round(performance.now() - startedAt));
-        const quality: NetworkQuality = latency <= 80 ? "good" : latency <= 180 ? "fair" : "poor";
-        setNetworkLatency(latency);
-        setNetworkQuality(quality);
-        socket.emit("arena:network-quality", { matchId, latencyMs: latency });
-      });
+      socket.emit(
+        "arena:network-ping",
+        {},
+        (response: { success?: boolean }) => {
+          if (!active || !response?.success) return;
+          const latency = Math.max(
+            0,
+            Math.round(performance.now() - startedAt),
+          );
+          const quality: NetworkQuality =
+            latency <= 80 ? "good" : latency <= 180 ? "fair" : "poor";
+          setNetworkLatency(latency);
+          setNetworkQuality(quality);
+          socket.emit("arena:network-quality", { matchId, latencyMs: latency });
+        },
+      );
     };
 
     measure();
@@ -332,6 +428,7 @@ const Match = () => {
     };
   }, [matchId, matchStatus]);
 
+  // ==================== Actions ====================
   const leaveMatch = () => {
     if (!matchId) return;
 
@@ -341,23 +438,31 @@ const Match = () => {
 
     if (!confirmed) return;
 
-    socket.emit("arena:leave-match", matchId, (response: { success?: boolean; message?: string }) => {
-      if (!response?.success) {
-        console.error("Leave match failed:", response);
-      }
-      navigate("/arena");
-    });
+    socket.emit(
+      "arena:leave-match",
+      matchId,
+      (response: { success?: boolean; message?: string }) => {
+        if (!response?.success) {
+          console.error("Leave match failed:", response);
+        }
+        navigate("/arena");
+      },
+    );
   };
 
   const startMatch = () => {
     if (!matchId) return;
-    socket.emit("arena:start-match", matchId, (response: { success?: boolean; message?: string }) => {
-      if (!response?.success) console.error("Start match failed:", response);
-    });
+    socket.emit(
+      "arena:start-match",
+      matchId,
+      (response: { success?: boolean; message?: string }) => {
+        if (!response?.success) console.error("Start match failed:", response);
+      },
+    );
   };
 
   const sendSticker = (sticker: ArenaSticker) => {
-    if (!matchId || finished || !socket.connected) return;
+    if (!matchId || match?.status === "finished" || !socket.connected) return;
 
     socket.emit(
       "arena:send-sticker",
@@ -371,7 +476,13 @@ const Match = () => {
   };
 
   const submitAnswer = (answerIndex: number) => {
-    if (!matchId || !match?.currentQuestion || selectedAnswer !== null || timeLeft <= 0) return;
+    if (
+      !matchId ||
+      !match?.currentQuestion ||
+      selectedAnswer !== null ||
+      timeLeft <= 0
+    )
+      return;
 
     const matchQuestionId = match.currentQuestion.matchQuestionId;
     setSelectedAnswer(answerIndex);
@@ -388,115 +499,333 @@ const Match = () => {
     );
   };
 
+  // ==================== Loading ====================
   if (loading) {
-    return <main className="arena-battle min-h-[calc(100vh-80px)] p-6"><div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center"><div className="rounded-3xl border border-slate-200 bg-white/80 px-8 py-6 text-center shadow-xl dark:border-white/10 dark:bg-white/[0.04]">در حال ورود به میدان نبرد...</div></div></main>;
+    return (
+      <main className="min-h-[calc(100vh-80px)] flex items-center justify-center px-6">
+        <div className="text-center space-y-4">
+          <div className="relative inline-flex">
+            <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-50 animate-pulse" />
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center">
+              <Swords size={28} className="text-white animate-pulse" />
+            </div>
+          </div>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
+            در حال ورود به میدان نبرد...
+          </p>
+        </div>
+      </main>
+    );
   }
 
+  // ==================== Error ====================
   if (error) {
-    return <main className="arena-battle min-h-[calc(100vh-80px)] p-6"><div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center"><div className="rounded-3xl border border-rose-500/20 bg-rose-500/10 px-8 py-6 text-center text-rose-600 dark:text-rose-400">{error}</div></div></main>;
+    return (
+      <main className="min-h-[calc(100vh-80px)] flex items-center justify-center px-6">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-red-500/10 flex items-center justify-center">
+            <Shield size={28} className="text-red-500" />
+          </div>
+          <p className="font-bold text-red-500">{error}</p>
+          <button
+            onClick={() => navigate("/arena")}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--griffin-gold)] text-white text-sm font-bold hover:opacity-90 transition"
+          >
+            بازگشت به Arena
+          </button>
+        </div>
+      </main>
+    );
   }
 
+  // ==================== Not Found ====================
   if (!match) {
-    return <main className="arena-battle min-h-[calc(100vh-80px)] p-6"><div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center">مسابقه پیدا نشد.</div></main>;
+    return (
+      <main className="min-h-[calc(100vh-80px)] flex items-center justify-center px-6">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-red-500/10 flex items-center justify-center">
+            <Swords size={28} className="text-red-500" />
+          </div>
+          <p className="font-bold text-red-500">مسابقه پیدا نشد.</p>
+          <button
+            onClick={() => navigate("/arena")}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--griffin-gold)] text-white text-sm font-bold hover:opacity-90 transition"
+          >
+            بازگشت به Arena
+          </button>
+        </div>
+      </main>
+    );
   }
 
+  // ==================== Computed Values ====================
   const question = match.currentQuestion;
   const waiting = match.status === "waiting";
   const finished = match.status === "finished";
   const answered = selectedAnswer !== null;
+  const opponent = match.players.find((p) => p.userId !== user?.id);
+  const isConnected = socket.connected && !reconnecting;
 
+  // ==================== Main Render ====================
   return (
-    <main className="arena-battle relative min-h-[calc(100vh-80px)] overflow-hidden px-3 py-5 sm:px-5 md:py-8">
-      <ArenaStickerOverlay event={stickerEvent} currentUserId={user?.id} onDone={() => setStickerEvent(null)} />
-      <div className="arena-orb arena-orb-one" />
-      <div className="arena-orb arena-orb-two" />
-      <div className="relative mx-auto max-w-6xl">
-        <div className="mb-5 flex items-center justify-between gap-3 px-1">
-          <div>
-            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[var(--griffin-gold)] shadow-[0_0_12px_var(--griffin-gold)]" /><span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--griffin-gold)]">GRIFFIN ARENA</span></div>
-            <h1 className="mt-1 text-xl font-black md:text-2xl">Battle Arena</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/65 px-3 py-1.5 text-[10px] font-bold text-slate-500 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-400">
-              {socket.connected && !reconnecting ? <Wifi className="h-3.5 w-3.5 text-emerald-500" /> : <WifiOff className="h-3.5 w-3.5 text-rose-500" />}
-              {socket.connected && !reconnecting ? "اتصال پایدار" : "در حال اتصال مجدد"}
+    <main className="fixed inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-[#080B12] via-[#0a0d14] to-[#080B12] text-white">
+      {/* پس‌زمینه تزئینی */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/15 blur-[120px]" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-purple-600/15 blur-[120px]" />
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, white 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+          }}
+        />
+      </div>
+
+      {/* 🆕 واترمارک امنیتی */}
+      {user && (
+        <SecurityWatermark
+          text={`${user.firstName} ${user.lastName} · ${user.phoneNumber ?? user.username}`}
+        />
+      )}
+
+      {/* استیکر Overlay */}
+      <ArenaStickerOverlay
+        event={stickerEvent}
+        currentUserId={user?.id}
+        onDone={() => setStickerEvent(null)}
+      />
+
+      {/* ==================== HEADER ==================== */}
+      <header className="relative z-10 shrink-0 border-b border-white/5 bg-[#0a0d14]/80 backdrop-blur-xl">
+        <div className="px-3 py-2.5 sm:px-5 sm:py-3">
+          {/* ردیف بالا */}
+          <div className="flex items-center justify-between gap-3 mb-2.5">
+            {/* === برند === */}
+            <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-50" />
+                <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
+                  <Swords size={18} strokeWidth={2.4} />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--griffin-gold)] shadow-[0_0_8px_var(--griffin-gold)] animate-pulse" />
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--griffin-gold)] truncate">
+                    GRIFFIN ARENA
+                  </span>
+                </div>
+                <h1 className="font-heading text-sm sm:text-base font-black text-white leading-tight truncate">
+                  Battle Arena
+                </h1>
+              </div>
             </div>
-            {!finished && (
-              <button
-                type="button"
-                onClick={leaveMatch}
-                className="rounded-full border border-slate-200/80 bg-white/65 px-3 py-1.5 text-[10px] font-black text-slate-600 backdrop-blur-md transition hover:border-rose-300 hover:text-rose-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-rose-400/40 dark:hover:text-rose-300"
-              >
-                خروج از نبرد
-              </button>
-            )}
-          </div>
-        </div>
 
-        <MatchHeader players={match.players ?? []} currentUserId={user?.id} />
-
-        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
-          <NetworkStatus latencyMs={networkLatency} quality={networkQuality} label="اتصال شما" />
-          {match.players.some((player) => player.userId !== user?.id && player.online) && (
-            <NetworkStatus latencyMs={opponentNetwork.latencyMs} quality={opponentNetwork.quality} label="اتصال حریف" />
-          )}
-        </div>
-
-        {reconnecting && (
-          <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-center text-xs font-bold text-amber-700 dark:text-amber-300">
-            اتصال لحظه‌ای قطع شد؛ در حال اتصال مجدد و همگام‌سازی وضعیت نبرد...
-          </div>
-        )}
-
-        {waiting && (
-          <section className="arena-panel relative overflow-hidden rounded-[30px] p-8 text-center md:p-14">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-[var(--griffin-gold)]/10 text-3xl font-black text-[var(--griffin-gold)]">VS</div>
-            <p className="mt-6 text-xs font-black uppercase tracking-[0.25em] text-[var(--griffin-gold)]">MATCH READY</p>
-            <h2 className="mt-2 text-3xl font-black">حریف آماده است</h2>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-slate-500 dark:text-slate-400">پنج سؤال، سه Life و یک برنده. وقتی آماده‌ای وارد نبرد شو.</p>
-            <button type="button" onClick={startMatch} className="mt-7 rounded-2xl bg-[var(--griffin-gold)] px-10 py-3.5 font-black text-white shadow-[0_12px_35px_rgba(197,139,42,0.25)] transition hover:-translate-y-0.5 hover:brightness-105">شروع نبرد</button>
-          </section>
-        )}
-
-        {question && !finished && (
-          <section className="relative">
-            <div className="mb-3 flex justify-end">
-              <ArenaStickerPanel disabled={finished || !socket.connected || reconnecting} onSend={sendSticker} />
-            </div>
-            <OpponentConnectionBanner
-              online={match.players.find((player) => player.userId !== user?.id)?.online ?? true}
-              timeLeft={timeLeft}
-              hasOpponent={match.players.some((player) => player.userId !== user?.id)}
-            />
-            <RoundProgress current={question.order} total={5} />
-            <div className="my-5 flex items-center justify-center">
-              <MatchTimer timeLeft={timeLeft} timeLimit={question.timeLimit} />
-            </div>
-            <div className="relative">
-              <div key={question.matchQuestionId} className="arena-question-enter">
-                <QuestionCard order={question.order} total={5} questionText={question.question.questionText} questionImage={question.question.questionImage} />
-                <AnswerOptions
-                  options={question.question.options}
-                  selectedAnswer={selectedAnswer}
-                  disabled={answered || timeLeft <= 0}
-                  onSelect={submitAnswer}
-                  answerResult={answerResult?.playerId === user?.id ? (answerResult?.result === "correct" ? "correct" : answerResult?.result === "wrong" ? "wrong" : null) : null}
+            {/* === تایمر inline === */}
+            {question && !finished && (
+              <div className="shrink-0">
+                <MatchTimer
+                  timeLeft={timeLeft}
+                  timeLimit={question.timeLimit}
+                  variant="inline"
                 />
-                {answerResult && answerResult.playerId === user?.id && (
+              </div>
+            )}
+
+            {/* === اتصال + خروج === */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div
+                className={`
+                  inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg
+                  border text-[10px] font-black transition-all
+                  ${
+                    isConnected
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                  }
+                `}
+              >
+                {isConnected ? (
+                  <>
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping" />
+                      <span className="relative rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    <Wifi size={11} />
+                    <span className="hidden sm:inline">اتصال پایدار</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff size={11} />
+                    <span className="hidden sm:inline">در حال اتصال</span>
+                  </>
+                )}
+              </div>
+
+              {!finished && (
+                <button
+                  type="button"
+                  onClick={leaveMatch}
+                  className="group inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black text-gray-300 hover:border-rose-400/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                >
+                  <LogOut
+                    size={11}
+                    className="transition-transform group-hover:-translate-x-0.5"
+                  />
+                  <span className="hidden sm:inline">خروج</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <MatchHeader players={match.players ?? []} currentUserId={user?.id} />
+        </div>
+      </header>
+
+      {/* ==================== CONTENT ==================== */}
+      <section className="relative z-10 flex-1 min-h-0 overflow-hidden">
+        {/* ==================== Waiting ==================== */}
+        {waiting && (
+          <div className="h-full flex items-center justify-center p-4">
+            <div className="relative max-w-md w-full rounded-[2rem] overflow-hidden bg-gradient-to-br from-[var(--griffin-gold)]/15 via-transparent to-purple-600/15 backdrop-blur-xl border border-white/10 p-6 sm:p-8 text-center">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div
+                  className="w-64 h-64 rounded-full border-2 border-dashed border-[var(--griffin-gold)]/20 animate-spin"
+                  style={{ animationDuration: "30s" }}
+                />
+              </div>
+
+              <div className="relative space-y-5">
+                <div className="relative inline-flex">
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-3xl opacity-60 animate-pulse" />
+                  <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center shadow-2xl shadow-[var(--griffin-gold)]/50 rotate-3">
+                    <span className="font-heading text-2xl font-black text-white">
+                      VS
+                    </span>
+                  </div>
+                </div>
+
+                <h2 className="font-heading text-2xl sm:text-3xl font-black">
+                  حریف آماده است!
+                </h2>
+                <p className="text-sm text-gray-300">
+                  ۵ سؤال · ۳ Life · یک برنده
+                </p>
+
+                <button
+                  type="button"
+                  onClick={startMatch}
+                  className="group relative inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-8 py-3.5 font-heading font-black text-white shadow-2xl shadow-[var(--griffin-gold)]/50 hover:-translate-y-1 transition-all overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    <Swords size={20} />
+                    شروع نبرد
+                  </span>
+                  <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== Question ==================== */}
+        {question && !finished && (
+          <div className="h-full flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-4 gap-2 sm:gap-3 overflow-hidden">
+              <div className="shrink-0">
+                <OpponentConnectionBanner
+                  online={opponent?.online ?? true}
+                  timeLeft={timeLeft}
+                  hasOpponent={match.players.some((p) => p.userId !== user?.id)}
+                />
+              </div>
+
+              {/* 🆕 سؤال — با select-none */}
+              <div className="flex-1 min-h-0 overflow-hidden select-none">
+                <QuestionCard
+                  order={question.order}
+                  total={5}
+                  questionText={question.question.questionText}
+                  questionImage={question.question.questionImage}
+                />
+              </div>
+            </div>
+
+            <div className="relative shrink-0">
+              {answerResult && answerResult.playerId === user?.id && (
+                <div className="absolute -top-2 left-0 right-0 z-20 px-3 sm:px-4 -translate-y-full animate-[slideUp_0.3s_ease-out]">
                   <RoundFeedback
                     isCorrect={answerResult.isCorrect}
                     result={answerResult.result}
                     questionFinished={answerResult.questionFinished}
                   />
-                )}
+                </div>
+              )}
+
+              {/* 🆕 گزینه‌ها — با select-none */}
+              <div
+                key={question.matchQuestionId}
+                className="h-[24vh] min-h-[160px] max-h-[220px] sm:h-[32vh] sm:min-h-[200px] sm:max-h-[280px] p-3 sm:p-4 pt-2 animate-[slideUpFromBottom_0.4s_ease-out] select-none"
+              >
+                <AnswerOptions
+                  options={question.question.options}
+                  selectedAnswer={selectedAnswer}
+                  disabled={answered || timeLeft <= 0}
+                  onSelect={submitAnswer}
+                  answerResult={
+                    answerResult?.playerId === user?.id
+                      ? answerResult?.result === "correct"
+                        ? "correct"
+                        : answerResult?.result === "wrong"
+                          ? "wrong"
+                          : null
+                      : null
+                  }
+                />
               </div>
-              {transitionRound !== null && <MatchTransition round={transitionRound} />}
             </div>
-          </section>
+
+            {transitionRound !== null && (
+              <MatchTransition round={transitionRound} />
+            )}
+          </div>
         )}
 
-        {finished && <MatchResult matchId={match.id} winnerId={match.winnerId} currentUserId={user?.id} />}
-      </div>
+        {/* ==================== Finished ==================== */}
+        {finished && (
+          <div className="h-full overflow-y-auto bg-[#080B12] text-white">
+            <div className="p-3 sm:p-4">
+              <MatchResult
+                matchId={match.id}
+                winnerId={match.winnerId}
+                currentUserId={user?.id}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ==================== استیکر پنل ==================== */}
+      {!finished && question && (
+        <div className="relative z-20 shrink-0">
+          <ArenaStickerPanel
+            disabled={!socket.connected || reconnecting}
+            onSend={sendSticker}
+          />
+        </div>
+      )}
+
+      {/* ==================== Reconnecting Banner ==================== */}
+      {reconnecting && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 backdrop-blur-md flex items-center gap-2 shadow-xl">
+          <Radio size={14} className="text-amber-500 animate-pulse" />
+          <p className="text-xs font-bold text-amber-400">
+            در حال اتصال مجدد...
+          </p>
+        </div>
+      )}
     </main>
   );
 };

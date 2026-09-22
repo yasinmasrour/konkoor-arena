@@ -1,5 +1,5 @@
 import api from "../api/axios";
-
+export type UserRole = "ADMIN" | "QUESTION_DESIGNER" | "COUNSELOR" | "STUDENT";
 export interface AuthUser {
   id: string;
   firstName: string;
@@ -7,7 +7,7 @@ export interface AuthUser {
   username: string;
   phoneNumber: string | null;
   email: string | null;
-  role: string;
+  role: UserRole;
   phoneVerifiedAt?: string | null;
   birthDate?: string | null;
   major?: string | null;
@@ -16,6 +16,8 @@ export interface AuthUser {
   address?: string | null;
   city?: string | null;
   province?: string | null;
+  features: string[];
+  examPurchases: string[];
 }
 
 export const getCaptcha = async () =>
@@ -31,8 +33,6 @@ export const registerUser = async (data: {
   phoneNumber: string;
   email?: string;
   password: string;
-  captchaToken: string;
-  captchaAnswer: string;
 }) => (await api.post("/auth/register", data)).data;
 
 export const verifyRegistration = async (phoneNumber: string, code: string) =>

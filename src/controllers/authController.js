@@ -9,7 +9,7 @@ const captcha = asyncHandler(async (req, res) => {
 });
 
 const register = asyncHandler(async (req, res) => {
-  verifyCaptcha(req.body.captchaToken, req.body.captchaAnswer);
+  // verifyCaptcha(req.body.captchaToken, req.body.captchaAnswer);
   const result = await authService.registerUser(req.body);
   res.status(201).json({
     message: "Verification code sent",

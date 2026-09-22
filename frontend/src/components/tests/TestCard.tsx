@@ -1,4 +1,13 @@
-import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  BookOpen,
+  CalendarDays,
+  Clock3,
+  FileQuestion,
+  GraduationCap,
+  Sparkles,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface Props {
   id: string;
@@ -23,92 +32,134 @@ const TestCard = ({
   status,
   examDate,
 }: Props) => {
-  const navigate = useNavigate();
+  const isPublished = status === "published";
+  const formattedDate = new Date(examDate).toLocaleDateString("fa-IR", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
   return (
-    <div
+    <Link
+      to={`/tests/${id}`}
       className="
-        rounded-3xl
-        p-6
-        bg-white/40
-        dark:bg-white/10
-        backdrop-blur-xl
-        border
-        border-white/20
-        shadow-lg
-        transition
-        hover:-translate-y-1
+        group relative block w-full
+        rounded-2xl overflow-hidden
+        border border-gray-200 dark:border-white/10
+        bg-white/70 dark:bg-white/[0.04]
+        backdrop-blur-sm
+        transition-all duration-300
+        hover:-translate-y-0.5
+        hover:shadow-xl hover:shadow-[var(--griffin-gold)]/10
+        hover:border-[var(--griffin-gold)]/40
       "
     >
-      <div className="flex items-center justify-between gap-3">
-        <span
-          className="
-            text-sm
-            text-[var(--griffin-gold)]
-          "
-        >
-          {lesson}
-        </span>
+      {/* خط طلایی راست */}
+      <div className="absolute top-0 bottom-0 right-0 w-1 bg-gradient-to-b from-transparent via-[var(--griffin-gold)] to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
 
-        <span
-          className="
-            text-xs
-            text-gray-500
-            dark:text-gray-400
-          "
-        >
-          {status === "published" ? "منتشر شده" : "پیش‌نویس"}
-        </span>
+      <div className="relative p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+        {/* ==================== آیکون درس ==================== */}
+        <div className="relative shrink-0">
+          <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-30 group-hover:opacity-50 transition-opacity" />
+          <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-2 group-hover:rotate-3 transition-transform">
+            <BookOpen size={20} strokeWidth={2.3} />
+          </div>
+        </div>
+
+        {/* ==================== اطلاعات اصلی ==================== */}
+        <div className="min-w-0 flex-1">
+          {/* ردیف ۱: عنوان + وضعیت */}
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <h3 className="font-heading text-sm sm:text-base font-black text-gray-900 dark:text-white truncate group-hover:text-[var(--griffin-gold)] transition-colors">
+              {title}
+            </h3>
+            <span
+              className={`
+                shrink-0 inline-flex items-center gap-1.5
+                px-2 py-0.5 rounded-md
+                text-[9px] font-black
+                ${
+                  isPublished
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                }
+              `}
+            >
+              <span
+                className={`w-1 h-1 rounded-full ${
+                  isPublished ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                }`}
+              />
+              {isPublished ? "منتشر شده" : "در انتظار"}
+            </span>
+          </div>
+
+          {/* ردیف ۲: درس + پایه + رشته */}
+          <div className="flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap">
+            <span className="inline-flex items-center gap-1">
+              <Sparkles size={10} className="text-[var(--griffin-gold)]" />
+              <span className="font-bold">{lesson}</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <GraduationCap size={10} />
+              {grade}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <BookOpen size={10} />
+              {major}
+            </span>
+          </div>
+        </div>
+
+        {/* ==================== آمار (دسکتاپ) ==================== */}
+        <div className="hidden md:flex items-center gap-4 shrink-0 px-4 border-r border-l border-gray-200 dark:border-white/5">
+          <div className="text-center">
+            <div className="flex items-center gap-1 mb-0.5 justify-center">
+              <FileQuestion size={10} className="text-[var(--griffin-gold)]" />
+              <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                سوال
+              </span>
+            </div>
+            <p className="font-heading text-sm font-black text-gray-900 dark:text-white tabular-nums">
+              {questionCount.toLocaleString("fa-IR")}
+            </p>
+          </div>
+
+          <div className="text-center">
+            <div className="flex items-center gap-1 mb-0.5 justify-center">
+              <Clock3 size={10} className="text-[var(--griffin-gold)]" />
+              <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                دقیقه
+              </span>
+            </div>
+            <p className="font-heading text-sm font-black text-gray-900 dark:text-white tabular-nums">
+              {duration.toLocaleString("fa-IR")}
+            </p>
+          </div>
+        </div>
+
+        {/* ==================== آمار (موبایل) ==================== */}
+        <div className="md:hidden shrink-0 flex flex-col items-end gap-1 text-[10px] font-black text-gray-500 dark:text-gray-400">
+          <span className="tabular-nums">
+            {questionCount.toLocaleString("fa-IR")} س
+          </span>
+          <span className="tabular-nums">
+            {duration.toLocaleString("fa-IR")} د
+          </span>
+        </div>
+
+        {/* ==================== تاریخ ==================== */}
+        <div className="hidden lg:flex items-center gap-1.5 shrink-0 text-[11px] font-bold text-gray-500 dark:text-gray-400">
+          <CalendarDays size={12} className="text-[var(--griffin-gold)]" />
+          {formattedDate}
+        </div>
+
+        {/* ==================== فلش ==================== */}
+        <div className="shrink-0 w-8 h-8 rounded-lg bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)] group-hover:bg-[var(--griffin-gold)] group-hover:text-white transition-all">
+          <ArrowLeft size={14} className="rotate-180" />
+        </div>
       </div>
-
-      <h3
-        className="
-          mt-4
-          text-xl
-          font-bold
-          dark:text-white
-        "
-      >
-        {title}
-      </h3>
-
-      <div
-        className="
-          mt-5
-          space-y-2
-          text-sm
-          text-gray-600
-          dark:text-gray-300
-        "
-      >
-        <p>پایه: {grade}</p>
-
-        <p>رشته: {major}</p>
-
-        <p>تعداد سوالات: {questionCount}</p>
-
-        <p>زمان: {duration} دقیقه</p>
-
-        <p>تاریخ: {new Date(examDate).toLocaleDateString("fa-IR")}</p>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => navigate(`/tests/${id}`)}
-        className="
-          mt-6
-          w-full
-          rounded-xl
-          bg-[var(--griffin-gold)]
-          py-2
-          text-white
-          transition
-          hover:opacity-90
-        "
-      >
-        مشاهده آزمون
-      </button>
-    </div>
+    </Link>
   );
 };
 

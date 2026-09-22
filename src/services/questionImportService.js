@@ -239,7 +239,7 @@ const previewImport = async (buffer, originalName) => {
 };
 
 const importQuestions = async (buffer, originalName, user) => {
-  if (![ROLES.ADMIN, ROLES.QUESTION_DESIGNER].includes(user.role.name)) {
+  if (![ROLES.ADMIN, ROLES.QUESTION_DESIGNER].includes(user.role)) {
     throw new AppError(
       "Only an admin or question designer can import questions",
       403,

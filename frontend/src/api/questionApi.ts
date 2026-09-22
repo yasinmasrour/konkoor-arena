@@ -30,6 +30,7 @@ export interface Question {
   tags: string[];
   usageCount: number;
   status: QuestionStatus;
+  isArena: boolean;
   createdById: string;
   createdBy?: QuestionAuthor;
   createdAt: string;
@@ -54,6 +55,7 @@ export interface QuestionPayload {
   year?: number;
   difficulty?: QuestionDifficulty;
   tags?: string[];
+  isArena?: boolean;
 }
 
 export interface QuestionListResponse {
@@ -66,8 +68,12 @@ export interface QuestionListResponse {
   };
 }
 
-export const getQuestions = async (params: Record<string, string | number | undefined>) => {
-  const response = await api.get<QuestionListResponse>("/questions", { params });
+export const getQuestions = async (
+  params: Record<string, string | number | boolean | undefined>,
+) => {
+  const response = await api.get<QuestionListResponse>("/questions", {
+    params,
+  });
   return response.data;
 };
 
@@ -77,38 +83,60 @@ export const getQuestion = async (id: string) => {
 };
 
 export const createQuestion = async (payload: QuestionPayload) => {
-  const response = await api.post<{ question: Question }>("/questions", payload);
+  const response = await api.post<{ question: Question }>(
+    "/questions",
+    payload,
+  );
   return response.data.question;
 };
 
-export const updateQuestion = async (id: string, payload: Partial<QuestionPayload>) => {
-  const response = await api.patch<{ question: Question }>(`/questions/${id}`, payload);
+export const updateQuestion = async (
+  id: string,
+  payload: Partial<QuestionPayload>,
+) => {
+  const response = await api.patch<{ question: Question }>(
+    `/questions/${id}`,
+    payload,
+  );
   return response.data.question;
 };
 
 export const submitQuestionForReview = async (id: string) => {
-  const response = await api.post<{ question: Question }>(`/questions/${id}/submit-review`);
+  const response = await api.post<{ question: Question }>(
+    `/questions/${id}/submit-review`,
+  );
   return response.data.question;
 };
 
 export const setQuestionStatus = async (id: string, status: QuestionStatus) => {
-  const response = await api.patch<{ question: Question }>(`/questions/${id}/status`, { status });
+  const response = await api.patch<{ question: Question }>(
+    `/questions/${id}/status`,
+    { status },
+  );
   return response.data.question;
 };
-
 
 export const duplicateQuestion = async (id: string) => {
-  const response = await api.post<{ question: Question }>(`/questions/${id}/duplicate`);
+  const response = await api.post<{ question: Question }>(
+    `/questions/${id}/duplicate`,
+  );
   return response.data.question;
 };
 
-export const bulkSetQuestionStatus = async (ids: string[], status: QuestionStatus) => {
-  const response = await api.patch<{ questions: Question[] }>("/questions/bulk-status", { ids, status });
+export const bulkSetQuestionStatus = async (
+  ids: string[],
+  status: QuestionStatus,
+) => {
+  const response = await api.patch<{ questions: Question[] }>(
+    "/questions/bulk-status",
+    { ids, status },
+  );
   return response.data.questions;
 };
 
-
-export const exportQuestions = async (params: Record<string, string | number | undefined>) => {
+export const exportQuestions = async (
+  params: Record<string, string | number | boolean | undefined>,
+) => {
   const response = await api.get<Blob>("/questions/export", {
     params,
     responseType: "blob",

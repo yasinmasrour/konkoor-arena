@@ -36,7 +36,7 @@ const AdminDashboard = () => {
     { label: "سؤال‌ها", value: counts.questions, icon: FileQuestion },
   ];
 
-  return <main className="min-h-screen px-6 py-10 bg-gray-50 dark:bg-[#080B12]">
+  return <main className="min-h-screen px-6 py-10">
     <div className="max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div><p className="text-sm text-gray-500 dark:text-gray-400">Griffin Academy</p><h1 className="text-3xl font-bold">پنل مدیریت</h1></div>

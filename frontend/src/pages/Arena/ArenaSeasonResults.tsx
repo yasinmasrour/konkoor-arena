@@ -1,7 +1,65 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Crown, Medal, Trophy, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Award,
+  // Calendar,
+  Crown,
+  Flame,
+  // LoaderCircle,
+  Medal,
+  // Minus,
+  Sparkles,
+  Swords,
+  Target,
+  Trophy,
+  TrendingUp,
+  Users,
+  Zap,
+} from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getArenaLeagueStandings, type ArenaLeagueStandingsResponse } from "../../api/arenaApi";
+import {
+  getArenaLeagueStandings,
+  type ArenaLeagueStandingsResponse,
+} from "../../api/arenaApi";
+import RevealOnScroll from "../../components/common/RevealOnScroll";
+
+// 🔹 تعیین رنگ و رتبه بر اساس Rating
+const getRatingTier = (rating: number) => {
+  if (rating >= 2000)
+    return {
+      label: "استاد",
+      color: "from-red-500 to-rose-700",
+      bg: "bg-red-500/10",
+      text: "text-red-500",
+    };
+  if (rating >= 1600)
+    return {
+      label: "الماس",
+      color: "from-purple-500 to-fuchsia-700",
+      bg: "bg-purple-500/10",
+      text: "text-purple-500",
+    };
+  if (rating >= 1300)
+    return {
+      label: "طلا",
+      color: "from-[var(--griffin-gold)] to-amber-700",
+      bg: "bg-[var(--griffin-gold)]/10",
+      text: "text-[var(--griffin-gold)]",
+    };
+  if (rating >= 1000)
+    return {
+      label: "نقره",
+      color: "from-slate-400 to-slate-600",
+      bg: "bg-slate-400/10",
+      text: "text-slate-500",
+    };
+  return {
+    label: "برنز",
+    color: "from-amber-700 to-amber-900",
+    bg: "bg-amber-700/10",
+    text: "text-amber-700",
+  };
+};
 
 const ArenaSeasonResults = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -22,7 +80,8 @@ const ArenaSeasonResults = () => {
         if (!cancelled) setData(result);
       } catch (requestError: unknown) {
         if (cancelled) return;
-        const message = requestError instanceof Error ? requestError.message : "";
+        const message =
+          requestError instanceof Error ? requestError.message : "";
         console.error("GET ARENA SEASON RESULTS ERROR:", requestError);
         setError(message || "دریافت نتایج فصل با مشکل مواجه شد.");
       } finally {
@@ -31,105 +90,605 @@ const ArenaSeasonResults = () => {
     };
 
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [leagueId]);
 
   const podium = useMemo(() => data?.standings.slice(0, 3) ?? [], [data]);
+  const restPlayers = useMemo(() => data?.standings.slice(3) ?? [], [data]);
+
+  // 🔹 چیدمان پودیوم (۲nd, 1st, 3rd)
+  const podiumOrder = useMemo(() => {
+    if (podium.length < 3) return podium;
+    return [podium[1], podium[0], podium[2]];
+  }, [podium]);
+
+  const champion = useMemo(() => data?.standings[0], [data]);
+
+  // ==================== Loading ====================
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="text-center space-y-4">
+          <div className="relative inline-flex">
+            <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-40 animate-pulse" />
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center">
+              <Trophy size={28} className="text-white animate-pulse" />
+            </div>
+          </div>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
+            در حال آماده‌سازی اختتامیه...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // ==================== Error ====================
+  if (error || !data) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-red-500/10 flex items-center justify-center">
+            <Trophy size={28} className="text-red-500" />
+          </div>
+          <p className="font-bold text-red-500">
+            {error || "نتایج فصل پیدا نشد."}
+          </p>
+          <button
+            onClick={() => navigate("/arena")}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--griffin-gold)] text-white text-sm font-bold hover:opacity-90 transition"
+          >
+            <ArrowLeft size={16} />
+            بازگشت به Arena
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="arena-battle min-h-screen overflow-hidden px-4 py-8 sm:px-6 sm:py-12">
-      <div className="arena-orb arena-orb-one" />
-      <div className="arena-orb arena-orb-two" />
-      <div className="relative mx-auto max-w-6xl">
-        <button
-          type="button"
-          onClick={() => navigate("/arena")}
-          className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/60 px-4 py-2 text-sm font-bold text-slate-600 backdrop-blur-xl dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
-        >
-          <ArrowLeft size={16} />
-          بازگشت به Arena
-        </button>
+    <main className="min-h-screen px-4 py-8 sm:px-6 sm:py-12">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* ==================== Back ==================== */}
+        <RevealOnScroll>
+          <button
+            type="button"
+            onClick={() => navigate("/arena")}
+            className="group inline-flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-[var(--griffin-gold)] transition"
+          >
+            <ArrowLeft
+              size={16}
+              className="transition-transform group-hover:-translate-x-1"
+            />
+            بازگشت به Arena
+          </button>
+        </RevealOnScroll>
 
-        <section className="arena-panel rounded-[2rem] p-5 sm:p-10">
-          {loading ? (
-            <div className="py-20 text-center text-sm font-bold text-slate-500">در حال دریافت نتایج فصل...</div>
-          ) : error ? (
-            <div className="py-20 text-center text-sm font-bold text-red-500">{error}</div>
-          ) : data ? (
-            <>
-              <div className="text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--griffin-gold)]/10 text-[var(--griffin-gold)]">
-                  <Trophy size={30} />
+        {/* ==================== Hero اختتامیه ==================== */}
+        <RevealOnScroll>
+          <section className="relative rounded-[2rem] overflow-hidden bg-[#080B12] text-white p-6 md:p-12 border border-white/5 shadow-2xl shadow-[var(--griffin-gold)]/10">
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/20 via-transparent to-purple-600/20 pointer-events-none" />
+            <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-[var(--griffin-gold)]/25 blur-[100px] pointer-events-none" />
+            <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-purple-600/25 blur-[100px] pointer-events-none" />
+
+            <div
+              className="absolute inset-0 opacity-[0.05] pointer-events-none"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle, white 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
+              }}
+            />
+
+            {/* ذرات شناور */}
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-1 h-1 rounded-full bg-[var(--griffin-gold)] pointer-events-none"
+                style={{
+                  // eslint-disable-next-line react-hooks/purity
+                  top: `${Math.random() * 100}%`,
+                  // eslint-disable-next-line react-hooks/purity
+                  left: `${Math.random() * 100}%`,
+                  // eslint-disable-next-line react-hooks/purity
+                  animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
+                  // eslint-disable-next-line react-hooks/purity
+                  animationDelay: `${Math.random() * 3}s`,
+                  // eslint-disable-next-line react-hooks/purity
+                  opacity: 0.3 + Math.random() * 0.5,
+                }}
+              />
+            ))}
+
+            <div className="relative text-center space-y-5">
+              <div className="relative inline-flex">
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-3xl opacity-70 animate-pulse" />
+                <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center shadow-2xl shadow-[var(--griffin-gold)]/60 rotate-3">
+                  <Trophy size={48} strokeWidth={2.2} className="text-white" />
                 </div>
-                <p className="mt-5 text-xs font-black tracking-[.22em] text-[var(--griffin-gold)]">SEASON RESULTS</p>
-                <h1 className="mt-2 text-3xl font-black text-slate-900 dark:text-white">{data.league.title}</h1>
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{data.league.lesson} · جدول نهایی فصل</p>
+                {/* ستاره‌های تزئینی */}
+                <Sparkles
+                  size={20}
+                  className="absolute -top-2 -right-2 text-[var(--griffin-gold)] animate-pulse"
+                />
+                <Zap
+                  size={16}
+                  className="absolute -bottom-1 -left-3 text-purple-400 animate-pulse"
+                  style={{ animationDelay: "0.5s" }}
+                />
               </div>
 
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                <Summary icon={<Trophy size={19} />} label="شرکت‌کنندگان" value={data.standings.length} />
-                <Summary icon={<Crown size={19} />} label="قهرمان فصل" value={data.standings[0] ? `${data.standings[0].firstName} ${data.standings[0].lastName}` : "—"} />
-                <Summary icon={<Users size={19} />} label="وضعیت" value="پایان‌یافته" />
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30 backdrop-blur-sm">
+                <Award
+                  size={14}
+                  className="text-[var(--griffin-gold)] animate-pulse"
+                />
+                <span className="text-xs font-black tracking-widest text-[var(--griffin-gold)] uppercase">
+                  Season Completed · اختتامیه
+                </span>
               </div>
 
-              {podium.length > 0 && (
-                <div className="mt-8 grid gap-3 md:grid-cols-3">
-                  {podium.map((player) => (
-                    <div
-                      key={player.userId}
-                      className={`relative overflow-hidden rounded-3xl border p-5 ${
-                        player.rank === 1
-                          ? "border-[var(--griffin-gold)]/40 bg-[var(--griffin-gold)]/8"
-                          : "border-slate-200/70 bg-white/45 dark:border-white/10 dark:bg-white/[.03]"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-400">RANK #{player.rank}</span>
-                        {player.rank === 1 ? <Crown className="text-[var(--griffin-gold)]" /> : <Medal className="text-slate-400" />}
-                      </div>
-                      <p className="mt-5 text-lg font-black text-slate-900 dark:text-white">{player.firstName} {player.lastName}</p>
-                      <div className="mt-3 flex items-end justify-between">
-                        <span className="text-xs text-slate-400">{player.wins} برد · {player.losses} باخت</span>
-                        <strong className="text-2xl text-[var(--griffin-gold)]">{player.finalRating}</strong>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <h1 className="font-heading text-3xl md:text-5xl font-black leading-tight">
+                نتایج{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-l from-[var(--griffin-gold)] to-amber-300">
+                  فصل
+                </span>
+              </h1>
 
-              <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200/70 dark:border-white/10">
-                <div className="grid grid-cols-[58px_1fr_92px_72px] gap-3 bg-slate-50/80 px-4 py-3 text-xs font-black text-slate-400 dark:bg-white/[.035] sm:grid-cols-[72px_1fr_110px_90px_90px]">
-                  <span>رتبه</span><span>بازیکن</span><span>Rating نهایی</span><span className="hidden sm:block">برد</span><span className="hidden sm:block">نبرد</span>
-                </div>
-                {data.standings.map((player) => (
-                  <div key={player.userId} className="grid grid-cols-[58px_1fr_92px_72px] items-center gap-3 border-t border-slate-200/60 px-4 py-4 dark:border-white/10 sm:grid-cols-[72px_1fr_110px_90px_90px]">
-                    <div className="flex items-center justify-center">
-                      {player.rank === 1 ? <Crown className="text-[var(--griffin-gold)]" size={20} /> : player.rank === 2 || player.rank === 3 ? <Medal className="text-slate-400" size={20} /> : <span className="text-sm font-black text-slate-400">#{player.rank}</span>}
-                    </div>
-                    <div>
-                      <p className="font-black text-slate-900 dark:text-white">{player.firstName} {player.lastName}</p>
-                      <p className="mt-1 text-[11px] text-slate-400">{player.wins} برد · {player.losses} باخت · {player.draws} مساوی</p>
-                    </div>
-                    <p className="font-black text-[var(--griffin-gold)]">{player.finalRating}</p>
-                    <p className="font-black">{player.wins}</p>
-                    <p className="hidden font-bold text-slate-500 dark:text-slate-400 sm:block">{player.wins + player.losses + player.draws}</p>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-sm">
+                <Target size={14} className="text-[var(--griffin-gold)]" />
+                <span className="text-gray-300">
+                  {data.league.title} · {data.league.lesson}
+                </span>
+              </div>
+
+              <p className="text-gray-300 text-sm leading-7 max-w-xl mx-auto">
+                این فصل به پایان رسید. قهرمان، نفرات برتر و جدول نهایی اینجاست.
+              </p>
+            </div>
+          </section>
+        </RevealOnScroll>
+
+        {/* ==================== خلاصه فصل ==================== */}
+        <RevealOnScroll>
+          <section className="grid gap-3 sm:grid-cols-3">
+            {[
+              {
+                icon: Users,
+                label: "شرکت‌کنندگان",
+                value: data.standings.length,
+                color: "text-gray-900 dark:text-white",
+                bg: "bg-gray-500/10",
+                iconColor: "text-gray-500 dark:text-gray-400",
+              },
+              {
+                icon: Crown,
+                label: "قهرمان فصل",
+                value: champion
+                  ? `${champion.firstName} ${champion.lastName}`
+                  : "—",
+                color: "text-[var(--griffin-gold)]",
+                bg: "bg-[var(--griffin-gold)]/10",
+                iconColor: "text-[var(--griffin-gold)]",
+                truncate: true,
+              },
+              {
+                icon: Trophy,
+                label: "وضعیت فصل",
+                value: "پایان‌یافته",
+                color: "text-emerald-500",
+                bg: "bg-emerald-500/10",
+                iconColor: "text-emerald-500",
+              },
+            ].map((stat, i) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={i}
+                  className="group relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[var(--griffin-gold)]/5"
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}
+                  >
+                    <Icon size={18} className={stat.iconColor} />
                   </div>
-                ))}
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                    {stat.label}
+                  </p>
+                  <p
+                    className={`font-heading text-2xl font-black mt-1 ${stat.color} ${stat.truncate ? "truncate" : ""}`}
+                  >
+                    {typeof stat.value === "number"
+                      ? stat.value.toLocaleString("fa-IR")
+                      : stat.value}
+                  </p>
+                </div>
+              );
+            })}
+          </section>
+        </RevealOnScroll>
+
+        {/* ==================== پودیوم قهرمانان ==================== */}
+        {podium.length > 0 && (
+          <section>
+            <RevealOnScroll>
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center gap-2 mb-2">
+                  <Flame size={14} className="text-[var(--griffin-gold)]" />
+                  <span className="text-xs font-black tracking-widest text-gray-400 dark:text-gray-500 uppercase">
+                    Champion Podium
+                  </span>
+                </div>
+                <h2 className="font-heading text-2xl md:text-3xl font-black text-gray-900 dark:text-white">
+                  سکوی قهرمانی
+                </h2>
+                <div className="w-16 h-1 bg-[var(--griffin-gold)] mx-auto mt-3 rounded-full" />
               </div>
-            </>
-          ) : null}
-        </section>
+            </RevealOnScroll>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 items-end">
+              {podiumOrder.map((player, i) => {
+                const isFirst = player.rank === 1;
+                const isSecond = player.rank === 2;
+                const isThird = player.rank === 3;
+                const tier = getRatingTier(player.finalRating);
+
+                return (
+                  <RevealOnScroll key={player.userId} delay={i * 150}>
+                    <div
+                      className={`
+                        relative rounded-3xl overflow-hidden
+                        border transition-all duration-300
+                        ${isFirst ? "sm:-mt-8 sm:pb-2" : ""}
+                        ${
+                          isFirst
+                            ? "border-[var(--griffin-gold)]/60 bg-gradient-to-b from-[var(--griffin-gold)]/25 via-amber-500/10 to-transparent backdrop-blur-xl shadow-2xl shadow-[var(--griffin-gold)]/40"
+                            : isSecond
+                              ? "border-slate-400/40 bg-gradient-to-b from-slate-400/20 via-slate-400/5 to-transparent backdrop-blur-xl shadow-xl shadow-slate-500/10"
+                              : "border-amber-700/40 bg-gradient-to-b from-amber-700/20 via-amber-700/5 to-transparent backdrop-blur-xl shadow-xl shadow-amber-700/10"
+                        }
+                      `}
+                    >
+                      {/* گرادیان تزئینی */}
+                      <div
+                        className={`absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl ${
+                          isFirst
+                            ? "bg-[var(--griffin-gold)]/40"
+                            : isSecond
+                              ? "bg-slate-400/30"
+                              : "bg-amber-700/30"
+                        }`}
+                      />
+
+                      {/* #1 باشه، درخشش متحرک */}
+                      {isFirst && (
+                        <div
+                          className="absolute inset-0 opacity-30 pointer-events-none"
+                          style={{
+                            background:
+                              "linear-gradient(45deg, transparent 30%, rgba(197,139,42,0.3) 50%, transparent 70%)",
+                            animation: "shine 3s ease-in-out infinite",
+                          }}
+                        />
+                      )}
+
+                      <div className="relative p-6 text-center">
+                        {/* نشان قهرمانی */}
+                        <div className="flex justify-center mb-4">
+                          {isFirst && (
+                            <div className="relative">
+                              <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-70 animate-pulse" />
+                              <Crown
+                                size={44}
+                                className="relative text-[var(--griffin-gold)] drop-shadow-2xl"
+                                strokeWidth={2.3}
+                              />
+                            </div>
+                          )}
+                          {isSecond && (
+                            <div className="relative">
+                              <Medal
+                                size={36}
+                                className="text-slate-300 drop-shadow-lg"
+                                strokeWidth={2.3}
+                              />
+                              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-slate-400" />
+                            </div>
+                          )}
+                          {isThird && (
+                            <div className="relative">
+                              <Medal
+                                size={36}
+                                className="text-amber-600 drop-shadow-lg"
+                                strokeWidth={2.3}
+                              />
+                              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-600" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* آواتار */}
+                        <div className="relative inline-flex mb-4">
+                          <div
+                            className={`absolute inset-0 rounded-full blur-xl opacity-70 bg-gradient-to-br ${tier.color}`}
+                          />
+                          <div
+                            className={`
+                              relative rounded-full
+                              bg-gradient-to-br ${tier.color}
+                              flex items-center justify-center
+                              text-white font-heading font-black
+                              border-4 border-white/30 dark:border-white/10
+                              shadow-2xl
+                              ${isFirst ? "w-28 h-28 text-5xl" : "w-24 h-24 text-4xl"}
+                            `}
+                          >
+                            {player.firstName?.charAt(0) || "?"}
+                          </div>
+                          {isFirst && (
+                            <>
+                              <Sparkles
+                                size={18}
+                                className="absolute -top-1 -right-1 text-[var(--griffin-gold)] animate-pulse"
+                              />
+                              <Sparkles
+                                size={14}
+                                className="absolute bottom-0 -left-1 text-amber-400 animate-pulse"
+                                style={{ animationDelay: "0.5s" }}
+                              />
+                            </>
+                          )}
+                        </div>
+
+                        {/* بج #1 قهرمان */}
+                        {isFirst && (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-l from-[var(--griffin-gold)] to-amber-600 text-white text-[10px] font-black shadow-lg shadow-[var(--griffin-gold)]/40 mb-3">
+                            <Crown size={11} />
+                            قهرمان فصل
+                          </div>
+                        )}
+
+                        {/* نام */}
+                        <h3
+                          className={`
+                            font-heading font-black text-gray-900 dark:text-white
+                            ${isFirst ? "text-2xl" : "text-xl"}
+                          `}
+                        >
+                          {player.firstName} {player.lastName}
+                        </h3>
+
+                        {/* Rating نهایی */}
+                        <div className="mt-4 py-4 border-y border-white/10">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                            Rating نهایی
+                          </p>
+                          <p
+                            className={`font-heading font-black ${
+                              isFirst ? "text-5xl" : "text-4xl"
+                            } ${tier.text}`}
+                          >
+                            {player.finalRating.toLocaleString("fa-IR")}
+                          </p>
+                        </div>
+
+                        {/* آمار */}
+                        <div className="mt-4 grid grid-cols-3 gap-1.5 text-xs">
+                          <div className="rounded-xl bg-emerald-500/10 py-2">
+                            <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mb-0.5">
+                              برد
+                            </p>
+                            <p className="font-heading font-black text-emerald-600 dark:text-emerald-400">
+                              {player.wins.toLocaleString("fa-IR")}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-rose-500/10 py-2">
+                            <p className="text-[9px] text-rose-600 dark:text-rose-400 mb-0.5">
+                              باخت
+                            </p>
+                            <p className="font-heading font-black text-rose-600 dark:text-rose-400">
+                              {player.losses.toLocaleString("fa-IR")}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-slate-500/10 py-2">
+                            <p className="text-[9px] text-slate-500 dark:text-slate-400 mb-0.5">
+                              مساوی
+                            </p>
+                            <p className="font-heading font-black text-slate-500 dark:text-slate-400">
+                              {player.draws.toLocaleString("fa-IR")}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* بج رتبه */}
+                        <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-black">
+                          <span className={tier.text}>{tier.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </RevealOnScroll>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ==================== جدول کامل ==================== */}
+        {restPlayers.length > 0 && (
+          <RevealOnScroll>
+            <section className="rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+              {/* هدر */}
+              <div className="p-6 border-b border-gray-200 dark:border-white/10">
+                <div className="flex items-end justify-between flex-wrap gap-3">
+                  <div>
+                    <div className="inline-flex items-center gap-2 mb-2">
+                      <Swords
+                        size={14}
+                        className="text-[var(--griffin-gold)]"
+                      />
+                      <span className="text-xs font-black tracking-widest text-gray-400 dark:text-gray-500 uppercase">
+                        Final Standings
+                      </span>
+                    </div>
+                    <h2 className="font-heading text-xl md:text-2xl font-black text-gray-900 dark:text-white">
+                      جدول نهایی فصل
+                    </h2>
+                  </div>
+
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-white/5 text-xs font-bold text-gray-600 dark:text-gray-400">
+                    <Users size={14} />
+                    {data.standings.length.toLocaleString("fa-IR")} بازیکن
+                  </div>
+                </div>
+              </div>
+
+              {/* هدر ستون‌ها */}
+              <div className="grid grid-cols-[52px_1fr_90px_70px_70px] gap-3 bg-gray-50/80 dark:bg-white/[0.02] px-4 py-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest border-b border-gray-200/70 dark:border-white/5">
+                <span className="text-center">رتبه</span>
+                <span>بازیکن</span>
+                <span className="text-center">Rating</span>
+                <span className="text-center hidden sm:block">برد</span>
+                <span className="text-center hidden sm:block">نبرد</span>
+              </div>
+
+              {/* ردیف‌ها */}
+              <div className="divide-y divide-gray-100 dark:divide-white/5">
+                {restPlayers.map((player, index) => {
+                  const tier = getRatingTier(player.finalRating);
+                  const totalMatches =
+                    player.wins + player.losses + player.draws;
+                  const winRate =
+                    totalMatches > 0
+                      ? Math.round((player.wins / totalMatches) * 100)
+                      : 0;
+
+                  return (
+                    <RevealOnScroll
+                      key={player.userId}
+                      delay={Math.min(index * 30, 300)}
+                    >
+                      <div className="grid grid-cols-[52px_1fr_90px_70px_70px] items-center gap-3 px-4 py-4 transition-all duration-200 hover:bg-gray-50/50 dark:hover:bg-white/[0.02]">
+                        {/* رتبه */}
+                        <div className="flex items-center justify-center">
+                          <span className="font-heading text-sm font-black text-gray-400 dark:text-gray-500">
+                            #{player.rank.toLocaleString("fa-IR")}
+                          </span>
+                        </div>
+
+                        {/* بازیکن */}
+                        <div className="min-w-0 flex items-center gap-3">
+                          <div className="relative shrink-0">
+                            <div
+                              className={`relative w-10 h-10 rounded-xl bg-gradient-to-br ${tier.color} flex items-center justify-center text-white font-heading font-black text-sm border-2 border-white/30 dark:border-white/10 shadow-lg`}
+                            >
+                              {player.firstName?.charAt(0) || "?"}
+                            </div>
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-sm text-gray-900 dark:text-white truncate">
+                                {player.firstName} {player.lastName}
+                              </p>
+                              <span
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black ${tier.bg} ${tier.text}`}
+                              >
+                                {tier.label}
+                              </span>
+                            </div>
+
+                            {/* نوار Win Rate */}
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <div className="flex-1 h-1 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden max-w-[120px]">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-l from-emerald-500 to-emerald-400"
+                                  style={{ width: `${winRate}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                                {winRate.toLocaleString("fa-IR")}٪
+                              </span>
+                            </div>
+
+                            <p className="sm:hidden mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+                              {player.wins.toLocaleString("fa-IR")} برد ·{" "}
+                              {player.losses.toLocaleString("fa-IR")} باخت
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Rating */}
+                        <div className="text-center">
+                          <p
+                            className={`font-heading font-black text-sm ${tier.text}`}
+                          >
+                            {player.finalRating.toLocaleString("fa-IR")}
+                          </p>
+                        </div>
+
+                        {/* برد */}
+                        <div className="hidden sm:flex justify-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black">
+                            {player.wins.toLocaleString("fa-IR")}
+                          </span>
+                        </div>
+
+                        {/* نبرد */}
+                        <div className="hidden sm:flex justify-center">
+                          <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            {totalMatches.toLocaleString("fa-IR")}
+                          </span>
+                        </div>
+                      </div>
+                    </RevealOnScroll>
+                  );
+                })}
+              </div>
+            </section>
+          </RevealOnScroll>
+        )}
+
+        {/* ==================== CTA ==================== */}
+        <RevealOnScroll>
+          <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 border border-[var(--griffin-gold)]/20 p-8 md:p-10 text-center backdrop-blur-xl">
+            <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/15 blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/10 blur-3xl" />
+
+            <div className="relative space-y-4">
+              <div className="inline-flex relative">
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-40" />
+                <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center">
+                  <TrendingUp size={24} className="text-white" />
+                </div>
+              </div>
+
+              <h2 className="font-heading text-2xl md:text-3xl font-black text-gray-900 dark:text-white">
+                فصل بعدی، فصل توست!
+              </h2>
+
+              <p className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto leading-7 text-sm">
+                این فصل تموم شد، ولی فصل بعدی نزدیکه. با تمرین و تلاش، خودت رو
+                برای قهرمانی آماده کن.
+              </p>
+
+              <button
+                onClick={() => navigate("/arena")}
+                className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-7 py-3.5 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 transition-all overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <Swords size={18} />
+                  لیگ‌های فعال
+                </span>
+                <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+            </div>
+          </section>
+        </RevealOnScroll>
       </div>
     </main>
   );
 };
-
-const Summary = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) => (
-  <div className="rounded-2xl border border-slate-200/70 bg-white/55 p-4 dark:border-white/10 dark:bg-white/[.035]">
-    <div className="text-[var(--griffin-gold)]">{icon}</div>
-    <p className="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400">{label}</p>
-    <p className="mt-1 truncate text-2xl font-black text-slate-900 dark:text-white">{value}</p>
-  </div>
-);
 
 export default ArenaSeasonResults;

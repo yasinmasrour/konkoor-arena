@@ -1,20 +1,28 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  AlertCircle,
   ArrowRight,
   CalendarDays,
   Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Copy,
+  FileQuestion,
   GripVertical,
+  Layers,
+  LoaderCircle,
   Pencil,
   Plus,
   Save,
   Search,
   Send,
+  Sparkles,
+  Target,
   Trash2,
   X,
+  Zap,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -34,25 +42,49 @@ import {
 import { getBooklets, type Booklet } from "../api/bookletApi";
 import { useAuth } from "../context/AuthContext";
 
+// ==================== ثابت‌ها ====================
 const emptyForm = {
   title: "",
   examDate: "",
   startTime: "08:00",
   endTime: "10:30",
 };
+
 const statusLabels: Record<ExamStatus, string> = {
   draft: "پیش‌نویس",
   review: "در حال بررسی",
   published: "منتشرشده",
   archived: "آرشیو",
 };
-const statusClasses: Record<ExamStatus, string> = {
-  draft: "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-200",
-  review:
-    "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300",
-  published:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300",
-  archived: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+
+const statusStyles: Record<
+  ExamStatus,
+  { bg: string; text: string; dot: string; icon: typeof Check }
+> = {
+  draft: {
+    bg: "bg-gray-500/10",
+    text: "text-gray-600 dark:text-gray-400",
+    dot: "bg-gray-400",
+    icon: Pencil,
+  },
+  review: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500",
+    icon: Clock3,
+  },
+  published: {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500",
+    icon: CheckCircle2,
+  },
+  archived: {
+    bg: "bg-slate-500/10",
+    text: "text-slate-600 dark:text-slate-400",
+    dot: "bg-slate-400",
+    icon: FileQuestion,
+  },
 };
 
 const apiError = (error: unknown, fallback: string) => {
@@ -67,13 +99,18 @@ const formatDate = (value: string) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "—"
-    : date.toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" });
+    : date.toLocaleString("fa-IR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
 };
 
 const bookletQuestionCount = (booklet: Booklet) =>
   booklet.questions?.length ?? booklet._count?.questions ?? 0;
+
 const isDraft = (exam: Exam | null) => !exam || exam.status === "draft";
 
+// ==================== کامپوننت اصلی ====================
 export default function ExamBuilder() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -123,6 +160,7 @@ export default function ExamBuilder() {
     0,
   );
 
+  // ==================== Load ====================
   useEffect(() => {
     let cancelled = false;
 
@@ -134,7 +172,7 @@ export default function ExamBuilder() {
         try {
           const result = await getExams({
             page: 1,
-            limit: 8,
+            limit: 30,
             sort: "createdAt",
             order: "desc",
           });
@@ -183,6 +221,7 @@ export default function ExamBuilder() {
     };
   }, [id, isList, isNew]);
 
+  // ==================== Picker ====================
   const loadPicker = async (page = 1) => {
     setPickerLoading(true);
     try {
@@ -309,6 +348,7 @@ export default function ExamBuilder() {
     }
   };
 
+  // ==================== Save / Status ====================
   const save = async () => {
     if (!editable || saving) return;
     if (form.title.trim().length < 3)
@@ -382,247 +422,526 @@ export default function ExamBuilder() {
     }
   };
 
-  if (loading)
+  // ==================== Loading ====================
+  if (loading) {
     return (
-      <main className="grid min-h-screen place-items-center bg-gray-50 dark:bg-[#080B12]">
-        در حال دریافت آزمون...
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="text-center space-y-4">
+          <div className="relative inline-flex">
+            <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-50 animate-pulse" />
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center">
+              <LoaderCircle size={28} className="text-white animate-spin" />
+            </div>
+          </div>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
+            در حال دریافت...
+          </p>
+        </div>
       </main>
     );
+  }
 
-  if (isList)
+  // ==================== لیست ====================
+  if (isList) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-8 dark:bg-[#080B12] sm:px-6">
-        <div className="mx-auto max-w-6xl space-y-6">
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-500">مدیریت آزمون</p>
-              <h1 className="mt-1 text-3xl font-bold">آزمون‌ها</h1>
-              <p className="mt-2 text-sm text-gray-500">
-                آزمون بسازید، دفترچه‌ها را مرتب کنید و قبل از انتشار پیش‌نمایش
-                بگیرید.
-              </p>
-            </div>
-            <button
-              onClick={() => navigate("/exam-builder/new")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-5 py-3 font-semibold text-white"
-            >
-              <Plus size={18} /> آزمون جدید
-            </button>
-          </header>
-          {error && <ErrorBox message={error} />}
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {exams.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#111722]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      {item.booklets?.length ?? 0} دفترچه ·{" "}
-                      {item.questionCount ?? 0} سؤال
-                    </p>
-                    <h2 className="mt-1 text-lg font-bold">{item.title}</h2>
+      <main className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
+        <div className="mx-auto max-w-6xl space-y-5">
+          {/* HERO */}
+          <section className="relative rounded-[2rem] overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-6 sm:p-8">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+            <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-[var(--griffin-gold)]/10 blur-[100px] pointer-events-none" />
+            <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-purple-600/10 blur-[100px] pointer-events-none" />
+
+            <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:justify-between">
+              <div className="flex items-start gap-4 min-w-0">
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-60 animate-pulse" />
+                  <div className="relative w-16 h-16 rounded-3xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-2xl rotate-3">
+                    <FileQuestion size={28} strokeWidth={2.3} />
                   </div>
-                  <StatusBadge status={item.status} />
                 </div>
-                <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                  <Info label="تاریخ" value={formatDate(item.examDate)} />
-                  <Info
-                    label="زمان"
-                    value={`${item.startTime} تا ${item.endTime || "—"}`}
+
+                <div className="min-w-0">
+                  <div className="inline-flex items-center gap-2 mb-2">
+                    <Sparkles
+                      size={11}
+                      className="text-[var(--griffin-gold)]"
+                    />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                      Exam Builder
+                    </span>
+                  </div>
+                  <h1 className="font-heading text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
+                    مدیریت آزمون‌ها
+                  </h1>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    آزمون بساز، دفترچه‌ها رو مرتب کن و منتشر کن
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate("/exam-builder/new")}
+                className="group relative inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 transition-all overflow-hidden shrink-0"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <Plus size={17} />
+                  آزمون جدید
+                </span>
+                <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+            </div>
+          </section>
+
+          {/* Error */}
+          {error && (
+            <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-l from-rose-500/10 to-transparent p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
+                  <AlertCircle size={16} className="text-rose-500" />
+                </div>
+                <p className="text-sm font-bold text-rose-600 dark:text-rose-400 whitespace-pre-line">
+                  {error}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* لیست */}
+          {exams.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-gray-300 dark:border-white/10 bg-white/40 dark:bg-white/[0.02] backdrop-blur-sm p-12 text-center">
+              <div className="relative inline-flex mb-5">
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-40" />
+                <div className="relative w-16 h-16 rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-white/5 dark:to-white/10 flex items-center justify-center">
+                  <FileQuestion
+                    size={28}
+                    className="text-gray-400 dark:text-gray-500"
                   />
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => navigate(`/exam-builder/${item.id}`)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold dark:border-white/10"
+              </div>
+
+              <h3 className="font-heading text-xl font-black text-gray-900 dark:text-white mb-2">
+                هنوز آزمونی نساختی
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 max-w-md mx-auto">
+                برای شروع، اولین آزمونت رو بساز و دفترچه‌هاش رو انتخاب کن.
+              </p>
+
+              <button
+                onClick={() => navigate("/exam-builder/new")}
+                className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg"
+              >
+                <Plus size={15} />
+                ساخت آزمون جدید
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {exams.map((item, index) => {
+                const status = statusStyles[item.status];
+                const StatusIcon = status.icon;
+                const bookletCount = item.booklets?.length ?? 0;
+                const qCount = item.questionCount ?? 0;
+
+                return (
+                  <article
+                    key={item.id}
+                    style={{
+                      animationDelay: `${Math.min(index * 50, 400)}ms`,
+                    }}
+                    className="group relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/10 hover:border-[var(--griffin-gold)]/40 animate-[fadeInUp_0.4s_ease-out_both]"
                   >
-                    <Pencil size={16} /> مشاهده
-                  </button>
-                  <button
-                    onClick={() => void removeExam(item)}
-                    className="rounded-xl border border-slate-200/70 px-3 py-2.5 text-gray-500 hover:text-red-500 dark:border-white/10"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </article>
-            ))}
-          </section>
-          {!exams.length && (
-            <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-gray-500 dark:border-white/10">
-              هنوز آزمونی ساخته نشده است.
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
+
+                    {/* هدر */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-heading text-base font-black text-gray-900 dark:text-white truncate group-hover:text-[var(--griffin-gold)] transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                          {bookletCount.toLocaleString("fa-IR")} دفترچه ·{" "}
+                          {qCount.toLocaleString("fa-IR")} سوال
+                        </p>
+                      </div>
+
+                      <span
+                        className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black ${status.bg} ${status.text}`}
+                      >
+                        <StatusIcon size={10} />
+                        {statusLabels[item.status]}
+                      </span>
+                    </div>
+
+                    {/* اطلاعات */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="rounded-xl bg-gray-50/70 dark:bg-white/[0.02] border border-gray-200/70 dark:border-white/5 p-2">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <CalendarDays
+                            size={10}
+                            className="text-[var(--griffin-gold)]"
+                          />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                            تاریخ
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate">
+                          {formatDate(item.examDate)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-gray-50/70 dark:bg-white/[0.02] border border-gray-200/70 dark:border-white/5 p-2">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <Clock3
+                            size={10}
+                            className="text-[var(--griffin-gold)]"
+                          />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                            زمان
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate tabular-nums">
+                          {item.startTime} - {item.endTime || "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* دکمه‌ها */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => navigate(`/exam-builder/${item.id}`)}
+                        className="group/btn flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg transition-all overflow-hidden relative"
+                      >
+                        <span className="relative z-10 flex items-center gap-2">
+                          <Pencil size={13} />
+                          ویرایش
+                        </span>
+                        <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
+                      </button>
+
+                      <button
+                        onClick={() => void removeExam(item)}
+                        className="shrink-0 w-10 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:border-rose-500/40 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
       </main>
     );
+  }
 
+  // ==================== ادیت ====================
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8 dark:bg-[#080B12] sm:px-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <button
-              onClick={() => navigate("/exam-builder")}
-              className="mb-2 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[var(--griffin-gold)]"
-            >
-              <ArrowRight size={16} /> بازگشت به آزمون‌ها
-            </button>
-            <h1 className="text-3xl font-bold">
-              {exam ? "ساخت و ویرایش آزمون" : "آزمون جدید"}
-            </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              اطلاعات آزمون و دفترچه‌های آن را مدیریت کنید.
-            </p>
-          </div>
-          {exam && (
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={exam.status} />
-              <button
-                onClick={() => setPreviewOpen(true)}
-                className="rounded-xl border border-slate-200/70 bg-white px-4 py-2.5 text-sm font-semibold dark:border-white/10 dark:bg-[#111722]"
-              >
-                پیش‌نمایش
-              </button>
-              <button
-                disabled={saving}
-                onClick={() => void duplicate()}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
-              >
-                <Copy size={16} /> کپی
-              </button>
+    <main className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-7xl space-y-5">
+        {/* BACK */}
+        <button
+          onClick={() => navigate("/exam-builder")}
+          className="group inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-[var(--griffin-gold)] transition-colors"
+        >
+          <ArrowRight
+            size={13}
+            className="transition-transform group-hover:translate-x-0.5"
+          />
+          بازگشت به آزمون‌ها
+        </button>
+
+        {/* HERO */}
+        <section className="relative rounded-[2rem] overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-6">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+          <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-[var(--griffin-gold)]/10 blur-[100px] pointer-events-none" />
+
+          <div className="relative flex flex-col lg:flex-row lg:items-center gap-5 lg:justify-between">
+            <div className="flex items-start gap-4 min-w-0">
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-60 animate-pulse" />
+                <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-2xl rotate-3">
+                  <FileQuestion size={24} strokeWidth={2.3} />
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 mb-1.5">
+                  <Sparkles size={11} className="text-[var(--griffin-gold)]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                    {exam ? "Edit Exam" : "New Exam"}
+                  </span>
+                </div>
+                <h1 className="font-heading text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
+                  {exam ? "ویرایش آزمون" : "آزمون جدید"}
+                </h1>
+                {exam && (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <StatusBadge status={exam.status} />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {displayedBooklets.length.toLocaleString("fa-IR")} دفترچه
+                      · {questionCount.toLocaleString("fa-IR")} سوال ·{" "}
+                      {duration.toLocaleString("fa-IR")} دقیقه
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </header>
-        {error && <ErrorBox message={error} />}
-        <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
-          <aside className="space-y-5">
-            <section className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#111722]">
-              <div className="mb-4 flex items-center gap-2">
-                <CalendarDays
-                  size={19}
-                  className="text-[var(--griffin-gold)]"
-                />
-                <h2 className="font-semibold">اطلاعات آزمون</h2>
-              </div>
-              <div className="space-y-3">
-                <input
-                  disabled={!editable}
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm((x) => ({ ...x, title: e.target.value }))
-                  }
-                  placeholder="عنوان آزمون *"
-                  className="w-full rounded-xl border border-slate-200/70 px-3 py-3 outline-none focus:border-[var(--griffin-gold)] disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.02]"
-                />
-                <label className="block text-xs text-gray-500">
-                  تاریخ آزمون
-                  <input
-                    disabled={!editable}
-                    type="datetime-local"
-                    value={form.examDate}
-                    onChange={(e) =>
-                      setForm((x) => ({ ...x, examDate: e.target.value }))
-                    }
-                    className="mt-2 w-full rounded-xl border border-slate-200/70 px-3 py-3 text-sm disabled:opacity-60 dark:border-white/10 dark:bg-[#111722]"
-                  />
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="text-xs text-gray-500">
-                    شروع
-                    <input
-                      disabled={!editable}
-                      type="time"
-                      value={form.startTime}
-                      onChange={(e) =>
-                        setForm((x) => ({ ...x, startTime: e.target.value }))
-                      }
-                      className="mt-2 w-full rounded-xl border border-slate-200/70 px-3 py-3 disabled:opacity-60 dark:border-white/10 dark:bg-[#111722]"
-                    />
-                  </label>
-                  <label className="text-xs text-gray-500">
-                    پایان
-                    <input
-                      disabled={!editable}
-                      type="time"
-                      value={form.endTime}
-                      onChange={(e) =>
-                        setForm((x) => ({ ...x, endTime: e.target.value }))
-                      }
-                      className="mt-2 w-full rounded-xl border border-slate-200/70 px-3 py-3 disabled:opacity-60 dark:border-white/10 dark:bg-[#111722]"
-                    />
-                  </label>
-                </div>
-              </div>
-              <button
-                disabled={saving || !editable}
-                onClick={() => void save()}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-4 py-3 font-semibold text-white disabled:opacity-50"
-              >
-                <Save size={18} />{" "}
-                {saving ? "در حال ذخیره..." : "ذخیره اطلاعات"}
-              </button>
-            </section>
+
             {exam && (
-              <section className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#111722]">
-                <h2 className="mb-3 font-semibold">وضعیت آزمون</h2>
-                <div className="grid gap-2">
-                  {exam.status === "draft" && (
-                    <button
-                      disabled={saving || !exam.booklets?.length}
-                      onClick={() => void changeStatus("review")}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
-                    >
-                      <Send size={16} /> ارسال برای بررسی
-                    </button>
-                  )}
-                  {exam.status === "review" && (
-                    <>
-                      <button
-                        disabled={saving}
-                        onClick={() => void changeStatus("draft")}
-                        className="rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
-                      >
-                        بازگشت به پیش‌نویس
-                      </button>
-                      {user?.role?.name === "ADMIN" && (
-                        <button
-                          disabled={saving || !exam.booklets?.length}
-                          onClick={() => void changeStatus("published")}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
-                        >
-                          <Check size={16} /> انتشار
-                        </button>
-                      )}
-                    </>
-                  )}
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <button
+                  onClick={() => setPreviewOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-sm px-4 py-2.5 text-xs font-black text-gray-700 dark:text-gray-200 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] transition-all"
+                >
+                  <Target size={14} />
+                  پیش‌نمایش
+                </button>
+                <button
+                  disabled={saving}
+                  onClick={() => void duplicate()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-sm px-4 py-2.5 text-xs font-black text-gray-700 dark:text-gray-200 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-40 transition-all"
+                >
+                  <Copy size={14} />
+                  کپی
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Error */}
+        {error && (
+          <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-l from-rose-500/10 to-transparent p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
+                <AlertCircle size={16} className="text-rose-500" />
+              </div>
+              <p className="text-sm font-bold text-rose-600 dark:text-rose-400 whitespace-pre-line">
+                {error}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* گرید ادیت */}
+        <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
+          {/* ستون چپ */}
+          <aside className="space-y-4">
+            {/* اطلاعات آزمون */}
+            <div className="relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
+
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+                    <CalendarDays size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                      Basic Info
+                    </p>
+                    <h2 className="font-heading text-sm font-black text-gray-900 dark:text-white -mt-0.5">
+                      اطلاعات آزمون
+                    </h2>
+                  </div>
                 </div>
-              </section>
+
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      عنوان آزمون *
+                    </span>
+                    <input
+                      disabled={!editable}
+                      value={form.title}
+                      onChange={(e) =>
+                        setForm((x) => ({ ...x, title: e.target.value }))
+                      }
+                      placeholder="مثلاً آزمون ۱۷ مهر ریاضی"
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      تاریخ آزمون *
+                    </span>
+                    <input
+                      disabled={!editable}
+                      type="datetime-local"
+                      value={form.examDate}
+                      onChange={(e) =>
+                        setForm((x) => ({ ...x, examDate: e.target.value }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                        شروع
+                      </span>
+                      <input
+                        disabled={!editable}
+                        type="time"
+                        value={form.startTime}
+                        onChange={(e) =>
+                          setForm((x) => ({ ...x, startTime: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all tabular-nums"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                        پایان
+                      </span>
+                      <input
+                        disabled={!editable}
+                        type="time"
+                        value={form.endTime}
+                        onChange={(e) =>
+                          setForm((x) => ({ ...x, endTime: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all tabular-nums"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  disabled={saving || !editable}
+                  onClick={() => void save()}
+                  className="group relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:shadow-xl disabled:opacity-40 transition-all overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    {saving ? (
+                      <>
+                        <LoaderCircle size={16} className="animate-spin" />
+                        در حال ذخیره...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        ذخیره اطلاعات
+                      </>
+                    )}
+                  </span>
+                  {!saving && editable && (
+                    <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* وضعیت آزمون */}
+            {exam && (
+              <div className="relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
+
+                <div className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+                      <Zap size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        Status
+                      </p>
+                      <h2 className="font-heading text-sm font-black text-gray-900 dark:text-white -mt-0.5">
+                        وضعیت آزمون
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {exam.status === "draft" && (
+                      <button
+                        disabled={saving || !exam.booklets?.length}
+                        onClick={() => void changeStatus("review")}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:shadow-xl disabled:opacity-40 transition-all"
+                      >
+                        <Send size={15} />
+                        ارسال برای بررسی
+                      </button>
+                    )}
+
+                    {exam.status === "review" && (
+                      <>
+                        <button
+                          disabled={saving}
+                          onClick={() => void changeStatus("draft")}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-4 py-3 text-sm font-black text-gray-700 dark:text-gray-200 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-40 transition-all"
+                        >
+                          بازگشت به پیش‌نویس
+                        </button>
+
+                        {user?.role?.name === "ADMIN" && (
+                          <button
+                            disabled={saving || !exam.booklets?.length}
+                            onClick={() => void changeStatus("published")}
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-4 py-3 text-sm font-black text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl disabled:opacity-40 transition-all"
+                          >
+                            <Check size={15} />
+                            انتشار
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {exam.status === "published" && (
+                      <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-3 text-center">
+                        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                          این آزمون منتشر شده است
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </aside>
-          <section className="rounded-2xl border border-slate-200/70 bg-white shadow-sm dark:border-white/10 dark:bg-[#111722]">
-            <div className="flex flex-col gap-3 border-b border-slate-200/70 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
-              <div>
-                <h2 className="font-semibold">دفترچه‌های آزمون</h2>
-                <p className="mt-1 text-xs text-gray-500">
-                  {displayedBooklets.length.toLocaleString("fa-IR")} دفترچه ·{" "}
-                  {questionCount.toLocaleString("fa-IR")} سؤال · حدود{" "}
-                  {duration.toLocaleString("fa-IR")} دقیقه
-                </p>
+
+          {/* ستون راست: دفترچه‌ها */}
+          <section className="relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
+
+            <div className="flex flex-col gap-3 p-5 border-b border-gray-200/70 dark:border-white/5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+                  <Layers size={16} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                    Booklets
+                  </p>
+                  <h2 className="font-heading text-sm font-black text-gray-900 dark:text-white -mt-0.5">
+                    دفترچه‌های آزمون
+                  </h2>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    {displayedBooklets.length.toLocaleString("fa-IR")} دفترچه ·{" "}
+                    {questionCount.toLocaleString("fa-IR")} سوال ·{" "}
+                    {duration.toLocaleString("fa-IR")} دقیقه
+                  </p>
+                </div>
               </div>
+
               <button
                 disabled={saving || !editable}
                 onClick={openPicker}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg disabled:opacity-40 transition-all shrink-0"
               >
-                <Plus size={17} /> افزودن دفترچه
+                <Plus size={14} />
+                افزودن دفترچه
               </button>
             </div>
+
             <div className="p-5">
               {displayedBooklets.length ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {displayedBooklets.map((item, index) => (
                     <div
                       key={item.id}
@@ -634,59 +953,100 @@ export default function ExamBuilder() {
                           void moveBooklet(draggedIndex, index);
                         setDraggedIndex(null);
                       }}
-                      className="rounded-2xl border border-slate-200/70 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/[0.03]"
+                      className={`
+                        group relative rounded-2xl border border-gray-200 dark:border-white/10
+                        bg-white/60 dark:bg-white/[0.02] backdrop-blur-sm p-4
+                        transition-all duration-300
+                        hover:border-[var(--griffin-gold)]/40 hover:shadow-md
+                        ${draggedIndex === index ? "opacity-50 scale-95" : ""}
+                      `}
                     >
-                      <div className="flex items-start gap-3">
-                        <GripVertical
-                          size={20}
-                          className={`mt-1 text-gray-400 ${editable ? "cursor-grab" : "opacity-30"}`}
-                        />
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-sm font-bold shadow-sm dark:bg-white/10">
-                          {index + 1}
+                      <div className="flex items-center gap-3">
+                        {/* Drag Handle */}
+                        <div
+                          className={`
+                            shrink-0 w-6 flex items-center justify-center
+                            ${editable ? "cursor-grab active:cursor-grabbing text-gray-400 hover:text-[var(--griffin-gold)]" : "opacity-30 text-gray-300"}
+                            transition-colors
+                          `}
+                        >
+                          <GripVertical size={16} />
                         </div>
+
+                        {/* شماره */}
+                        <div className="relative shrink-0">
+                          <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-md opacity-30" />
+                          <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white font-heading font-black text-base shadow-lg">
+                            {(index + 1).toLocaleString("fa-IR")}
+                          </div>
+                        </div>
+
+                        {/* اطلاعات */}
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                            <span className="font-semibold">
-                              {item.booklet.title}
+                          <p className="font-heading text-sm font-black text-gray-900 dark:text-white truncate">
+                            {item.booklet.title ||
+                              item.booklet.lesson ||
+                              "بدون عنوان"}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                            <span className="font-bold text-[var(--griffin-gold)]">
+                              {item.booklet.lesson}
                             </span>
-                            <span>·</span>
-                            <span>{item.booklet.lesson}</span>
-                            <span>·</span>
-                            <span>{item.booklet.grade}</span>
                             <span>·</span>
                             <span>
-                              {bookletQuestionCount(item.booklet as Booklet)}{" "}
-                              سؤال
+                              {item.booklet.grade} | {item.booklet.major}
                             </span>
                             <span>·</span>
-                            <span>{item.booklet.duration} دقیقه</span>
+                            <span className="inline-flex items-center gap-1">
+                              <FileQuestion size={10} />
+                              {bookletQuestionCount(
+                                item.booklet as Booklet,
+                              ).toLocaleString("fa-IR")}{" "}
+                              سوال
+                            </span>
+                            <span>·</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Clock3 size={10} />
+                              {item.booklet.duration.toLocaleString(
+                                "fa-IR",
+                              )}{" "}
+                              دقیقه
+                            </span>
                           </div>
-                          <p className="mt-2 text-sm text-gray-500">
-                            {item.booklet.major}
-                          </p>
                         </div>
+
+                        {/* دکمه حذف */}
                         <button
                           disabled={
                             saving || !editable || displayedBooklets.length <= 1
                           }
                           onClick={() => void removeBooklet(item.bookletId)}
-                          className="rounded-lg p-2 text-gray-500 hover:bg-white hover:text-red-500 disabled:opacity-30 dark:hover:bg-white/10"
+                          className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-rose-500/15 hover:text-rose-500 disabled:opacity-30 transition-all"
                         >
-                          <Trash2 size={17} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-slate-300 text-center dark:border-white/10">
-                  <div>
-                    <Clock3 size={34} className="mx-auto text-gray-400" />
-                    <p className="mt-3 font-semibold">
-                      هنوز دفترچه‌ای انتخاب نشده است
+                <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-gray-300 dark:border-white/10">
+                  <div className="text-center px-6">
+                    <div className="relative inline-flex mb-4">
+                      <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-30" />
+                      <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-white/5 dark:to-white/10 flex items-center justify-center">
+                        <Layers
+                          size={24}
+                          className="text-gray-400 dark:text-gray-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="font-heading text-sm font-black text-gray-900 dark:text-white mb-1">
+                      هنوز دفترچه‌ای انتخاب نشده
                     </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      برای ساخت آزمون، حداقل یک دفترچه منتشرشده انتخاب کنید.
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      برای ساخت آزمون، حداقل یک دفترچه منتشرشده انتخاب کن.
                     </p>
                   </div>
                 </div>
@@ -694,203 +1054,319 @@ export default function ExamBuilder() {
             </div>
           </section>
         </section>
-
-        {pickerOpen && (
-          <Modal
-            title="انتخاب دفترچه"
-            onClose={() => !saving && setPickerOpen(false)}
-          >
-            <p className="mb-4 text-xs text-gray-500">
-              فقط دفترچه‌های منتشرشده نمایش داده می‌شوند.
-            </p>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search
-                  size={17}
-                  className="absolute right-3 top-3.5 text-gray-400"
-                />
-                <input
-                  value={pickerSearch}
-                  onChange={(e) => setPickerSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void loadPicker(1);
-                  }}
-                  placeholder="جستجو در عنوان، درس یا مشخصات دفترچه..."
-                  className="w-full rounded-xl border border-slate-200/70 py-3 pr-10 pl-3 dark:border-white/10 dark:bg-white/[0.03]"
-                />
-              </div>
-              <button
-                onClick={() => void loadPicker(1)}
-                className="rounded-xl border border-slate-200/70 px-4 font-semibold dark:border-white/10"
-              >
-                جستجو
-              </button>
-            </div>
-            <div className="mt-4 max-h-[50vh] overflow-y-auto space-y-3">
-              {pickerLoading ? (
-                <div className="py-12 text-center text-sm text-gray-500">
-                  در حال دریافت دفترچه‌ها...
-                </div>
-              ) : (
-                pickerBooklets.map((booklet) => {
-                  const selected =
-                    pickerSelected.includes(booklet.id) ||
-                    currentIds.has(booklet.id);
-                  return (
-                    <button
-                      key={booklet.id}
-                      type="button"
-                      disabled={currentIds.has(booklet.id)}
-                      onClick={() => togglePicker(booklet)}
-                      className={`w-full rounded-2xl border p-4 text-right ${selected ? "border-[var(--griffin-gold)] bg-amber-50/50 dark:bg-amber-900/10" : "border-slate-200/70 dark:border-white/10"}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-md border ${selected ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)] text-white" : "border-slate-300 dark:border-white/20"}`}
-                        >
-                          {selected && <Check size={15} />}
-                        </div>
-                        <div>
-                          <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                            <span className="font-semibold">
-                              {booklet.title}
-                            </span>
-                            <span>·</span>
-                            <span>{booklet.lesson}</span>
-                            <span>·</span>
-                            <span>{booklet.grade}</span>
-                          </div>
-                          <p className="mt-2 text-xs text-gray-500">
-                            {bookletQuestionCount(booklet)} سؤال ·{" "}
-                            {booklet.duration} دقیقه · {booklet.major}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-              {!pickerLoading && !pickerBooklets.length && (
-                <div className="py-12 text-center text-sm text-gray-500">
-                  دفترچه منتشرشده‌ای پیدا نشد.
-                </div>
-              )}
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-200/70 pt-4 dark:border-white/10">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <button
-                  disabled={pickerPage <= 1 || pickerLoading}
-                  onClick={() => void loadPicker(pickerPage - 1)}
-                  className="rounded-lg border p-2 disabled:opacity-30 dark:border-white/10"
-                >
-                  <ChevronRight size={17} />
-                </button>
-                <span>
-                  صفحه {pickerPage.toLocaleString("fa-IR")} از{" "}
-                  {pickerTotalPages.toLocaleString("fa-IR")}
-                </span>
-                <button
-                  disabled={pickerPage >= pickerTotalPages || pickerLoading}
-                  onClick={() => void loadPicker(pickerPage + 1)}
-                  className="rounded-lg border p-2 disabled:opacity-30 dark:border-white/10"
-                >
-                  <ChevronLeft size={17} />
-                </button>
-              </div>
-              <button
-                disabled={!pickerSelected.length || saving}
-                onClick={() => void addSelected()}
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
-              >
-                <Plus size={16} /> افزودن{" "}
-                {pickerSelected.length
-                  ? pickerSelected.length.toLocaleString("fa-IR")
-                  : ""}{" "}
-                دفترچه
-              </button>
-            </div>
-          </Modal>
-        )}
-
-        {previewOpen && exam && (
-          <Modal title="پیش‌نمایش آزمون" onClose={() => setPreviewOpen(false)}>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Info label="تاریخ" value={formatDate(exam.examDate)} />
-              <Info
-                label="زمان"
-                value={`${exam.startTime} تا ${exam.endTime || "—"}`}
-              />
-              <Info label="مدت تقریبی" value={`${duration} دقیقه`} />
-            </div>
-            <div className="mt-5 space-y-3">
-              {displayedBooklets.map((item, index) => (
-                <article
-                  key={item.id}
-                  className="rounded-2xl border border-slate-200/70 p-5 dark:border-white/10"
-                >
-                  <p className="text-xs text-gray-500">دفترچه {index + 1}</p>
-                  <h3 className="mt-1 font-bold">{item.booklet.title}</h3>
-                  <p className="mt-3 text-sm text-gray-500">
-                    {item.booklet.lesson} · {item.booklet.grade} ·{" "}
-                    {item.booklet.major} · {item.booklet.duration} دقیقه ·{" "}
-                    {bookletQuestionCount(item.booklet as Booklet)} سؤال
-                  </p>
-                </article>
-              ))}
-            </div>
-          </Modal>
-        )}
       </div>
+
+      {/* ==================== PICKER MODAL ==================== */}
+      {pickerOpen && (
+        <Modal
+          title="انتخاب دفترچه"
+          subtitle="فقط دفترچه‌های منتشرشده"
+          onClose={() => !saving && setPickerOpen(false)}
+        >
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search
+                size={15}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--griffin-gold)]"
+              />
+              <input
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void loadPicker(1);
+                }}
+                placeholder="جستجو در عنوان، درس یا مشخصات..."
+                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] py-3 pr-10 pl-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+              />
+            </div>
+            <button
+              onClick={() => void loadPicker(1)}
+              className="shrink-0 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 text-sm font-black text-white shadow-md shadow-[var(--griffin-gold)]/30"
+            >
+              جستجو
+            </button>
+          </div>
+
+          <div className="max-h-[50vh] overflow-y-auto space-y-2">
+            {pickerLoading ? (
+              <div className="py-12 text-center">
+                <LoaderCircle
+                  size={24}
+                  className="mx-auto text-[var(--griffin-gold)] animate-spin mb-2"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  در حال دریافت...
+                </p>
+              </div>
+            ) : pickerBooklets.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  دفترچه منتشرشده‌ای پیدا نشد.
+                </p>
+              </div>
+            ) : (
+              pickerBooklets.map((booklet) => {
+                const isCurrent = currentIds.has(booklet.id);
+                const isSelected = pickerSelected.includes(booklet.id);
+                const selected = isSelected || isCurrent;
+
+                return (
+                  <button
+                    key={booklet.id}
+                    type="button"
+                    disabled={isCurrent}
+                    onClick={() => togglePicker(booklet)}
+                    className={`
+                      w-full rounded-2xl border p-3.5 text-right transition-all
+                      ${
+                        selected
+                          ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)]/5 shadow-md shadow-[var(--griffin-gold)]/10"
+                          : "border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] hover:border-[var(--griffin-gold)]/40"
+                      }
+                      ${isCurrent ? "opacity-50 cursor-not-allowed" : ""}
+                    `}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`
+                          mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all
+                          ${
+                            selected
+                              ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)] text-white"
+                              : "border-gray-300 dark:border-white/20"
+                          }
+                        `}
+                      >
+                        {selected && <Check size={13} strokeWidth={3} />}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="font-heading text-sm font-black text-gray-900 dark:text-white truncate">
+                          {booklet.title || booklet.lesson}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                          <span className="font-bold text-[var(--griffin-gold)]">
+                            {booklet.lesson}
+                          </span>
+                          <span>·</span>
+                          <span>
+                            {booklet.grade} | {booklet.major}
+                          </span>
+                          <span>·</span>
+                          <span>
+                            {bookletQuestionCount(booklet).toLocaleString(
+                              "fa-IR",
+                            )}{" "}
+                            سوال
+                          </span>
+                          <span>·</span>
+                          <span>
+                            {booklet.duration.toLocaleString("fa-IR")} دقیقه
+                          </span>
+                        </div>
+                        {isCurrent && (
+                          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 mt-1">
+                            ✓ قبلاً به این آزمون اضافه شده
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Pagination + Actions */}
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200/70 dark:border-white/5 pt-4">
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <button
+                disabled={pickerPage <= 1 || pickerLoading}
+                onClick={() => void loadPicker(pickerPage - 1)}
+                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-white/10 flex items-center justify-center hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-30 transition-all"
+              >
+                <ChevronRight size={14} />
+              </button>
+              <span className="font-bold tabular-nums">
+                صفحه {pickerPage.toLocaleString("fa-IR")} از{" "}
+                {pickerTotalPages.toLocaleString("fa-IR")}
+              </span>
+              <button
+                disabled={pickerPage >= pickerTotalPages || pickerLoading}
+                onClick={() => void loadPicker(pickerPage + 1)}
+                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-white/10 flex items-center justify-center hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-30 transition-all"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+
+            <button
+              disabled={!pickerSelected.length || saving}
+              onClick={() => void addSelected()}
+              className="group relative inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:shadow-xl disabled:opacity-40 transition-all overflow-hidden"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                <Plus size={15} />
+                افزودن{" "}
+                {pickerSelected.length > 0 &&
+                  `${pickerSelected.length.toLocaleString("fa-IR")} `}
+                دفترچه
+              </span>
+              {pickerSelected.length > 0 && (
+                <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              )}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ==================== PREVIEW MODAL ==================== */}
+      {previewOpen && exam && (
+        <Modal title="پیش‌نمایش آزمون" onClose={() => setPreviewOpen(false)}>
+          <div className="grid gap-3 sm:grid-cols-3 mb-5">
+            <InfoBox
+              icon={CalendarDays}
+              label="تاریخ"
+              value={formatDate(exam.examDate)}
+            />
+            <InfoBox
+              icon={Clock3}
+              label="زمان"
+              value={`${exam.startTime} تا ${exam.endTime || "—"}`}
+            />
+            <InfoBox
+              icon={Clock3}
+              label="مدت تقریبی"
+              value={`${duration.toLocaleString("fa-IR")} دقیقه`}
+            />
+          </div>
+
+          <div className="space-y-2.5">
+            {displayedBooklets.map((item, index) => (
+              <article
+                key={item.id}
+                className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)] font-heading font-black text-sm">
+                    {(index + 1).toLocaleString("fa-IR")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-heading text-sm font-black text-gray-900 dark:text-white">
+                      {item.booklet.title || item.booklet.lesson}
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                      {item.booklet.lesson} · {item.booklet.grade} ·{" "}
+                      {item.booklet.major} ·{" "}
+                      {bookletQuestionCount(
+                        item.booklet as Booklet,
+                      ).toLocaleString("fa-IR")}{" "}
+                      سوال · {item.booklet.duration.toLocaleString("fa-IR")}{" "}
+                      دقیقه
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Modal>
+      )}
     </main>
   );
 }
 
-function ErrorBox({ message }: { message: string }) {
-  return (
-    <div className="whitespace-pre-line rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
-      {message}
-    </div>
-  );
-}
+// ==================== کامپوننت‌های کوچک ====================
 function StatusBadge({ status }: { status: ExamStatus }) {
+  const style = statusStyles[status];
+  const Icon = style.icon;
+
   return (
     <span
-      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${statusClasses[status]}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-black ${style.bg} ${style.text}`}
     >
+      <Icon size={11} />
       {statusLabels[status]}
     </span>
   );
 }
-function Info({ label, value }: { label: string; value: string }) {
+
+function InfoBox({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Clock3;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="rounded-xl bg-gray-50 p-3 dark:bg-white/5">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 font-semibold">{value}</p>
+    <div className="rounded-2xl bg-gray-50/70 dark:bg-white/[0.02] border border-gray-200/70 dark:border-white/5 p-3">
+      <div className="flex items-center gap-2 mb-1.5">
+        <Icon size={12} className="text-[var(--griffin-gold)]" />
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+          {label}
+        </p>
+      </div>
+      <p className="text-sm font-bold text-gray-900 dark:text-white">{value}</p>
     </div>
   );
 }
+
 function Modal({
   title,
+  subtitle,
   children,
   onClose,
 }: {
   title: string;
+  subtitle?: string;
   children: ReactNode;
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-slate-200/70 bg-white p-5 shadow-2xl dark:border-white/10 dark:bg-[#111722]">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl font-bold">{title}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-white/5"
-          >
-            <X size={21} />
-          </button>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-[fadeIn_0.2s_ease-out]"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl animate-[fadeInUp_0.3s_ease-out] flex flex-col"
+      >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+
+        {/* Header */}
+        <div className="relative p-5 border-b border-gray-200/70 dark:border-white/5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-60" />
+                <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
+                  <Sparkles size={18} />
+                </div>
+              </div>
+              <div>
+                <h2 className="font-heading text-lg font-black text-gray-900 dark:text-white">
+                  {title}
+                </h2>
+                {subtitle && (
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-rose-500/15 hover:text-rose-500 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
-        {children}
+
+        {/* Content */}
+        <div className="relative flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );

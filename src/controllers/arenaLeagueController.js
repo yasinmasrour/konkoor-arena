@@ -2,11 +2,9 @@ const arenaLeagueService = require("../services/arenaLeagueService");
 const asyncHandler = require("../utils/asyncHandler");
 
 const getActiveLeagues = asyncHandler(async (req, res) => {
-  const leagues = await arenaLeagueService.getActiveLeagues();
+  const result = await arenaLeagueService.getActiveLeagues(req.user.id);
 
-  res.status(200).json({
-    leagues,
-  });
+  res.status(200).json(result);
 });
 
 const getUpcomingLeagues = asyncHandler(async (req, res) => {

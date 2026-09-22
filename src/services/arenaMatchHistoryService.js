@@ -90,6 +90,7 @@ const getMyMatchHistory = async (userId) => {
 
         ratingChange,
 
+        isFriendly: match.isFriendly,
         playedAt: match.finishedAt,
       };
     }),
@@ -204,6 +205,7 @@ const getMatchSummary = async (matchId, userId) => {
     league: match.league,
     result,
     winnerId: match.winnerId,
+    isFriendly: match.isFriendly,
     playedAt: match.finishedAt,
     player: {
       userId,

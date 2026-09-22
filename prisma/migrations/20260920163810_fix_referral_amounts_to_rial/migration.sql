@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Referral" ALTER COLUMN "referrerReward" SET DEFAULT 3000000,
+ALTER COLUMN "refereeDiscount" SET DEFAULT 1000000;

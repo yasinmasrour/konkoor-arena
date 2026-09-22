@@ -105,6 +105,16 @@ const updateRatingsAfterMatch = async (matchId) => {
       throw new AppError("Arena match not found", 404);
     }
 
+    if (match.isFriendly) {
+      if (!match.ratingUpdated) {
+        await tx.arenaMatch.update({
+          where: { id: matchId },
+          data: { ratingUpdated: true, ratingUpdatedAt: new Date() },
+        });
+      }
+      return { friendly: true };
+    }
+
     if (match.status !== "finished") {
       throw new AppError("Arena match is not finished", 400);
     }
@@ -235,21 +245,21 @@ const ensurePlayerRatingsTx = async (tx, leagueId, userIds) => {
 
   for (const userId of userIds) {
     const rating = await tx.arenaRating.upsert({
-        where: {
-          leagueId_userId: {
-            leagueId,
-            userId,
-          },
-        },
-
-        update: {},
-
-        create: {
+      where: {
+        leagueId_userId: {
           leagueId,
           userId,
-          rating: 0,
         },
-      });
+      },
+
+      update: {},
+
+      create: {
+        leagueId,
+        userId,
+        rating: 0,
+      },
+    });
 
     ratings.push(rating);
   }
@@ -264,6 +274,16 @@ const ensurePlayerRatings = async (leagueId, userIds) => {
 };
 
 const updateRatingsAfterMatchTx = async (tx, match) => {
+  if (match.isFriendly) {
+    if (!match.ratingUpdated) {
+      await tx.arenaMatch.update({
+        where: { id: match.id },
+        data: { ratingUpdated: true, ratingUpdatedAt: new Date() },
+      });
+    }
+    return null;
+  }
+
   if (match.status !== "finished" || match.ratingUpdated) {
     return null;
   }

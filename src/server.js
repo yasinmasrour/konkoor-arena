@@ -2,6 +2,7 @@ const http = require("http");
 const app = require("./app");
 const initializeSocket = require("./socket/socketServer");
 const startArenaLeagueJob = require("./jobs/arenaLeagueJob");
+const { startReferralCycleJob } = require("./jobs/referralCycleJob");
 const prisma = require("./config/prisma");
 const { port, isProduction } = require("./config/env");
 
@@ -9,6 +10,7 @@ const PORT = port;
 const server = http.createServer(app);
 const io = initializeSocket(server);
 const arenaLeagueJob = startArenaLeagueJob();
+const referralCycleJob = startReferralCycleJob();
 
 let isShuttingDown = false;
 
@@ -18,6 +20,7 @@ const shutdown = async (signal) => {
 
   console.log(`Received ${signal}. Starting graceful shutdown...`);
   arenaLeagueJob?.stop();
+  referralCycleJob?.stop();
 
   const forceShutdownTimer = setTimeout(() => {
     console.error("Graceful shutdown timed out.");

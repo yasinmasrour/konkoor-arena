@@ -25,24 +25,26 @@ model User {
 
   username String @unique
 
-  email           String? @unique
-  phoneNumber     String? @unique
+  email           String?   @unique
+  phoneNumber     String?   @unique
   phoneVerifiedAt DateTime?
   password        String
 
-  birthDate       DateTime?
-  major           String?
-  grade           String?
-  nationalId      String? @unique
-  address         String?
-  city            String?
-  province        String?
+  birthDate  DateTime?
+  major      String?
+  grade      String?
+  nationalId String?   @unique
+  address    String?
+  city       String?
+  province   String?
 
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
 
+  notifications Notification[]
+
   subscriptions Subscription[]
-  payments Payment[]
+  payments      Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -65,19 +67,88 @@ model User {
 
   arenaLeagueStandings ArenaLeagueStanding[]
 
-  aiAnalyses AIAnalysis[]
+  aiAnalyses      AIAnalysis[]
   questionReviews QuestionReview[] @relation("QuestionReviewReviewer")
+
+  wallet             Wallet?
+  walletTransactions WalletTransaction[]
+  withdrawRequests   WithdrawRequest[]
+  reviewedWithdraws  WithdrawRequest[]   @relation("WithdrawReviewer")
+
+  bankAccounts         BankAccount[]
+  verifiedBankAccounts BankAccount[] @relation("BankAccountVerifier")
+
+  arenaInvitesSent     ArenaInvite[] @relation("ArenaInviter")
+  arenaInvitesReceived ArenaInvite[] @relation("ArenaInvitee")
+
+  referralCode String @unique
+
+  currentCycleReferrals Int @default(0)
+  milestonesEarned      Int @default(0)
+
+  cycleStartDate DateTime @default(now())
+
+  referralsMade     Referral[] @relation("ReferralReferrer")
+  referralsReceived Referral[] @relation("ReferralReferee")
+
+  examComments           ExamComment[]     @relation("ExamCommentAuthor")
+  reviewedExamComments   ExamComment[]     @relation("ExamCommentReviewer")
+  commentReactions       CommentReaction[]
+
+  strategyPlans StrategyPlan[]
+
+  soloMatches SoloMatch[]
+
+  blogPosts            BlogPost[]         @relation("BlogPostAuthor")
+  reviewedBlogPosts    BlogPost[]         @relation("BlogPostReviewer")
+  blogPostReactions    BlogPostReaction[]
+  blogComments         BlogComment[]      @relation("BlogCommentAuthor")
+  reviewedBlogComments BlogComment[]      @relation("BlogCommentReviewer")
+
+  studyPlansAsStudent   StudyPlan[]    @relation("StudyPlanStudent")
+  studyPlansAsCounselor StudyPlan[]    @relation("StudyPlanCounselor")
+  personalExams         PersonalExam[] @relation("PersonalExamStudent")
+
+  examPurchases ExamPurchase[]
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type String
+
+  title   String
+  message String
+
+  link String?
+
+  icon String?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
 }
 
 model VerificationCode {
-  id           String   @id @default(cuid())
-  phoneNumber  String
-  purpose      String
-  codeHash     String
-  expiresAt    DateTime
-  attempts     Int      @default(0)
-  usedAt       DateTime?
-  createdAt    DateTime @default(now())
+  id          String    @id @default(cuid())
+  phoneNumber String
+  purpose     String
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([phoneNumber, purpose, createdAt])
 }
@@ -91,11 +162,43 @@ model SubscriptionPlan {
   price        Int
   durationDays Int
 
+  features Json @default("[]")
+  // مثال: ["exams", "arena", "solo", "comments"]
+
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+  badge    String?
+
   subscriptions Subscription[]
-  payments Payment[]
+  payments      Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ExamPurchase {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  amount Int
+  status String @default("pending")
+  // pending | paid | failed | refunded
+
+  paymentId String? @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  purchasedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, examId])
+  @@index([userId, status])
+  @@index([examId, status])
 }
 
 model Subscription {
@@ -107,32 +210,56 @@ model Subscription {
   user User             @relation(fields: [userId], references: [id])
   plan SubscriptionPlan @relation(fields: [planId], references: [id])
 
+  payments Payment[]
+
   startDate DateTime
   endDate   DateTime
 
   status String
+  // active | expired | cancelled
+
+  cancelledAt DateTime?
+  cancelReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
 }
 
 model Payment {
   id String @id @default(cuid())
 
   userId String
-  planId String
+  user   User @relation(fields: [userId], references: [id])
 
-  user User @relation(fields: [userId], references: [id])
-  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+  planId String?
+  plan   SubscriptionPlan? @relation(fields: [planId], references: [id])
+
+  type String @default("subscription")
 
   amount Int
-  status String
-  gateway String
+
+  status String @default("pending")
+  gateway String @default("pending")
+
   merchantOrderId String @unique
   authority String? @unique
   transactionId String? @unique
   paidAt DateTime?
   metadata Json?
+
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  discountAmount Int @default(0)
+
+  referralId String?   @unique
+  referral   Referral? @relation("PaymentReferral", fields: [referralId], references: [id])
+
+  examId       String?
+  exam         Exam?          @relation(fields: [examId], references: [id])
+  examPurchase ExamPurchase?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -140,6 +267,124 @@ model Payment {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([userId, status])
+  @@index([type, status])
+}
+
+model Wallet {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  balance  Int    @default(0)
+  currency String @default("IRR")
+
+  isActive Boolean @default(true)
+
+  transactions     WalletTransaction[]
+  withdrawRequests WithdrawRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model WalletTransaction {
+  id String @id @default(cuid())
+
+  walletId String
+  userId   String
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type String
+
+  direction String
+
+  amount Int
+
+  balanceBefore Int
+  balanceAfter  Int
+
+  status String @default("SUCCESS")
+
+  description String @default("")
+
+  referenceId   String?
+  referenceType String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([walletId, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, status])
+  @@index([referenceType, referenceId])
+}
+
+model WithdrawRequest {
+  id String @id @default(cuid())
+
+  userId   String
+  walletId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  amount Int
+
+  cardNumber     String
+  cardHolderName String
+  bankName       String?
+  iban           String?
+  shebaNumber    String?
+
+  status String @default("PENDING")
+
+  reviewedById String?
+  reviewedBy   User?     @relation("WithdrawReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  trackingCode String?
+  paidAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([reviewedById])
+}
+
+model BankAccount {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  cardNumber     String
+  cardHolderName String
+  bankName       String?
+  iban           String?
+  shebaNumber    String?
+
+  isVerified   Boolean   @default(false)
+  verifiedById String?
+  verifiedBy   User?     @relation("BankAccountVerifier", fields: [verifiedById], references: [id])
+  verifiedAt   DateTime?
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isDefault])
+  @@index([userId, isVerified])
 }
 
 model Question {
@@ -183,6 +428,12 @@ model Question {
 
   status String @default("draft")
 
+  isArena Boolean @default(false)
+
+  soloMatchQuestions SoloMatchQuestion[]
+
+  personalExamQuestions PersonalExamQuestion[]
+
   createdById String
 
   createdBy User @relation(fields: [createdById], references: [id])
@@ -205,7 +456,6 @@ model Question {
   @@index([difficulty])
 }
 
-
 model QuestionReview {
   id String @id @default(cuid())
 
@@ -213,10 +463,10 @@ model QuestionReview {
   reviewerId String
 
   decision String
-  note String @default("")
+  note     String @default("")
 
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  reviewer User @relation("QuestionReviewReviewer", fields: [reviewerId], references: [id])
+  reviewer User     @relation("QuestionReviewReviewer", fields: [reviewerId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -235,6 +485,8 @@ model Booklet {
   grade String
 
   major String
+
+  attemptBooklets AttemptBooklet[]
 
   examDate DateTime
 
@@ -262,9 +514,9 @@ model BookletQuestion {
 
   questionId String
 
-  booklet Booklet @relation(fields: [bookletId], references: [id])
+  booklet Booklet @relation(fields: [bookletId], references: [id], onDelete: Cascade)
 
-  question Question @relation(fields: [questionId], references: [id])
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   order Int
 
@@ -292,6 +544,16 @@ model Exam {
 
   status String @default("draft")
 
+  comments ExamComment[]
+
+  studyPlans StudyPlan[]
+
+  payments  Payment[]
+
+  price     Int            @default(3000000)
+
+  purchases ExamPurchase[]
+
   createdById String
 
   createdBy User @relation(fields: [createdById], references: [id])
@@ -308,9 +570,9 @@ model ExamBooklet {
 
   bookletId String
 
-  exam Exam @relation(fields: [examId], references: [id])
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
 
-  booklet Booklet @relation(fields: [bookletId], references: [id])
+  booklet Booklet @relation(fields: [bookletId], references: [id], onDelete: Cascade)
 
   order Int
 
@@ -331,6 +593,8 @@ model Attempt {
   exam Exam @relation(fields: [examId], references: [id])
 
   answers AttemptAnswer[]
+
+  attemptBooklets AttemptBooklet[]
 
   startedAt DateTime?
 
@@ -358,15 +622,15 @@ model AIAnalysis {
   id String @id @default(cuid())
 
   attemptId String @unique
-  userId String
+  userId    String
 
   attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 
-  model String
-  status String
-  result Json
-  responseId String? @unique
+  model       String
+  status      String
+  result      Json
+  responseId  String?  @unique
   generatedAt DateTime @default(now())
 
   createdAt DateTime @default(now())
@@ -389,17 +653,19 @@ model AttemptAnswer {
   selectedAnswer Int?
 
   // Immutable question data captured when the attempt starts.
-  questionTextSnapshot String?
+  questionTextSnapshot  String?
   questionImageSnapshot String?
-  optionsSnapshot String[] @default([])
+  optionsSnapshot       String[] @default([])
   correctAnswerSnapshot Int?
-  explanationSnapshot String?
-  difficultySnapshot String?
-  lessonSnapshot String?
-  chapterSnapshot String?
-  scoreSnapshot Float @default(1)
+  explanationSnapshot   String?
+  difficultySnapshot    String?
+  lessonSnapshot        String?
+  chapterSnapshot       String?
+  scoreSnapshot         Float    @default(1)
 
   isCorrect Boolean @default(false)
+
+  isFlagged Boolean @default(false)
 
   answeredAt DateTime?
 
@@ -407,6 +673,39 @@ model AttemptAnswer {
 
   @@unique([attemptId, questionId])
   @@index([attemptId, selectedAnswer])
+}
+
+model AttemptBooklet {
+  id String @id @default(cuid())
+
+  attemptId String
+  bookletId String
+
+  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  booklet Booklet @relation(fields: [bookletId], references: [id])
+
+  order Int
+
+  duration  Int
+  startedAt DateTime?
+  finishedAt DateTime?
+  restUntil  DateTime?
+
+  status String @default("pending")
+  // "pending"  → هنوز شروع نشده
+  // "active"   → در حال انجام
+  // "resting"  → تموم شده، توی ۱۰ ثانیه استراحت
+  // "finished" → کاملاً تموم شده (بعد از استراحت)
+
+  finishedReason String?
+  // "timeout" | "submitted"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attemptId, bookletId])
+  @@index([attemptId, order])
+  @@index([attemptId, status])
 }
 
 model ArenaMatch {
@@ -418,6 +717,8 @@ model ArenaMatch {
 
   winnerId String?
 
+  isFriendly Boolean @default(false)
+
   startedAt  DateTime?
   finishedAt DateTime?
 
@@ -426,7 +727,6 @@ model ArenaMatch {
   ratingHistory ArenaRatingHistory[]
 
   ratingUpdatedAt DateTime?
-
   ratingUpdated Boolean @default(false)
 
   players   ArenaMatchPlayer[]
@@ -495,24 +795,30 @@ model ArenaLeague {
   title String
 
   lesson String
+  grade  String
+
+  compatibleMajors String[] @default([])
 
   startDate DateTime
   endDate   DateTime
 
   status String @default("upcoming")
 
+  rewardsDistributedAt DateTime?
+
   matches ArenaMatch[]
-
   queues ArenaQueue[]
-
   ratings ArenaRating[]
-
   ratingHistory ArenaRatingHistory[]
-
   standings ArenaLeagueStanding[]
+  invites ArenaInvite[]
+  soloMatches SoloMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status, grade, lesson])
+  @@index([status, grade])
 }
 
 model ArenaAnswer {
@@ -611,19 +917,448 @@ model ArenaLeagueStanding {
 model ArenaQueue {
   id String @id @default(cuid())
 
-  userId String
+  userId   String
   leagueId String
 
   rating Int
+
+  grade String
 
   status String @default("waiting")
 
   joinedAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   league ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
 
   @@unique([userId, leagueId])
   @@index([leagueId, status, rating])
+  @@index([leagueId, status, grade])
   @@index([userId, status])
+}
+
+model ArenaInvite {
+  id String @id @default(cuid())
+
+  code String @unique
+
+  inviterId String
+  inviter   User   @relation("ArenaInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  leagueId String
+  league   ArenaLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  usedById String?
+  usedBy   User?   @relation("ArenaInvitee", fields: [usedById], references: [id])
+
+  status String @default("pending")
+  // pending | used | expired | cancelled
+
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([code, status])
+  @@index([inviterId, status])
+  @@index([expiresAt, status])
+}
+
+model SoloMatch {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  leagueId String
+  league   ArenaLeague @relation(fields: [leagueId], references: [id])
+
+  level String  // "easy" | "medium" | "hard"
+
+  status String @default("playing")
+  // playing | won | lost | abandoned
+
+  correctAnswers  Int @default(0)
+  wrongAnswers    Int @default(0)
+  timeouts        Int @default(0)
+  livesRemaining  Int @default(3)
+
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  totalTimeMs Int?
+
+  questions SoloMatchQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([level, status])
+  @@index([leagueId])
+}
+
+model SoloMatchQuestion {
+  id String @id @default(cuid())
+
+  soloMatchId String
+  soloMatch   SoloMatch @relation(fields: [soloMatchId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+
+  order Int
+
+  selectedAnswer Int?
+  isCorrect      Boolean @default(false)
+  isTimeout      Boolean @default(false)
+
+  timeLimit    Int
+  timeSpentMs  Int?
+  answeredAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([soloMatchId, order])
+  @@index([soloMatchId])
+  @@index([questionId])
+}
+
+model Referral {
+  id String @id @default(cuid())
+
+  referrerId String
+  referrer   User   @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  refereeId String
+  referee   User   @relation("ReferralReferee", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  code String
+
+  status String @default("pending")
+  // pending | completed | cancelled
+
+  referrerReward  Int @default(3000000)
+  refereeDiscount Int @default(1000000)
+
+  payment Payment? @relation("PaymentReferral")
+
+  rewardPaidAt DateTime?
+
+  milestoneIndex Int?
+
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([referrerId, status])
+  @@index([referrerId, createdAt])
+  @@index([refereeId, createdAt])
+  @@index([status, createdAt])
+}
+
+model ExamComment {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("ExamCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   ExamComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  ExamComment[] @relation("CommentReplies")
+
+  content String
+  rating  Int?
+
+  status String @default("pending")
+  // pending | approved | rejected | deleted
+
+  reviewedById String?
+  reviewedBy   User?     @relation("ExamCommentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  likes    Int @default(0)
+  dislikes Int @default(0)
+
+  reactions CommentReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([examId, status, createdAt])
+  @@index([userId, createdAt])
+  @@index([parentId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model CommentReaction {
+  id String @id @default(cuid())
+
+  userId    String
+  commentId String
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment ExamComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  type String  // "like" | "dislike"
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
+  @@index([commentId, type])
+}
+
+model StrategyPlan {
+  id String @id @default(cuid())
+
+  title       String
+  description String?
+
+  grade String   // "10" | "11" | "12"
+  major String   // "تجربی" | "ریاضی" | "انسانی"
+
+  // 🔹 ساختار جدول
+  // {
+  //   "lessons": ["زیست", "شیمی", "فیزیک", "ریاضی"],
+  //   "exams": [
+  //     { "title": "آزمون ۱", "cells": ["فصل ۱", "فصل ۱", "فصل ۱", "فصل ۱"] },
+  //     { "title": "آزمون ۲", "cells": ["فصل ۲-۳", "فصل ۲", "فصل ۱-۲", "فصل ۲"] }
+  //   ]
+  // }
+  data Json
+
+  isPublished Boolean @default(false)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([grade, major, isPublished])
+}
+
+model BlogPost {
+  id String @id @default(cuid())
+
+  title   String
+  slug    String @unique
+  excerpt String @default("")
+  content String  // Markdown یا HTML
+
+  coverImage String @default("")
+
+  authorId String
+  author   User   @relation("BlogPostAuthor", fields: [authorId], references: [id])
+
+  category String @default("general")
+  // general | educational | motivation | news | analysis | interview
+
+  tags String[] @default([])
+
+  status String @default("draft")
+  // draft | pending | published | rejected | archived
+
+  isFeatured Boolean @default(false)
+
+  reviewedById String?
+  reviewedBy   User?     @relation("BlogPostReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  viewsCount Int @default(0)
+  likesCount Int @default(0)
+  dislikesCount Int @default(0)
+
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  likes    BlogPostReaction[]
+  comments BlogComment[]
+
+  @@index([status, publishedAt])
+  @@index([category, status])
+  @@index([authorId, createdAt])
+  @@index([isFeatured, status])
+}
+
+model BlogPostReaction {
+  id String @id @default(cuid())
+
+  userId String
+  postId String
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  type String  // "like" | "dislike"
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId, type])
+}
+
+model BlogComment {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("BlogCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  postId String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   BlogComment?  @relation("BlogCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  BlogComment[] @relation("BlogCommentReplies")
+
+  content String
+
+  status String @default("pending")
+  // pending | approved | rejected | deleted
+
+  reviewedById String?
+  reviewedBy   User?     @relation("BlogCommentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId, status, createdAt])
+  @@index([userId, createdAt])
+  @@index([parentId, status])
+}
+
+model StudyPlan {
+  id String @id @default(cuid())
+
+  studentId String
+  student   User   @relation("StudyPlanStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  counselorId String
+  counselor   User   @relation("StudyPlanCounselor", fields: [counselorId], references: [id])
+
+  examId String?
+  exam   Exam?   @relation(fields: [examId], references: [id])
+
+  title       String
+  description String?
+
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
+  status String @default("active")
+  // active | completed | archived
+
+  totalTasks     Int @default(0)
+  completedTasks Int @default(0)
+
+  tasks        StudyTask[]
+  personalExam PersonalExam?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, status])
+  @@index([counselorId, status])
+  @@index([examId])
+  @@index([status, endDate])
+}
+
+model StudyTask {
+  id String @id @default(cuid())
+
+  planId String
+  plan   StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String @default("")
+
+  lesson  String?
+  chapter String?
+
+  priority String @default("medium")
+  // high | medium | low
+
+  estimatedMinutes Int?
+
+  dueDate DateTime?
+
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId, order])
+  @@index([planId, isCompleted])
+}
+
+model PersonalExam {
+  id String @id @default(cuid())
+
+  planId String @unique
+  plan   StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("PersonalExamStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  title     String
+  timeLimit Int
+
+  status String @default("pending")
+  // pending | in_progress | completed | abandoned
+
+  score      Float @default(0)
+  totalScore Float @default(0)
+
+  startedAt   DateTime?
+  submittedAt DateTime?
+
+  questions PersonalExamQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, status])
+}
+
+model PersonalExamQuestion {
+  id String @id @default(cuid())
+
+  personalExamId String
+  personalExam   PersonalExam @relation(fields: [personalExamId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+
+  order Int
+
+  selectedAnswer Int?
+  isCorrect      Boolean @default(false)
+  answeredAt     DateTime?
+
+  questionTextSnapshot  String?
+  questionImageSnapshot String?
+  optionsSnapshot       String[] @default([])
+  correctAnswerSnapshot Int?
+  explanationSnapshot   String?
+  lessonSnapshot        String?
+  chapterSnapshot       String?
+  difficultySnapshot    String?
+  scoreSnapshot         Float    @default(1)
+
+  createdAt DateTime @default(now())
+
+  @@unique([personalExamId, questionId])
+  @@unique([personalExamId, order])
+  @@index([personalExamId])
 }

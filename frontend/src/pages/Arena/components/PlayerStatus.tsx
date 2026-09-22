@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Wifi, WifiOff, Zap } from "lucide-react";
+import { Flame, Heart, Skull } from "lucide-react";
 
 interface PlayerStatusProps {
   name: string;
@@ -9,11 +9,17 @@ interface PlayerStatusProps {
   online?: boolean;
 }
 
-const PlayerStatus = ({ name, lives, isCurrentUser = false, status, online = true }: PlayerStatusProps) => {
+const PlayerStatus = ({
+  name,
+  lives,
+  isCurrentUser = false,
+  status,
+}: PlayerStatusProps) => {
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   const [lifePulse, setLifePulse] = useState(false);
   const previousLives = useRef(lives);
 
+  // 🆕 انیمیشن کاهش Life
   useEffect(() => {
     if (lives < previousLives.current) {
       const startPulseId = window.setTimeout(() => setLifePulse(true), 0);
@@ -24,53 +30,129 @@ const PlayerStatus = ({ name, lives, isCurrentUser = false, status, online = tru
         window.clearTimeout(timeoutId);
       };
     }
-
     previousLives.current = lives;
   }, [lives]);
 
-  const statusText =
-    status === "locked"
-      ? isCurrentUser ? "قفل شدی؛ منتظر نتیجه راند" : "در این راند قفل شده"
-      : status === "eliminated"
-        ? "از نبرد خارج شد"
-        : !online
-          ? "اتصال حریف قطع شده"
-          : isCurrentUser
-            ? "آماده پاسخ"
-            : "در حال پاسخ‌گویی";
+  const isEliminated = status === "eliminated" || lives <= 0;
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border px-4 py-3 transition-all duration-300 ${
-      lifePulse ? "border-rose-500/60 shadow-[0_0_30px_rgba(244,63,94,0.18)]" : ""
-    } ${
-      isCurrentUser
-        ? "border-[var(--griffin-gold)]/35 bg-[var(--griffin-gold)]/[0.08]"
-        : "border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/[0.045]"
-    }`}>
-      <div className={`absolute inset-y-0 right-0 w-1 ${isCurrentUser ? "bg-[var(--griffin-gold)]" : "bg-slate-300 dark:bg-slate-700"}`} />
-      <div className="flex items-center gap-3">
-        <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-black ${
-          isCurrentUser ? "bg-[var(--griffin-gold)] text-white" : "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-        } ${!online ? "opacity-60" : ""}`}>
-          {initial}
-          {isCurrentUser && <Zap className="absolute -bottom-1 -left-1 h-4 w-4 rounded-full bg-slate-950 p-0.5 text-[var(--griffin-gold)]" />}
+    <div
+      className={`
+        relative overflow-hidden rounded-xl border
+        px-2 py-1.5 sm:px-2.5 sm:py-2
+        transition-all duration-300
+        ${
+          lifePulse
+            ? "border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.3)]"
+            : ""
+        }
+        ${
+          isEliminated
+            ? "border-rose-500/20 bg-rose-500/[0.03] opacity-70"
+            : isCurrentUser
+              ? "border-[var(--griffin-gold)]/40 bg-[var(--griffin-gold)]/[0.08]"
+              : "border-white/10 bg-white/[0.03]"
+        }
+      `}
+    >
+      {/* خط رنگی سمت راست */}
+      <div
+        className={`
+          absolute inset-y-0 right-0 w-0.5
+          ${
+            isEliminated
+              ? "bg-rose-500"
+              : isCurrentUser
+                ? "bg-[var(--griffin-gold)]"
+                : "bg-purple-500"
+          }
+        `}
+      />
+
+      {/* هاله قرمز هنگام کاهش Life */}
+      {lifePulse && (
+        <div className="absolute inset-0 bg-rose-500/10 animate-pulse pointer-events-none" />
+      )}
+
+      <div className="relative flex items-center gap-2">
+        {/* ==================== آواتار ==================== */}
+        <div className="relative shrink-0">
+          <div
+            className={`
+              relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center
+              rounded-lg text-sm font-heading font-black
+              transition-all duration-300
+              ${
+                isEliminated
+                  ? "bg-gradient-to-br from-rose-500 to-rose-700 text-white opacity-70 grayscale"
+                  : isCurrentUser
+                    ? "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 text-white shadow-md shadow-[var(--griffin-gold)]/30"
+                    : "bg-gradient-to-br from-purple-500 to-purple-700 text-white shadow-md shadow-purple-500/30"
+              }
+              ${lifePulse ? "animate-pulse" : ""}
+            `}
+          >
+            {isEliminated ? <Skull size={16} /> : initial}
+          </div>
         </div>
+
+        {/* ==================== نام + Life ==================== */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-extrabold">{name}</p>
-            {isCurrentUser && <span className="text-[9px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">YOU</span>}
-          </div>
-          <div className={`mt-1 flex items-center gap-1.5 text-[11px] ${online ? "text-slate-500 dark:text-slate-400" : "text-amber-600 dark:text-amber-300"}`}>
-            {online ? <Wifi className="h-3.5 w-3.5 text-emerald-500" /> : <WifiOff className="h-3.5 w-3.5" />}
-            <span>{statusText}</span>
+          {/* نام */}
+          <p
+            className={`
+              truncate font-heading text-[11px] sm:text-xs font-black leading-tight
+              ${isEliminated ? "text-gray-500 line-through" : "text-white"}
+            `}
+          >
+            {name}
+          </p>
+
+          {/* Life قلب‌ها */}
+          <div
+            className={`
+              flex items-center gap-0.5 mt-0.5
+              transition-all duration-300
+              ${lifePulse ? "scale-110" : ""}
+            `}
+            aria-label={`${lives} lives`}
+          >
+            {[0, 1, 2].map((life) => {
+              const isFilled = life < lives;
+              return (
+                <Heart
+                  key={life}
+                  className={`
+                    h-3 w-3 sm:h-3.5 sm:w-3.5 transition-all duration-300
+                    ${
+                      isFilled
+                        ? lifePulse
+                          ? "scale-125 fill-rose-500 text-rose-500 drop-shadow-[0_0_6px_rgba(244,63,94,0.8)]"
+                          : "fill-rose-500 text-rose-500"
+                        : "text-gray-600 fill-transparent"
+                    }
+                  `}
+                />
+              );
+            })}
+
+            {/* نمایش -۱ هنگام کاهش */}
+            {lifePulse && (
+              <span className="mr-0.5 font-heading text-[10px] font-black text-rose-500 animate-bounce">
+                -۱
+              </span>
+            )}
           </div>
         </div>
-        <div className={`flex items-center gap-1 rounded-xl px-2 py-1 transition-all duration-300 ${lifePulse ? "bg-rose-500/10" : ""}`} aria-label={`${lives} lives`}>
-          {[0, 1, 2].map((life) => (
-            <Heart key={life} className={`h-4 w-4 transition-all duration-300 ${life < lives ? lifePulse ? "scale-110 fill-rose-500 text-rose-500" : "fill-rose-500 text-rose-500" : "text-slate-300 dark:text-slate-700"}`} />
-          ))}
-          {lifePulse && <span className="mr-1 text-[10px] font-black text-rose-500">-1</span>}
-        </div>
+
+        {/* ==================== نشان برنده (Flame) ==================== */}
+        {lives >= 3 && !isEliminated && (
+          <Flame
+            size={14}
+            className="shrink-0 text-[var(--griffin-gold)] drop-shadow-[0_0_6px_rgba(197,139,42,0.6)]"
+            fill="currentColor"
+          />
+        )}
       </div>
     </div>
   );

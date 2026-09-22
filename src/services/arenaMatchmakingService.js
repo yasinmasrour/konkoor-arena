@@ -1,7 +1,6 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const arenaMatchService = require("./arenaMatchService");
-const arenaRatingService = require("./arenaRatingService");
 const arenaMatchmakingSocketService = require("../socket/arenaMatchmakingSocketService");
 
 const INITIAL_RATING_RANGE = 100;
@@ -11,6 +10,7 @@ const QUEUE_TTL_MS = 60 * 1000;
 
 const getLeagueLockKey = (leagueId) => `arena:matchmaking:${leagueId}`;
 
+// ==================== پاک‌سازی صف‌های قدیمی ====================
 const cleanupStaleQueues = async (leagueId = null, db = prisma) => {
   const cutoff = new Date(Date.now() - QUEUE_TTL_MS);
 
@@ -26,12 +26,14 @@ const cleanupStaleQueues = async (leagueId = null, db = prisma) => {
   ).count;
 };
 
-const getMatchmakingCandidate = async (tx, userId, leagueId, rating) => {
+// ==================== پیدا کردن حریف ====================
+const getMatchmakingCandidate = async (tx, userId, leagueId, rating, grade) => {
   const entries = await tx.arenaQueue.findMany({
     where: {
       leagueId,
       status: "waiting",
       userId: { not: userId },
+      grade,
     },
     orderBy: { joinedAt: "asc" },
   });
@@ -56,6 +58,7 @@ const getMatchmakingCandidate = async (tx, userId, leagueId, rating) => {
   return candidates[Math.floor(Math.random() * candidates.length)];
 };
 
+// ==================== ورود به صف ====================
 const joinQueue = async (userId, leagueId) => {
   if (!userId || !leagueId) {
     throw new AppError("User and league are required", 400);
@@ -63,11 +66,26 @@ const joinQueue = async (userId, leagueId) => {
 
   const result = await prisma.$transaction(
     async (tx) => {
-      // Serialize matchmaking decisions per league. This prevents two players
-      // joining simultaneously from both claiming the same opponent.
+      // قفل به‌ازای هر لیگ
       await tx.$executeRaw`
         SELECT pg_advisory_xact_lock(hashtext(${getLeagueLockKey(leagueId)}))
       `;
+
+      // 🆕 کاربر رو با grade/major بگیر
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, grade: true, major: true },
+      });
+
+      if (!user) throw new AppError("User not found", 404);
+
+      // 🆕 چک پروفایل
+      if (!user.grade || !user.major) {
+        throw new AppError(
+          "برای شرکت در آرنا، اول پروفایلت رو تکمیل کن (پایه و رشته)",
+          400,
+        );
+      }
 
       const league = await tx.arenaLeague.findUnique({
         where: { id: leagueId },
@@ -82,6 +100,19 @@ const joinQueue = async (userId, leagueId) => {
         now > league.endDate
       ) {
         throw new AppError("League is not active", 400);
+      }
+
+      // 🆕 چک هم‌خوانی پایه با لیگ
+      if (league.grade !== user.grade) {
+        throw new AppError("این لیگ برای پایه‌ی شما نیست", 400);
+      }
+
+      // 🆕 چک رشته — اگه compatibleMajors خالی نیست، رشته‌ی کاربر باید توش باشه
+      if (
+        league.compatibleMajors.length > 0 &&
+        !league.compatibleMajors.includes(user.major)
+      ) {
+        throw new AppError("این لیگ برای رشته‌ی شما نیست", 400);
       }
 
       await cleanupStaleQueues(leagueId, tx);
@@ -117,31 +148,33 @@ const joinQueue = async (userId, leagueId) => {
         };
       }
 
+      // 🆕 پیدا کردن حریف با grade/major
       const opponent = await getMatchmakingCandidate(
         tx,
         userId,
         leagueId,
         rating.rating,
+        user.grade,
       );
 
       if (!opponent) {
+        // 🆕 ذخیره با grade/major
+        const queueData = {
+          userId,
+          leagueId,
+          rating: rating.rating,
+          grade: user.grade,
+          status: "waiting",
+          joinedAt: now,
+        };
+
         const queue = existingQueue
           ? await tx.arenaQueue.update({
               where: { id: existingQueue.id },
-              data: {
-                rating: rating.rating,
-                status: "waiting",
-                joinedAt: now,
-              },
+              data: queueData,
             })
           : await tx.arenaQueue.create({
-              data: {
-                userId,
-                leagueId,
-                rating: rating.rating,
-                status: "waiting",
-                joinedAt: now,
-              },
+              data: queueData,
             });
 
         return {
@@ -152,6 +185,7 @@ const joinQueue = async (userId, leagueId) => {
         };
       }
 
+      // ادعای حریف
       const claimedOpponent = await tx.arenaQueue.updateMany({
         where: {
           id: opponent.id,
@@ -165,23 +199,24 @@ const joinQueue = async (userId, leagueId) => {
         return null;
       }
 
+      // ثبت خودم
+      const currentQueueData = {
+        userId,
+        leagueId,
+        rating: rating.rating,
+        grade: user.grade,
+        // major: user.major,
+        status: "matched",
+        joinedAt: now,
+      };
+
       const currentQueue = existingQueue
         ? await tx.arenaQueue.update({
             where: { id: existingQueue.id },
-            data: {
-              rating: rating.rating,
-              status: "matched",
-              joinedAt: now,
-            },
+            data: currentQueueData,
           })
         : await tx.arenaQueue.create({
-            data: {
-              userId,
-              leagueId,
-              rating: rating.rating,
-              status: "matched",
-              joinedAt: now,
-            },
+            data: currentQueueData,
           });
 
       try {
@@ -209,8 +244,6 @@ const joinQueue = async (userId, leagueId) => {
           opponentQueueId: currentQueue.id,
         };
       } catch (error) {
-        // The outer transaction will roll back both queue claims and the match
-        // if match creation fails. No stale "matched" state can survive.
         throw error;
       }
     },
@@ -235,6 +268,7 @@ const joinQueue = async (userId, leagueId) => {
   return result;
 };
 
+// ==================== خروج از صف ====================
 const leaveQueue = async (userId, leagueId) => {
   const queue = await prisma.arenaQueue.findUnique({
     where: { userId_leagueId: { userId, leagueId } },
@@ -252,6 +286,7 @@ const leaveQueue = async (userId, leagueId) => {
   return { success: true, alreadyLeft: false };
 };
 
+// ==================== وضعیت صف ====================
 const getQueueStatus = async (userId, leagueId) => {
   await cleanupStaleQueues(leagueId);
 
@@ -267,6 +302,7 @@ const getQueueStatus = async (userId, leagueId) => {
       id: queue.id,
       status: queue.status,
       rating: queue.rating,
+      grade: queue.grade,
       joinedAt: queue.joinedAt,
     },
   };

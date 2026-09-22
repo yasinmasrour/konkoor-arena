@@ -1,9 +1,10 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const getPagination = require("../utils/pagination");
+const { hasExamAccess } = require("../utils/accessHelper");
 
 const getExamOwnerWhere = (user) =>
-  user?.role?.name === "ADMIN" ? {} : { createdById: user.id };
+  user?.role === "ADMIN" ? {} : { createdById: user.id };
 
 const createExam = async (data) => {
   const { createdBy, bookletIds, ...examData } = data;
@@ -119,14 +120,33 @@ const examInclude = {
   createdBy: { select: { id: true, firstName: true, lastName: true } },
 };
 
-const getExamById = async (id) => {
+/**
+ * گرفتن یه آزمون با چک دسترسی
+ * @param {string} id
+ * @param {object|null} [user] - کاربر لاگین‌شده (اختیاری)
+ * @returns {Promise<object>}
+ */
+const getExamById = async (id, user = null) => {
   const exam = await prisma.exam.findUnique({
     where: { id },
     include: examInclude,
   });
 
   if (!exam) throw new AppError("Exam not found", 404);
-  return exam;
+
+  let isPurchased = false;
+  const userId = user?.id || null;
+  const userRole = user?.role?.name || user?.role || null;
+
+  if (userId) {
+    isPurchased = await hasExamAccess(userId, id, userRole);
+  }
+
+  return {
+    ...exam,
+    price: exam.price || 3000000,
+    isPurchased,
+  };
 };
 
 const getOwnedExam = async (id, user) => {
@@ -206,7 +226,7 @@ const changeExamStatus = async (id, nextStatus, user) => {
   if (
     exam.status === "review" &&
     nextStatus === "published" &&
-    user?.role?.name !== "ADMIN"
+    user?.role !== "ADMIN"
   ) {
     throw new AppError("Only admins can publish exams", 403);
   }

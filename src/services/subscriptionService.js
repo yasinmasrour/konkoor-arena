@@ -18,11 +18,10 @@ const expireSubscriptions = async (tx = prisma) => {
 
 const getSubscriptionPlans = async () => {
   return prisma.subscriptionPlan.findMany({
-    orderBy: [
-      { durationDays: "asc" },
-      { price: "asc" },
-      { createdAt: "asc" },
-    ],
+    where: {
+      isActive: true,
+    },
+    orderBy: [{ order: "asc" }, { price: "asc" }],
   });
 };
 
@@ -106,8 +105,11 @@ const getSubscriptionHistory = async (userId) => {
   });
 };
 
-// Kept as a service-level primitive for the payment module that will be added later.
-const createSubscription = async ({ userId, planId, startDate = new Date() }) => {
+const createSubscription = async ({
+  userId,
+  planId,
+  startDate = new Date(),
+}) => {
   const plan = await getSubscriptionPlanById(planId);
 
   const start = new Date(startDate);
@@ -149,6 +151,129 @@ const createSubscription = async ({ userId, planId, startDate = new Date() }) =>
   });
 };
 
+const getAdminPlans = async () => {
+  return prisma.subscriptionPlan.findMany({
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+  });
+};
+
+// ==================== 🆕 Refund اشتراک قدیمی ====================
+/**
+ * محاسبه و بازگشت باقی‌مونده اشتراک قدیمی به کیف پول
+ * @param {object} tx - تراکنش Prisma
+ * @param {object} oldSubscription - اشتراک فعال قبلی (با plan)
+ * @returns {Promise<{ refundAmount: number, remainingDays: number } | null>}
+ */
+const refundOldSubscription = async (tx, oldSubscription) => {
+  if (
+    !oldSubscription ||
+    oldSubscription.status !== SUBSCRIPTION_STATUS.ACTIVE
+  ) {
+    return null;
+  }
+
+  const now = new Date();
+  const endDate = new Date(oldSubscription.endDate);
+  const startDate = new Date(oldSubscription.startDate);
+
+  // اگه منقضی شده
+  if (endDate <= now) return null;
+
+  const totalDays = Math.ceil(
+    (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  const remainingDays = Math.ceil(
+    (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (totalDays <= 0 || remainingDays <= 0) return null;
+
+  // محاسبه refund نسبی
+  const planPrice = oldSubscription.plan?.price ?? 0;
+  const refundAmount = Math.floor((remainingDays / totalDays) * planPrice);
+
+  if (refundAmount <= 0) return null;
+
+  // 🔹 گرفتن کیف پول کاربر
+  let wallet = await tx.wallet.findUnique({
+    where: { userId: oldSubscription.userId },
+  });
+
+  if (!wallet) {
+    wallet = await tx.wallet.create({
+      data: {
+        userId: oldSubscription.userId,
+        balance: refundAmount,
+        currency: "IRR",
+      },
+    });
+
+    await tx.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        userId: oldSubscription.userId,
+        type: "REFUND",
+        direction: "IN",
+        amount: refundAmount,
+        balanceBefore: 0,
+        balanceAfter: refundAmount,
+        status: "SUCCESS",
+        description: `بازگشت وجه اشتراک ${oldSubscription.plan?.title || ""} (${remainingDays} روز باقی‌مانده)`,
+        referenceId: oldSubscription.id,
+        referenceType: "SUBSCRIPTION_REFUND",
+        metadata: {
+          oldSubscriptionId: oldSubscription.id,
+          oldPlanId: oldSubscription.planId,
+          remainingDays,
+          totalDays,
+        },
+      },
+    });
+  } else {
+    const balanceBefore = wallet.balance;
+    const balanceAfter = balanceBefore + refundAmount;
+
+    await tx.wallet.update({
+      where: { id: wallet.id },
+      data: { balance: balanceAfter },
+    });
+
+    await tx.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        userId: oldSubscription.userId,
+        type: "REFUND",
+        direction: "IN",
+        amount: refundAmount,
+        balanceBefore,
+        balanceAfter,
+        status: "SUCCESS",
+        description: `بازگشت وجه اشتراک ${oldSubscription.plan?.title || ""} (${remainingDays} روز باقی‌مانده)`,
+        referenceId: oldSubscription.id,
+        referenceType: "SUBSCRIPTION_REFUND",
+        metadata: {
+          oldSubscriptionId: oldSubscription.id,
+          oldPlanId: oldSubscription.planId,
+          remainingDays,
+          totalDays,
+        },
+      },
+    });
+  }
+
+  // 🔹 اشتراک قدیمی → cancelled
+  await tx.subscription.update({
+    where: { id: oldSubscription.id },
+    data: {
+      status: SUBSCRIPTION_STATUS.CANCELLED,
+      cancelledAt: now,
+      cancelReason: "replaced_by_new_subscription",
+    },
+  });
+
+  return { refundAmount, remainingDays };
+};
+
 module.exports = {
   getSubscriptionPlans,
   getSubscriptionPlanById,
@@ -159,4 +284,6 @@ module.exports = {
   getSubscriptionHistory,
   createSubscription,
   expireSubscriptions,
+  getAdminPlans,
+  refundOldSubscription,
 };

@@ -1,568 +1,683 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, XCircle, MinusCircle, ArrowRight } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Flag,
+  GraduationCap,
+  Lightbulb,
+  LoaderCircle,
+  MinusCircle,
+  Sparkles,
+  Star,
+  X,
+  XCircle,
+  Zap,
+} from "lucide-react";
+
 import MathText from "../components/questions/MathText";
 import { getAttemptReview } from "../services/attemptService";
-import type {
-  AttemptReviewQuestion,
-  AttemptReviewResponse,
-} from "../types/attempt";
+import type { AttemptReviewResponse } from "../types/attempt";
 
+// ==================== ثابت‌ها ====================
+const difficultyLabels: Record<string, string> = {
+  easy: "آسان",
+  medium: "متوسط",
+  hard: "سخت",
+  tricky: "مفهومی",
+};
+
+const difficultyBorder: Record<string, string> = {
+  easy: "border-sky-500/50",
+  medium: "border-gray-200 dark:border-white/15",
+  hard: "border-rose-500/50",
+  tricky: "border-amber-500/50",
+};
+
+const difficultyGlow: Record<string, string> = {
+  easy: "shadow-sky-500/10",
+  medium: "",
+  hard: "shadow-rose-500/10",
+  tricky: "shadow-amber-500/10",
+};
+
+const difficultyBadge: Record<string, { bg: string; text: string }> = {
+  easy: { bg: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400" },
+  medium: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+  },
+  hard: { bg: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400" },
+  tricky: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+  },
+};
+
+// ==================== کامپوننت اصلی ====================
 const AttemptReview = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [review, setReview] = useState<AttemptReviewResponse | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-
+  // ==================== Fetch ====================
   useEffect(() => {
-    const fetchReview = async () => {
-      if (!id) return;
+    if (!id) return;
 
+    const fetchReview = async () => {
       try {
         const data = await getAttemptReview(id);
-
-        console.log("ATTEMPT REVIEW RESPONSE:", data);
-
         setReview(data);
-      } catch (error) {
-        console.error("GET ATTEMPT REVIEW ERROR:", error);
-
+      } catch (err) {
+        console.error("GET ATTEMPT REVIEW ERROR:", err);
         setError("دریافت مرور آزمون با مشکل مواجه شد.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReview();
+    void fetchReview();
   }, [id]);
 
+  // ==================== کیبورد ====================
+  useEffect(() => {
+    if (selectedIndex === null || !review) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedIndex(null);
+      if (e.key === "ArrowRight")
+        setSelectedIndex((prev) =>
+          prev !== null && prev > 0 ? prev - 1 : prev,
+        );
+      if (e.key === "ArrowLeft")
+        setSelectedIndex((prev) =>
+          prev !== null && prev < review.questions.length - 1
+            ? prev + 1
+            : prev,
+        );
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [selectedIndex, review]);
+
+  // ==================== Loading ====================
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#080B12]">
-        <p className="dark:text-white">
-          در حال دریافت مرور آزمون...
-        </p>
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="text-center space-y-4">
+          <div className="relative inline-flex">
+            <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-50 animate-pulse" />
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center">
+              <LoaderCircle size={28} className="text-white animate-spin" />
+            </div>
+          </div>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
+            در حال دریافت پاسخنامه...
+          </p>
+        </div>
       </main>
     );
   }
 
+  // ==================== Error ====================
   if (error || !review) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#080B12]">
-        <p className="text-red-500">
-          {error || "اطلاعات مرور آزمون پیدا نشد."}
-        </p>
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-md w-full rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+          <AlertCircle size={32} className="mx-auto text-rose-500 mb-3" />
+          <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-4">
+            {error || "اطلاعات مرور آزمون پیدا نشد"}
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-2.5 text-xs font-black text-white shadow-lg"
+          >
+            <ArrowRight size={13} />
+            بازگشت
+          </button>
+        </div>
       </main>
     );
   }
 
-  if (review.questions.length === 0) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#080B12]">
-        <p className="dark:text-white">
-          سؤالی برای مرور وجود ندارد.
-        </p>
-      </main>
-    );
-  }
+  // ==================== آمار ====================
+  const total = review.questions.length;
+  const correct = review.questions.filter((q) => q.isCorrect).length;
+  const unanswered = review.questions.filter(
+    (q) => q.selectedAnswer === null,
+  ).length;
+  const wrong = total - correct - unanswered;
 
-  const question: AttemptReviewQuestion =
-    review.questions[currentQuestion];
-
-  const isUnanswered = question.selectedAnswer === null;
+  const selectedQuestion =
+    selectedIndex !== null ? review.questions[selectedIndex] : null;
 
   return (
-    <main
-      className="
-        min-h-screen
-        px-6
-        py-10
-        bg-gray-50
-        dark:bg-[#080B12]
-      "
-    >
-      <div className="max-w-5xl mx-auto">
-
-        {/* Header */}
-
-        <div
-          className="
-            mb-8
-            flex
-            items-center
-            justify-between
-            gap-4
-          "
-        >
-          <div>
-            <h1
-              className="
-                text-2xl
-                font-bold
-                dark:text-white
-              "
-            >
-              مرور آزمون
-            </h1>
-
-            <p
-              className="
-                mt-2
-                text-sm
-                text-gray-500
-                dark:text-gray-400
-              "
-            >
-              {review.exam.title}
-            </p>
-          </div>
-
+    <div className="min-h-screen bg-[#F8F9FB] dark:bg-[#080B12] pb-32">
+      {/* ==================== HEADER ==================== */}
+      <header className="sticky top-0 z-30 border-b border-gray-200 dark:border-white/10 bg-white/90 dark:bg-[#080B12]/90 backdrop-blur-lg">
+        <div className="mx-auto max-w-3xl px-4 py-3 flex items-center gap-3">
           <button
-            type="button"
             onClick={() => navigate(`/attempts/${review.attemptId}/result`)}
-            className="
-              flex
-              items-center
-              gap-2
-              rounded-xl
-              px-4
-              py-2
-              bg-white
-              dark:bg-white/10
-              dark:text-white
-              border
-              border-gray-200
-              dark:border-gray-700
-              hover:border-[var(--griffin-gold)]
-              transition
-            "
+            className="group inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-2 text-xs font-black text-gray-700 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] transition-all shrink-0"
           >
-            <ArrowRight size={18} />
-
-            نتیجه آزمون
-          </button>
-        </div>
-
-        {/* Question Navigation */}
-
-        <div
-          className="
-            mb-6
-            rounded-3xl
-            p-5
-            bg-white/40
-            dark:bg-white/10
-            backdrop-blur-xl
-            border
-            border-white/20
-            shadow-lg
-          "
-        >
-          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-            انتخاب سؤال
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            {review.questions.map((item, index) => {
-              const unanswered = item.selectedAnswer === null;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setCurrentQuestion(index)}
-                  className={`
-                    h-10
-                    w-10
-                    rounded-xl
-                    text-sm
-                    font-semibold
-                    transition
-
-                    ${
-                      currentQuestion === index
-                        ? "bg-[var(--griffin-gold)] text-white"
-                        : unanswered
-                          ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                          : item.isCorrect
-                            ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
-                            : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                    }
-                  `}
-                >
-                  {index + 1}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Question */}
-
-        <div
-          className="
-            rounded-3xl
-            p-8
-            bg-white/50
-            dark:bg-white/10
-            backdrop-blur-xl
-            border
-            border-white/20
-            shadow-lg
-          "
-        >
-
-          {/* Question Header */}
-
-          <div
-            className="
-              flex
-              items-center
-              justify-between
-              gap-4
-              mb-6
-            "
-          >
-            <span
-              className="
-                text-sm
-                text-[var(--griffin-gold)]
-              "
-            >
-              سؤال {currentQuestion + 1}
-            </span>
-
-            <span
-              className="
-                text-xs
-                text-gray-500
-                dark:text-gray-400
-              "
-            >
-              درجه سختی: {question.difficulty}
-            </span>
-          </div>
-
-          {/* Result Status */}
-
-          <div className="mb-6">
-
-            {isUnanswered ? (
-              <div
-                className="
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-full
-                  px-4
-                  py-2
-                  bg-gray-100
-                  dark:bg-gray-800
-                  text-gray-600
-                  dark:text-gray-300
-                  text-sm
-                "
-              >
-                <MinusCircle size={18} />
-
-                بدون پاسخ
-              </div>
-            ) : question.isCorrect ? (
-              <div
-                className="
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-full
-                  px-4
-                  py-2
-                  bg-green-100
-                  dark:bg-green-900/30
-                  text-green-600
-                  dark:text-green-400
-                  text-sm
-                "
-              >
-                <CheckCircle2 size={18} />
-
-                پاسخ صحیح
-              </div>
-            ) : (
-              <div
-                className="
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-full
-                  px-4
-                  py-2
-                  bg-red-100
-                  dark:bg-red-900/30
-                  text-red-600
-                  dark:text-red-400
-                  text-sm
-                "
-              >
-                <XCircle size={18} />
-
-                پاسخ اشتباه
-              </div>
-            )}
-
-          </div>
-
-          {/* Question Text */}
-
-          <div
-            className="
-              text-lg
-              leading-8
-              font-semibold
-              dark:text-white
-            "
-          >
-            <MathText content={question.questionText} />
-          </div>
-
-          {/* Question Image */}
-
-          {question.questionImage && (
-            <img
-              src={question.questionImage}
-              alt="تصویر سؤال"
-              className="
-                mt-6
-                max-h-80
-                mx-auto
-                rounded-xl
-                object-contain
-              "
+            <ArrowRight
+              size={14}
+              className="transition-transform group-hover:translate-x-0.5"
             />
-          )}
+            بازگشت
+          </button>
 
-          {/* Options */}
-
-          <div className="mt-8 grid gap-4">
-
-            {question.options.map((option, index) => {
-
-              const isCorrectAnswer =
-                question.correctAnswer === index;
-
-              const isSelectedAnswer =
-                question.selectedAnswer === index;
-
-              return (
-                <div
-                  key={index}
-                  className={`
-                    w-full
-                    rounded-2xl
-                    border
-                    px-5
-                    py-4
-                    text-right
-
-                    ${
-                      isCorrectAnswer
-                        ? `
-                          border-green-500
-                          bg-green-500/10
-                        `
-                        : isSelectedAnswer
-                          ? `
-                            border-red-500
-                            bg-red-500/10
-                          `
-                          : `
-                            border-gray-200
-                            dark:border-gray-700
-                          `
-                    }
-                  `}
-                >
-
-                  <div className="flex items-center gap-3">
-
-                    <span className="font-semibold dark:text-white">
-                      {index + 1}.
-                    </span>
-
-                    <span className="dark:text-gray-200">
-                      <MathText content={option} />
-                    </span>
-
-                    <div className="mr-auto">
-
-                      {isCorrectAnswer && (
-                        <CheckCircle2
-                          size={20}
-                          className="text-green-500"
-                        />
-                      )}
-
-                      {isSelectedAnswer && !isCorrectAnswer && (
-                        <XCircle
-                          size={20}
-                          className="text-red-500"
-                        />
-                      )}
-
-                    </div>
-
-                  </div>
-
-                </div>
-              );
-            })}
-
-          </div>
-
-          {/* Explanation */}
-
-          {question.explanation && (
-            <div
-              className="
-                mt-8
-                rounded-2xl
-                p-5
-                bg-gray-100/70
-                dark:bg-black/20
-              "
-            >
-              <h3
-                className="
-                  font-bold
-                  dark:text-white
-                "
-              >
-                توضیح پاسخ
-              </h3>
-
-              <p
-                className="
-                  mt-3
-                  leading-8
-                  text-gray-600
-                  dark:text-gray-300
-                "
-              >
-                {question.explanation}
-              </p>
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex items-center gap-1.5">
+              <Sparkles size={10} className="text-[var(--griffin-gold)]" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                Answer Sheet
+              </span>
             </div>
-          )}
-
-          {/* Lesson / Chapter */}
-
-          <div
-            className="
-              mt-6
-              flex
-              flex-wrap
-              gap-3
-              text-sm
-            "
-          >
-            <span
-              className="
-                rounded-full
-                px-4
-                py-2
-                bg-white/60
-                dark:bg-white/10
-                dark:text-gray-300
-              "
-            >
-              درس: {question.lesson}
-            </span>
-
-            <span
-              className="
-                rounded-full
-                px-4
-                py-2
-                bg-white/60
-                dark:bg-white/10
-                dark:text-gray-300
-              "
-            >
-              فصل: {question.chapter}
-            </span>
+            <h1 className="font-heading text-sm font-black text-gray-900 dark:text-white -mt-0.5 truncate">
+              پاسخنامه
+            </h1>
           </div>
 
+          <div className="shrink-0 flex items-center gap-2">
+            <StatPill
+              icon={CheckCircle2}
+              value={correct}
+              color="text-emerald-600 dark:text-emerald-400"
+              bg="bg-emerald-500/10"
+            />
+            <StatPill
+              icon={XCircle}
+              value={wrong}
+              color="text-rose-600 dark:text-rose-400"
+              bg="bg-rose-500/10"
+            />
+            <StatPill
+              icon={MinusCircle}
+              value={unanswered}
+              color="text-gray-600 dark:text-gray-400"
+              bg="bg-gray-500/10"
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* ==================== محتوا ==================== */}
+      <div className="mx-auto max-w-3xl px-4 py-5 space-y-5">
+        <div className="text-center">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {review.exam.title}
+          </p>
         </div>
 
-        {/* Navigation */}
-
-        <div
-          className="
-            mt-6
-            flex
-            items-center
-            justify-between
-          "
-        >
-
-          <button
-            type="button"
-            disabled={currentQuestion === 0}
-            onClick={() =>
-              setCurrentQuestion((prev) => prev - 1)
-            }
-            className="
-              rounded-xl
-              px-6
-              py-3
-              bg-white
-              dark:bg-white/10
-              dark:text-white
-              disabled:opacity-40
-            "
-          >
-            سؤال قبل
-          </button>
-
-          <span
-            className="
-              text-sm
-              text-gray-500
-              dark:text-gray-400
-            "
-          >
-            {currentQuestion + 1} / {review.questions.length}
+        {/* راهنما */}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+            صحیح
           </span>
-
-          <button
-            type="button"
-            disabled={
-              currentQuestion === review.questions.length - 1
-            }
-            onClick={() =>
-              setCurrentQuestion((prev) => prev + 1)
-            }
-            className="
-              rounded-xl
-              px-6
-              py-3
-              bg-[var(--griffin-gold)]
-              text-white
-              hover:opacity-90
-              disabled:opacity-40
-            "
-          >
-            سؤال بعد
-          </button>
-
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-rose-500" />
+            اشتباه
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm border border-gray-300 dark:border-white/20" />
+            نزده
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Flag size={9} className="text-amber-500" fill="currentColor" />
+            علامت‌دار
+          </span>
         </div>
 
+        {/* ==================== پاسخنامه ==================== */}
+        <div className="flex flex-col items-start gap-2">
+          {review.questions.map((question, index) => (
+            <AnswerRow
+              key={question.id}
+              question={question}
+              index={index}
+              isSelected={selectedIndex === index}
+              onClick={() => setSelectedIndex(index)}
+            />
+          ))}
+        </div>
       </div>
-    </main>
+
+      {/* ==================== کارت جزئیات (fixed bottom) ==================== */}
+      {selectedQuestion && selectedIndex !== null && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 animate-[slideUp_0.3s_ease-out]">
+          <div className="mx-auto max-w-3xl">
+            <QuestionDetailDock
+              question={selectedQuestion}
+              index={selectedIndex}
+              total={total}
+              onClose={() => setSelectedIndex(null)}
+              onPrev={() =>
+                setSelectedIndex((prev) =>
+                  prev !== null && prev > 0 ? prev - 1 : prev,
+                )
+              }
+              onNext={() =>
+                setSelectedIndex((prev) =>
+                  prev !== null && prev < total - 1 ? prev + 1 : prev,
+                )
+              }
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
 export default AttemptReview;
+
+// ==================== StatPill ====================
+interface StatPillProps {
+  icon: React.ComponentType<{ size: number; className: string }>;
+  value: number;
+  color: string;
+  bg: string;
+}
+
+const StatPill = ({ icon: Icon, value, color, bg }: StatPillProps) => (
+  <div
+    className={`inline-flex items-center gap-1 rounded-lg ${bg} px-2 py-1.5`}
+  >
+    <Icon size={11} className={color} />
+    <span
+      className={`font-heading text-xs font-black tabular-nums ${color}`}
+    >
+      {value.toLocaleString("fa-IR")}
+    </span>
+  </div>
+);
+
+// ==================== AnswerRow ====================
+interface AnswerRowProps {
+  question: {
+    id: string;
+    selectedAnswer: number | null;
+    correctAnswer: number;
+    isCorrect: boolean;
+    isFlagged: boolean;
+    difficulty: string;
+  };
+  index: number;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+const AnswerRow = ({
+  question,
+  index,
+  isSelected,
+  onClick,
+}: AnswerRowProps) => {
+  const optionCount = 4;
+  const isUnanswered = question.selectedAnswer === null;
+
+  const borderClass =
+    difficultyBorder[question.difficulty] || difficultyBorder.medium;
+  const glowClass = difficultyGlow[question.difficulty] || "";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        group relative rounded-md border ${borderClass} ${glowClass}
+        bg-white dark:bg-white/[0.03]
+        flex items-center gap-1.5
+        hover:-translate-y-0.5 hover:shadow-md
+        transition-all duration-200
+        ${isSelected ? "ring-2 ring-[var(--griffin-gold)] ring-offset-1 ring-offset-[#F8F9FB] dark:ring-offset-[#080B12]" : ""}
+        ${isUnanswered ? "opacity-80" : ""}
+      `}
+      style={{ padding: "5px 7px" }}
+    >
+      {/* شماره سوال */}
+      <div className="relative shrink-0">
+        <div
+          className={`
+            flex items-center justify-center font-heading font-black tabular-nums rounded-md
+            ${
+              isUnanswered
+                ? "bg-gray-500/10 text-gray-500 dark:text-gray-400 border border-gray-500/30"
+                : question.isCorrect
+                  ? "bg-emerald-500 text-white"
+                  : "bg-rose-500 text-white"
+            }
+          `}
+          style={{ width: "20px", height: "20px", fontSize: "10px" }}
+        >
+          {(index + 1).toLocaleString("fa-IR")}
+        </div>
+
+        {question.isFlagged && (
+          <span
+            className="absolute rounded-full bg-amber-500 border border-white dark:border-[#080B12] flex items-center justify-center"
+            style={{
+              width: "8px",
+              height: "8px",
+              top: "-2px",
+              right: "-2px",
+            }}
+          >
+            <Star size={4} className="text-white" fill="currentColor" />
+          </span>
+        )}
+      </div>
+
+      {/* مربع‌های گزینه‌ها — خیلی کوچیک */}
+      <div className="flex items-center" style={{ gap: "3px" }}>
+        {Array.from({ length: optionCount }).map((_, optIndex) => {
+          const isCorrect = optIndex === question.correctAnswer;
+          const isSelected = optIndex === question.selectedAnswer;
+
+          return (
+            <span
+              key={optIndex}
+              className={`
+                rounded-[2px] transition-all duration-200
+                ${
+                  isCorrect
+                    ? "bg-emerald-500"
+                    : isSelected
+                      ? "bg-rose-500"
+                      : "border border-gray-300 dark:border-white/25 bg-transparent"
+                }
+              `}
+              style={{ width: "8px", height: "8px" }}
+            />
+          );
+        })}
+      </div>
+    </button>
+  );
+};
+
+// ==================== QuestionDetailDock ====================
+interface QuestionDetailDockProps {
+  question: {
+    id: string;
+    questionText: string;
+    questionImage: string;
+    options: string[];
+    selectedAnswer: number | null;
+    correctAnswer: number;
+    isCorrect: boolean;
+    isFlagged: boolean;
+    explanation: string;
+    difficulty: string;
+    lesson: string;
+    chapter: string;
+  };
+  index: number;
+  total: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+const QuestionDetailDock = ({
+  question,
+  index,
+  total,
+  onClose,
+  onPrev,
+  onNext,
+}: QuestionDetailDockProps) => {
+  const isUnanswered = question.selectedAnswer === null;
+
+  const status = isUnanswered
+    ? {
+        label: "بدون پاسخ",
+        color: "text-gray-600 dark:text-gray-400",
+        bg: "bg-gray-500/10",
+        border: "border-gray-500/30",
+        icon: MinusCircle,
+      }
+    : question.isCorrect
+      ? {
+          label: "پاسخ صحیح",
+          color: "text-emerald-600 dark:text-emerald-400",
+          bg: "bg-emerald-500/10",
+          border: "border-emerald-500/30",
+          icon: CheckCircle2,
+        }
+      : {
+          label: "پاسخ اشتباه",
+          color: "text-rose-600 dark:text-rose-400",
+          bg: "bg-rose-500/10",
+          border: "border-rose-500/30",
+          icon: XCircle,
+        };
+
+  const StatusIcon = status.icon;
+  const diffBadge =
+    difficultyBadge[question.difficulty] || difficultyBadge.medium;
+
+  return (
+    <div className="relative rounded-t-3xl border-t-2 border-x-2 border-[var(--griffin-gold)]/40 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl">
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+
+      {/* ==================== HEADER ==================== */}
+      <div className="relative px-4 py-3 border-b border-gray-200/70 dark:border-white/5">
+        <div className="flex items-center gap-3">
+          <div
+            className={`shrink-0 w-9 h-9 rounded-xl ${status.bg} border ${status.border} flex items-center justify-center ${status.color} font-heading font-black text-sm tabular-nums`}
+          >
+            {(index + 1).toLocaleString("fa-IR")}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black ${status.bg} ${status.color} border ${status.border}`}
+              >
+                <StatusIcon size={10} />
+                {status.label}
+              </span>
+
+              {/* 🆕 برچسب سختی */}
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black ${diffBadge.bg} ${diffBadge.text}`}
+              >
+                <Zap size={10} />
+                {difficultyLabels[question.difficulty] || question.difficulty}
+              </span>
+
+              {question.isFlagged && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <Star size={10} fill="currentColor" />
+                  علامت‌دار
+                </span>
+              )}
+            </div>
+
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+              سوال {(index + 1).toLocaleString("fa-IR")} از{" "}
+              {total.toLocaleString("fa-IR")}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-rose-500/15 hover:text-rose-500 transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* ==================== محتوا ==================== */}
+      <div className="relative max-h-[50vh] overflow-y-auto p-4 space-y-3">
+        {/* صورت سوال */}
+        <div className="rounded-2xl bg-white/60 dark:bg-white/[0.02] border border-gray-200 dark:border-white/10 p-3.5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">
+            صورت سوال
+          </p>
+          <div className="text-sm leading-7 font-semibold text-gray-900 dark:text-white">
+            <MathText content={question.questionText} />
+          </div>
+
+          {question.questionImage && (
+            <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-2">
+              <img
+                src={question.questionImage}
+                alt="تصویر سوال"
+                className="max-h-60 w-full rounded-lg object-contain mx-auto"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* گزینه‌ها */}
+        <div className="space-y-2">
+          {question.options.map((option, optIndex) => {
+            const isCorrectAnswer = question.correctAnswer === optIndex;
+            const isSelectedAnswer = question.selectedAnswer === optIndex;
+            const letter = String.fromCharCode(65 + optIndex);
+
+            return (
+              <div
+                key={optIndex}
+                className={`
+                  rounded-xl border-2 p-2.5 transition-all
+                  ${
+                    isCorrectAnswer
+                      ? "border-emerald-500/50 bg-gradient-to-l from-emerald-500/10 via-emerald-500/5 to-transparent"
+                      : isSelectedAnswer
+                        ? "border-rose-500/50 bg-gradient-to-l from-rose-500/10 via-rose-500/5 to-transparent"
+                        : "border-gray-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.02]"
+                  }
+                `}
+              >
+                <div className="flex items-start gap-2.5">
+                  <div
+                    className={`
+                      shrink-0 w-6 h-6 rounded-md flex items-center justify-center font-heading font-black text-[11px]
+                      ${
+                        isCorrectAnswer
+                          ? "bg-emerald-500 text-white"
+                          : isSelectedAnswer
+                            ? "bg-rose-500 text-white"
+                            : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
+                      }
+                    `}
+                  >
+                    {letter}
+                  </div>
+
+                  <div className="min-w-0 flex-1 pt-0.5 text-xs leading-6 text-gray-900 dark:text-white">
+                    <MathText content={option} />
+                  </div>
+
+                  <div className="shrink-0 mt-0.5">
+                    {isCorrectAnswer && (
+                      <CheckCircle2
+                        size={14}
+                        className="text-emerald-500"
+                        strokeWidth={2.5}
+                      />
+                    )}
+                    {isSelectedAnswer && !isCorrectAnswer && (
+                      <XCircle
+                        size={14}
+                        className="text-rose-500"
+                        strokeWidth={2.5}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* پاسخ تشریحی */}
+        {question.explanation && (
+          <div className="relative rounded-2xl overflow-hidden border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-amber-500/5 to-transparent p-3.5">
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30 flex items-center justify-center text-[var(--griffin-gold)]">
+                <Lightbulb size={12} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                  Explanation
+                </p>
+                <p className="font-heading text-[11px] font-black text-gray-900 dark:text-white -mt-0.5">
+                  پاسخ تشریحی
+                </p>
+              </div>
+            </div>
+
+            <div className="leading-7 text-xs text-gray-700 dark:text-gray-200">
+              <MathText content={question.explanation} />
+            </div>
+          </div>
+        )}
+
+        {/* متادیتا */}
+        <div className="flex flex-wrap gap-1.5 pb-1">
+          {question.lesson && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black">
+              <GraduationCap size={10} />
+              {question.lesson}
+            </span>
+          )}
+          {question.chapter && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-black">
+              <FileText size={10} />
+              {question.chapter}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ==================== FOOTER ==================== */}
+      <div className="relative px-4 py-3 border-t border-gray-200/70 dark:border-white/5 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onPrev}
+          disabled={index === 0}
+          className="group inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-2 text-[11px] font-black text-gray-700 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-30 transition-all"
+        >
+          <ChevronRight
+            size={12}
+            className="transition-transform group-hover:translate-x-0.5"
+          />
+          قبلی
+        </button>
+
+        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 tabular-nums">
+          {(index + 1).toLocaleString("fa-IR")} /{" "}
+          {total.toLocaleString("fa-IR")}
+        </span>
+
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={index === total - 1}
+          className="group inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-3 py-2 text-[11px] font-black text-white shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg disabled:opacity-30 transition-all"
+        >
+          بعدی
+          <ChevronLeft
+            size={12}
+            className="transition-transform group-hover:-translate-x-0.5"
+          />
+        </button>
+      </div>
+    </div>
+  );
+};

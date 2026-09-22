@@ -20,11 +20,19 @@ export const getAttemptQuestions = async (attemptId: string) => {
 export const submitAnswer = async (
   attemptId: string,
   questionId: string,
-  selectedAnswer: number,
+  selectedAnswer: number | null, // 🆕 null = برداشتن جواب
 ) => {
   const response = await api.post(`/attempts/${attemptId}/answers`, {
     questionId,
     selectedAnswer,
+  });
+
+  return response.data;
+};
+
+export const toggleFlag = async (attemptId: string, questionId: string) => {
+  const response = await api.post(`/attempts/${attemptId}/flag`, {
+    questionId,
   });
 
   return response.data;

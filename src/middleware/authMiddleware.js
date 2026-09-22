@@ -61,7 +61,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
     province: user.province,
 
-    role: user.role.name,
+    role: user.role?.name,
   };
 
   next();

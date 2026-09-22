@@ -1,26 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   ArrowRight,
+  Award,
   BookOpen,
+  Calendar,
   Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Copy,
+  Eye,
+  FileQuestion,
   GripVertical,
+  Layers,
+  LoaderCircle,
   Pencil,
   Plus,
   Save,
   Search,
   Send,
+  Sparkles,
   Trash2,
+  Wand2,
   X,
-  XCircle,
+  Zap,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   addBookletQuestions,
   createBooklet,
+  deleteBooklet, // 🆕
   duplicateBooklet,
   getBooklet,
   getBooklets,
@@ -35,6 +46,7 @@ import {
 import { getQuestions, type Question } from "../../api/questionApi";
 import MathText from "../../components/questions/MathText";
 
+// ==================== ثابت‌ها ====================
 const statusLabels: Record<BookletStatus, string> = {
   draft: "پیش‌نویس",
   review: "در حال بررسی",
@@ -42,11 +54,30 @@ const statusLabels: Record<BookletStatus, string> = {
   archived: "آرشیو",
 };
 
-const statusClasses: Record<BookletStatus, string> = {
-  draft: "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-200",
-  review: "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300",
-  published: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300",
-  archived: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+const statusStyles: Record<
+  BookletStatus,
+  { bg: string; text: string; dot: string }
+> = {
+  draft: {
+    bg: "bg-gray-500/10",
+    text: "text-gray-500 dark:text-gray-400",
+    dot: "bg-gray-400",
+  },
+  review: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500",
+  },
+  published: {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500",
+  },
+  archived: {
+    bg: "bg-slate-500/10",
+    text: "text-slate-500 dark:text-slate-400",
+    dot: "bg-slate-400",
+  },
 };
 
 const emptyForm: BookletPayload = {
@@ -62,18 +93,37 @@ const emptyForm: BookletPayload = {
 const formatDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" });
+  return date.toLocaleString("fa-IR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 };
 
+const majorLabels: Record<string, string> = {
+  math: "ریاضی",
+  experimental: "تجربی",
+  humanities: "انسانی",
+};
+
+const gradeLabels: Record<string, string> = {
+  "10": "دهم",
+  "11": "یازدهم",
+  "12": "دوازدهم",
+};
+
+// ==================== کامپوننت ====================
 const BookletBuilder = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const editing = Boolean(id && id !== "new");
+
+  // ==================== State ====================
   const [booklet, setBooklet] = useState<Booklet | null>(null);
   const [form, setForm] = useState<BookletPayload>(emptyForm);
   const [booklets, setBooklets] = useState<Booklet[]>([]);
   const [loading, setLoading] = useState(editing);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null); // 🆕
   const [error, setError] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -83,16 +133,27 @@ const BookletBuilder = () => {
   const [pickerTotalPages, setPickerTotalPages] = useState(1);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerSelected, setPickerSelected] = useState<string[]>([]);
-  const [pendingSelectedQuestions, setPendingSelectedQuestions] = useState<Question[]>([]);
+  const [pendingSelectedQuestions, setPendingSelectedQuestions] = useState<
+    Question[]
+  >([]);
   const [questionBusy, setQuestionBusy] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  const currentQuestionIds = useMemo(() => new Set((booklet?.questions ?? []).map((item) => item.questionId)), [booklet]);
+  const currentQuestionIds = useMemo(
+    () => new Set((booklet?.questions ?? []).map((item) => item.questionId)),
+    [booklet],
+  );
 
+  // ==================== Load ====================
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!id) {
-        void getBooklets({ page: 1, limit: 8, sort: "updatedAt", order: "desc" })
+        void getBooklets({
+          page: 1,
+          limit: 30,
+          sort: "updatedAt",
+          order: "desc",
+        })
           .then((result) => setBooklets(result.booklets))
           .catch(() => setError("دریافت دفترچه‌ها انجام نشد."))
           .finally(() => setLoading(false));
@@ -125,14 +186,46 @@ const BookletBuilder = () => {
     return () => window.clearTimeout(timer);
   }, [id]);
 
+  // ==================== Helpers ====================
   const getApiErrorMessage = (error: unknown, fallback: string) => {
-    const response = (error as { response?: { data?: { message?: string; errors?: string[] } } })?.response;
+    const response = (
+      error as {
+        response?: { data?: { message?: string; errors?: string[] } };
+      }
+    )?.response;
     const message = response?.data?.message;
     const errors = response?.data?.errors;
     if (Array.isArray(errors) && errors.length) return errors.join("\n");
     return message || fallback;
   };
 
+  // 🆕 حذف دفترچه
+  const removeBooklet = async (item: Booklet) => {
+    if (
+      !window.confirm(
+        `آیا از حذف دفترچه «${item.title}» مطمئن هستید؟ این عمل قابل بازگشت نیست.`,
+      )
+    )
+      return;
+
+    setDeletingId(item.id);
+    setError("");
+    try {
+      await deleteBooklet(item.id);
+      setBooklets((current) => current.filter((x) => x.id !== item.id));
+    } catch (err) {
+      setError(
+        getApiErrorMessage(
+          err,
+          "حذف دفترچه انجام نشد. ممکنه این دفترچه در آزمونی استفاده شده باشه.",
+        ),
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // ==================== Picker ====================
   const loadPicker = async (page = pickerPage) => {
     setPickerLoading(true);
     try {
@@ -148,7 +241,9 @@ const BookletBuilder = () => {
       setPickerTotalPages(result.pagination.totalPages);
       setPickerPage(result.pagination.page);
     } catch (error) {
-      setError(getApiErrorMessage(error, "دریافت سؤال‌های منتشرشده انجام نشد."));
+      setError(
+        getApiErrorMessage(error, "دریافت سؤال‌های منتشرشده انجام نشد."),
+      );
     } finally {
       setPickerLoading(false);
     }
@@ -169,26 +264,39 @@ const BookletBuilder = () => {
         ? current.filter((item) => item !== question.id)
         : [...current, question.id];
     });
-    setPendingSelectedQuestions((current) => current.some((item) => item.id === question.id)
-      ? current.filter((item) => item.id !== question.id)
-      : [...current, question]);
+    setPendingSelectedQuestions((current) =>
+      current.some((item) => item.id === question.id)
+        ? current.filter((item) => item.id !== question.id)
+        : [...current, question],
+    );
   };
 
   const removePendingQuestion = (questionId: string) => {
-    setPickerSelected((current) => current.filter((item) => item !== questionId));
-    setPendingSelectedQuestions((current) => current.filter((item) => item.id !== questionId));
+    setPickerSelected((current) =>
+      current.filter((item) => item !== questionId),
+    );
+    setPendingSelectedQuestions((current) =>
+      current.filter((item) => item.id !== questionId),
+    );
     setForm((current) => ({
       ...current,
-      questionIds: (current.questionIds ?? []).filter((item) => item !== questionId),
+      questionIds: (current.questionIds ?? []).filter(
+        (item) => item !== questionId,
+      ),
     }));
   };
 
+  // ==================== Save ====================
   const saveMetadata = async () => {
     const validationError =
-      form.title.trim().length < 2 ? "عنوان دفترچه را وارد کنید."
-        : form.lesson.trim().length < 2 ? "درس را وارد کنید."
-          : !form.examDate ? "تاریخ دفترچه را مشخص کنید."
-            : !Number.isInteger(form.duration) || form.duration < 1 ? "مدت آزمون معتبر نیست."
+      form.title.trim().length < 2
+        ? "عنوان دفترچه را وارد کنید."
+        : form.lesson.trim().length < 2
+          ? "درس را وارد کنید."
+          : !form.examDate
+            ? "تاریخ دفترچه را مشخص کنید."
+            : !Number.isInteger(form.duration) || form.duration < 1
+              ? "مدت آزمون معتبر نیست."
               : "";
 
     if (validationError) {
@@ -233,6 +341,7 @@ const BookletBuilder = () => {
     }
   };
 
+  // ==================== Questions ====================
   const addSelectedQuestions = async () => {
     if (!pickerSelected.length || questionBusy) return;
     setQuestionBusy(true);
@@ -241,20 +350,32 @@ const BookletBuilder = () => {
       if (!booklet) {
         setForm((current) => ({
           ...current,
-          questionIds: [...new Set([...(current.questionIds ?? []), ...pickerSelected])],
+          questionIds: [
+            ...new Set([...(current.questionIds ?? []), ...pickerSelected]),
+          ],
         }));
         setPendingSelectedQuestions([]);
         setPickerSelected([]);
         setPickerOpen(false);
         return;
       }
-      const updated = await addBookletQuestions(booklet.id, pickerSelected.filter((questionId) => !currentQuestionIds.has(questionId)));
+      const updated = await addBookletQuestions(
+        booklet.id,
+        pickerSelected.filter(
+          (questionId) => !currentQuestionIds.has(questionId),
+        ),
+      );
       setBooklet(updated);
       setPendingSelectedQuestions([]);
       setPickerSelected([]);
       setPickerOpen(false);
     } catch (error) {
-      setError(getApiErrorMessage(error, "افزودن سؤال‌ها انجام نشد. فقط سؤال‌های منتشرشده و غیرتکراری قابل افزودن هستند."));
+      setError(
+        getApiErrorMessage(
+          error,
+          "افزودن سؤال‌ها انجام نشد. فقط سؤال‌های منتشرشده و غیرتکراری قابل افزودن هستند.",
+        ),
+      );
     } finally {
       setQuestionBusy(false);
     }
@@ -278,10 +399,15 @@ const BookletBuilder = () => {
     const next = [...(booklet.questions ?? [])];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    setBooklet((current) => current ? { ...current, questions: next } : current);
+    setBooklet((current) =>
+      current ? { ...current, questions: next } : current,
+    );
     setQuestionBusy(true);
     try {
-      const updated = await reorderBookletQuestions(booklet.id, next.map((item) => item.questionId));
+      const updated = await reorderBookletQuestions(
+        booklet.id,
+        next.map((item) => item.questionId),
+      );
       setBooklet(updated);
     } catch (error) {
       setError(getApiErrorMessage(error, "تغییر ترتیب سؤال‌ها انجام نشد."));
@@ -298,6 +424,7 @@ const BookletBuilder = () => {
     setDraggedIndex(null);
   };
 
+  // ==================== Status ====================
   const changeStatus = async (status: BookletStatus) => {
     if (!booklet || saving) return;
     setSaving(true);
@@ -306,7 +433,12 @@ const BookletBuilder = () => {
       const updated = await setBookletStatus(booklet.id, status);
       setBooklet(updated);
     } catch (error) {
-      setError(getApiErrorMessage(error, "تغییر وضعیت دفترچه انجام نشد. دفترچه باید شرایط وضعیت جدید را داشته باشد."));
+      setError(
+        getApiErrorMessage(
+          error,
+          "تغییر وضعیت دفترچه انجام نشد. دفترچه باید شرایط وضعیت جدید را داشته باشد.",
+        ),
+      );
     } finally {
       setSaving(false);
     }
@@ -326,102 +458,1091 @@ const BookletBuilder = () => {
   };
 
   const pendingNewQuestions = (form.questionIds ?? []).length;
-  const displayedQuestionCount = booklet ? (booklet.questions ?? []).length : pendingNewQuestions;
+  const displayedQuestionCount = booklet
+    ? (booklet.questions ?? []).length
+    : pendingNewQuestions;
 
+  // ==================== Loading ====================
   if (loading) {
-    return <main className="grid min-h-screen place-items-center bg-gray-50 dark:bg-[#080B12]">در حال دریافت دفترچه...</main>;
-  }
-
-  if (!id) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-8 dark:bg-[#080B12] sm:px-6">
-        <div className="mx-auto max-w-6xl space-y-6">
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-500">مدیریت محتوای آزمون</p>
-              <h1 className="mt-1 text-3xl font-bold">دفترچه‌ها</h1>
-              <p className="mt-2 text-sm text-gray-500">دفترچه بسازید، سؤال‌های منتشرشده را انتخاب کنید و ترتیب آن‌ها را مدیریت کنید.</p>
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="text-center space-y-4">
+          <div className="relative inline-flex">
+            <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-50 animate-pulse" />
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center">
+              <LoaderCircle size={28} className="text-white animate-spin" />
             </div>
-            <button onClick={() => navigate("/booklet-builder/new")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-5 py-3 font-semibold text-white"><Plus size={18} /> دفترچه جدید</button>
-          </header>
-          {error && <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">{error}</div>}
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {booklets.map((item) => (
-              <article key={item.id} className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#111722]">
-                <div className="flex items-start justify-between gap-3"><div><p className="text-xs text-gray-500">{item.lesson} · {item.grade} · {item.major}</p><h2 className="mt-1 text-lg font-bold">{item.title}</h2></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status]}`}>{statusLabels[item.status]}</span></div>
-                <div className="mt-5 grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-gray-50 p-3 dark:bg-white/5"><p className="text-xs text-gray-500">سؤال</p><p className="mt-1 font-semibold">{item._count?.questions ?? 0}</p></div><div className="rounded-xl bg-gray-50 p-3 dark:bg-white/5"><p className="text-xs text-gray-500">مدت</p><p className="mt-1 font-semibold">{item.duration} دقیقه</p></div></div>
-                <p className="mt-4 text-xs text-gray-500">آخرین ویرایش: {formatDate(item.updatedAt)}</p>
-                <button onClick={() => navigate(`/booklet-builder/${item.id}`)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5"><Pencil size={16} /> ویرایش و ساخت</button>
-              </article>
-            ))}
-          </section>
-          {!booklets.length && <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-gray-500 dark:border-white/10">هنوز دفترچه‌ای ساخته نشده است.</div>}
+          </div>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
+            در حال دریافت دفترچه...
+          </p>
         </div>
       </main>
     );
   }
 
-  return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8 dark:bg-[#080B12] sm:px-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <button onClick={() => navigate("/booklets")} className="mb-2 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[var(--griffin-gold)]"><ArrowRight size={16} /> بازگشت به دفترچه‌ها</button>
-            <h1 className="text-3xl font-bold">{booklet ? "ساخت و ویرایش دفترچه" : "دفترچه جدید"}</h1>
-            <p className="mt-2 text-sm text-gray-500">اطلاعات دفترچه را تنظیم کنید و سؤال‌های منتشرشده را به آن اضافه کنید.</p>
-          </div>
-          {booklet && <div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${statusClasses[booklet.status]}`}>{statusLabels[booklet.status]}</span><button onClick={() => setPreviewOpen(true)} className="rounded-xl border border-slate-200/70 bg-white px-4 py-2.5 text-sm font-semibold dark:border-white/10 dark:bg-[#111722]">پیش‌نمایش</button><button onClick={() => void duplicate()} disabled={saving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold disabled:opacity-50 dark:border-white/10"><Copy size={16} /> کپی</button></div>}
-        </header>
+  // ==================== List View ====================
+  if (!id) {
+    return (
+      <main className="min-h-screen px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-7xl space-y-6">
+          {/* Header */}
+          <header className="relative rounded-[2rem] overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-6 sm:p-8">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+            <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl pointer-events-none" />
 
-        {error && <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">{error}</div>}
-
-        <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
-          <aside className="space-y-5">
-            <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#111722]">
-              <div className="mb-4 flex items-center gap-2"><BookOpen size={19} className="text-[var(--griffin-gold)]" /><h2 className="font-semibold">اطلاعات دفترچه</h2></div>
-              <div className="space-y-3">
-                <input value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} placeholder="عنوان دفترچه *" className="w-full rounded-xl border border-slate-200/70 px-3 py-3 outline-none focus:border-[var(--griffin-gold)] dark:border-white/10 dark:bg-white/[0.02]" />
-                <input value={form.lesson} onChange={(e) => setForm((current) => ({ ...current, lesson: e.target.value }))} placeholder="درس *" className="w-full rounded-xl border border-slate-200/70 px-3 py-3 outline-none focus:border-[var(--griffin-gold)] dark:border-white/10 dark:bg-white/[0.02]" />
-                <div className="grid grid-cols-2 gap-3"><select value={form.grade} onChange={(e) => setForm((current) => ({ ...current, grade: e.target.value }))} className="rounded-xl border border-slate-200/70 px-3 py-3 dark:border-white/10 dark:bg-[#111722]"><option value="10">دهم</option><option value="11">یازدهم</option><option value="12">دوازدهم</option></select><select value={form.major} onChange={(e) => setForm((current) => ({ ...current, major: e.target.value }))} className="rounded-xl border border-slate-200/70 px-3 py-3 dark:border-white/10 dark:bg-[#111722]"><option value="math">ریاضی</option><option value="experimental">تجربی</option><option value="humanities">انسانی</option></select></div>
-                <label className="block text-xs text-gray-500">تاریخ دفترچه<input type="datetime-local" value={form.examDate} onChange={(e) => setForm((current) => ({ ...current, examDate: e.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200/70 px-3 py-3 text-sm dark:border-white/10 dark:bg-[#111722]" /></label>
-                <label className="block text-xs text-gray-500">مدت (دقیقه)<input type="number" min={1} max={600} value={form.duration} onChange={(e) => setForm((current) => ({ ...current, duration: Number(e.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-200/70 px-3 py-3 dark:border-white/10 dark:bg-white/[0.02]" /></label>
-              </div>
-              <button disabled={saving} onClick={() => void saveMetadata()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-4 py-3 font-semibold text-white disabled:opacity-50"><Save size={18} /> {saving ? "در حال ذخیره..." : "ذخیره اطلاعات"}</button>
-            </div>
-
-            {booklet && <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#111722]"><h2 className="mb-3 font-semibold">وضعیت دفترچه</h2><div className="grid gap-2">{booklet.status === "draft" && <button disabled={saving || !(booklet.questions ?? []).length} onClick={() => void changeStatus("review")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold disabled:opacity-40 dark:border-white/10"><Send size={16} /> ارسال برای بررسی</button>}{booklet.status === "review" && <button disabled={saving} onClick={() => void changeStatus("draft")} className="rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold disabled:opacity-40 dark:border-white/10">بازگشت به پیش‌نویس</button>}{booklet.status === "review" && <button disabled={saving || !(booklet.questions ?? []).length} onClick={() => void changeStatus("published")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"><Check size={16} /> انتشار</button>}{booklet.status === "published" && <button disabled={saving} onClick={() => void changeStatus("draft")} className="rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm font-semibold disabled:opacity-40 dark:border-white/10">ویرایش مجدد</button>}</div></div>}
-          </aside>
-
-          <section className="rounded-2xl border border-slate-200/70 bg-white shadow-sm dark:border-white/10 dark:bg-[#111722]">
-            <div className="flex flex-col gap-3 border-b border-slate-200/70 p-5 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">سؤال‌های دفترچه</h2><p className="mt-1 text-xs text-gray-500">{displayedQuestionCount.toLocaleString("fa-IR")} سؤال · با Drag & Drop ترتیب را تغییر دهید.</p></div><button disabled={Boolean(booklet?.status === "published") || questionBusy} onClick={openPicker} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"><Plus size={17} /> افزودن سؤال</button></div>
-            <div className="p-5">
-              {!booklet && pendingNewQuestions > 0 && <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">{pendingNewQuestions} سؤال برای ایجاد دفترچه انتخاب شده</p>
-                    <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-300/80">قبل از ذخیره هم می‌توانید انتخاب‌ها را بررسی یا حذف کنید.</p>
+            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-60 animate-pulse" />
+                  <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
+                    <BookOpen size={24} strokeWidth={2.3} />
                   </div>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {pendingSelectedQuestions.map((question, index) => <div key={question.id} className="flex items-center gap-3 rounded-xl border border-amber-200/80 bg-white/70 p-3 dark:border-amber-900/30 dark:bg-white/[0.03]">
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-100 text-xs font-bold text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{index + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold">{question.code}</p>
-                      <p className="truncate text-xs text-gray-500">{question.lesson} · {question.chapter}</p>
-                    </div>
-                    <button type="button" onClick={() => removePendingQuestion(question.id)} className="rounded-lg p-2 text-gray-500 hover:bg-white hover:text-red-500 dark:hover:bg-white/10"><Trash2 size={16} /></button>
-                  </div>)}
+                <div>
+                  <div className="inline-flex items-center gap-2 mb-1.5">
+                    <Sparkles
+                      size={11}
+                      className="text-[var(--griffin-gold)]"
+                    />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                      Booklet Management
+                    </span>
+                  </div>
+                  <h1 className="font-heading text-3xl font-black text-gray-900 dark:text-white">
+                    دفترچه‌ها
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    دفترچه بساز، سؤال‌های منتشرشده رو انتخاب کن و ترتیب رو
+                    مدیریت کن.
+                  </p>
                 </div>
-              </div>}
-              {(booklet?.questions ?? []).length ? <div className="space-y-3">{(booklet?.questions ?? []).map((item, index) => <div key={item.id} draggable={booklet?.status !== "published"} onDragStart={() => setDraggedIndex(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => handleDrop(index)} className="rounded-2xl border border-slate-200/70 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/[0.03]"><div className="flex items-start gap-3"><div className="mt-1 cursor-grab text-gray-400"><GripVertical size={20} /></div><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-sm font-bold shadow-sm dark:bg-white/10">{index + 1}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 text-xs text-gray-500"><span className="font-mono">{item.question.code}</span><span>·</span><span>{item.question.lesson}</span><span>·</span><span>{item.question.chapter}</span><span>·</span><span>{item.score} امتیاز</span></div><div className="mt-2 leading-7"><MathText content={item.question.questionText} /></div></div><button disabled={questionBusy || booklet?.status === "published"} onClick={() => void removeQuestion(item.questionId)} className="rounded-lg p-2 text-gray-500 hover:bg-white hover:text-red-500 disabled:opacity-30 dark:hover:bg-white/10"><Trash2 size={17} /></button></div></div>)}</div> : <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-slate-300 text-center dark:border-white/10"><div><BookOpen size={34} className="mx-auto text-gray-400" /><p className="mt-3 font-semibold">هنوز سؤالی اضافه نشده است</p><p className="mt-1 text-sm text-gray-500">از بانک سؤال، سؤال‌های منتشرشده را انتخاب کنید.</p></div></div>}
+              </div>
+
+              <button
+                onClick={() => navigate("/booklet-builder/new")}
+                className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 transition-all overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <Plus size={17} strokeWidth={2.5} />
+                  دفترچه جدید
+                </span>
+                <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+            </div>
+          </header>
+
+          {/* Error */}
+          {error && (
+            <div className="relative rounded-2xl overflow-hidden border border-rose-500/30 bg-gradient-to-l from-rose-500/10 to-transparent backdrop-blur-sm p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
+                  <AlertCircle size={16} className="text-rose-500" />
+                </div>
+                <p className="text-sm font-bold text-rose-600 dark:text-rose-400 whitespace-pre-line">
+                  {error}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Grid */}
+          {booklets.length > 0 ? (
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {booklets.map((item, index) => {
+                const statusStyle =
+                  statusStyles[item.status] ?? statusStyles.draft;
+                const isDeleting = deletingId === item.id;
+
+                return (
+                  <article
+                    key={item.id}
+                    style={{ animationDelay: `${index * 60}ms` }}
+                    className={`group relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-[var(--griffin-gold)]/10 hover:border-[var(--griffin-gold)]/40 animate-[fadeInUp_0.5s_ease-out_both] ${
+                      isDeleting ? "opacity-50 pointer-events-none" : ""
+                    }`}
+                  >
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/60 to-transparent opacity-60 group-hover:opacity-100 transition-opacity" />
+
+                    <div className="relative p-5">
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                            {gradeLabels[item.grade] ?? item.grade} ·{" "}
+                            {majorLabels[item.major] ?? item.major}
+                          </p>
+                          <h2 className="mt-1 font-heading text-lg font-black text-gray-900 dark:text-white truncate">
+                            {item.title}
+                          </h2>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                            {item.lesson}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-black ${statusStyle.bg} ${statusStyle.text}`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot} ${
+                              item.status === "published" ? "animate-pulse" : ""
+                            }`}
+                          />
+                          {statusLabels[item.status]}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="rounded-xl bg-gray-50/70 dark:bg-white/5 p-3">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <FileQuestion
+                              size={11}
+                              className="text-[var(--griffin-gold)]"
+                            />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                              سؤال
+                            </span>
+                          </div>
+                          <p className="font-heading text-lg font-black text-gray-900 dark:text-white">
+                            {(item._count?.questions ?? 0).toLocaleString(
+                              "fa-IR",
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-gray-50/70 dark:bg-white/5 p-3">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Clock3
+                              size={11}
+                              className="text-[var(--griffin-gold)]"
+                            />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                              مدت
+                            </span>
+                          </div>
+                          <p className="font-heading text-lg font-black text-gray-900 dark:text-white">
+                            {item.duration.toLocaleString("fa-IR")}
+                            <span className="text-[10px] mr-1 text-gray-400">
+                              دقیقه
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-3">
+                        آخرین ویرایش: {formatDate(item.updatedAt)}
+                      </p>
+
+                      {/* 🆕 دکمه‌ها: ویرایش + حذف */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            navigate(`/booklet-builder/${item.id}`)
+                          }
+                          className="group/btn relative flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/50 transition-all overflow-hidden"
+                        >
+                          <span className="relative z-10 flex items-center gap-2">
+                            <Pencil size={15} />
+                            ویرایش و ساخت
+                          </span>
+                          <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
+                        </button>
+
+                        <button
+                          onClick={() => void removeBooklet(item)}
+                          disabled={isDeleting}
+                          className="shrink-0 w-10 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:border-rose-500/40 hover:text-rose-500 hover:bg-rose-500/10 disabled:opacity-50 transition-all"
+                          title="حذف دفترچه"
+                        >
+                          {isDeleting ? (
+                            <LoaderCircle size={15} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={15} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-gray-300 dark:border-white/10 p-16 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-20 h-20 rounded-3xl bg-gray-100 dark:bg-white/5 flex items-center justify-center">
+                  <BookOpen
+                    size={36}
+                    className="text-gray-400 dark:text-gray-500"
+                  />
+                </div>
+                <p className="font-heading font-black text-lg text-gray-700 dark:text-gray-300">
+                  هنوز دفترچه‌ای ساخته نشده!
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  اولین دفترچه‌ات رو بساز.
+                </p>
+                <button
+                  onClick={() => navigate("/booklet-builder/new")}
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl transition-all"
+                >
+                  <Plus size={16} />
+                  دفترچه جدید
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  // ==================== Editor View ====================
+  const currentStatusStyle = booklet
+    ? (statusStyles[booklet.status] ?? statusStyles.draft)
+    : statusStyles.draft;
+
+  return (
+    <main className="min-h-screen px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* HEADER */}
+        <header className="relative rounded-[2rem] overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-6 sm:p-8">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+          <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl pointer-events-none" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-60 animate-pulse" />
+                <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
+                  <Wand2 size={24} strokeWidth={2.3} />
+                </div>
+              </div>
+
+              <div>
+                <button
+                  onClick={() => navigate("/booklets")}
+                  className="group inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-[var(--griffin-gold)] transition-colors mb-1"
+                >
+                  <ArrowRight
+                    size={13}
+                    className="transition-transform group-hover:translate-x-1 rotate-180"
+                  />
+                  بازگشت به دفترچه‌ها
+                </button>
+
+                <div className="inline-flex items-center gap-2 mb-1.5">
+                  <Sparkles size={11} className="text-[var(--griffin-gold)]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                    {booklet ? "Edit Booklet" : "New Booklet"}
+                  </span>
+                </div>
+
+                <h1 className="font-heading text-3xl font-black text-gray-900 dark:text-white">
+                  {booklet ? "ساخت و ویرایش دفترچه" : "دفترچه جدید"}
+                </h1>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  اطلاعات دفترچه رو تنظیم کن و سؤال‌های منتشرشده رو اضافه کن.
+                </p>
+              </div>
+            </div>
+
+            {booklet && (
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-black ${currentStatusStyle.bg} ${currentStatusStyle.text}`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${currentStatusStyle.dot} ${
+                      booklet.status === "published" ? "animate-pulse" : ""
+                    }`}
+                  />
+                  {statusLabels[booklet.status]}
+                </span>
+
+                <button
+                  onClick={() => setPreviewOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] px-4 py-2.5 text-sm font-bold text-gray-600 dark:text-gray-300 backdrop-blur-sm hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/5 hover:text-[var(--griffin-gold)] transition-all"
+                >
+                  <Eye size={16} />
+                  پیش‌نمایش
+                </button>
+
+                <button
+                  onClick={() => void duplicate()}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] px-4 py-2.5 text-sm font-bold text-gray-600 dark:text-gray-300 backdrop-blur-sm hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/5 hover:text-[var(--griffin-gold)] disabled:opacity-50 transition-all"
+                >
+                  <Copy size={16} />
+                  کپی
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* ERROR */}
+        {error && (
+          <div className="relative rounded-2xl overflow-hidden border border-rose-500/30 bg-gradient-to-l from-rose-500/10 to-transparent backdrop-blur-sm p-4 animate-[fadeInUp_0.3s_ease-out]">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
+                <AlertCircle size={16} className="text-rose-500" />
+              </div>
+              <p className="text-sm font-bold text-rose-600 dark:text-rose-400 whitespace-pre-line">
+                {error}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* MAIN GRID */}
+        <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
+          {/* SIDEBAR */}
+          <aside className="space-y-5">
+            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
+
+              <div className="relative p-5">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+                    <BookOpen size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                      Basic Info
+                    </p>
+                    <h2 className="font-heading text-sm font-black text-gray-900 dark:text-white -mt-0.5">
+                      اطلاعات دفترچه
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      عنوان دفترچه *
+                    </span>
+                    <input
+                      value={form.title}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          title: e.target.value,
+                        }))
+                      }
+                      placeholder="مثلاً دفترچه ریاضی فصل ۱"
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      درس *
+                    </span>
+                    <input
+                      value={form.lesson}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          lesson: e.target.value,
+                        }))
+                      }
+                      placeholder="مثلاً ریاضی"
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                        پایه
+                      </span>
+                      <select
+                        value={form.grade}
+                        onChange={(e) =>
+                          setForm((current) => ({
+                            ...current,
+                            grade: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-3 text-sm outline-none focus:border-[var(--griffin-gold)] transition-all"
+                      >
+                        <option value="10">دهم</option>
+                        <option value="11">یازدهم</option>
+                        <option value="12">دوازدهم</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                        رشته
+                      </span>
+                      <select
+                        value={form.major}
+                        onChange={(e) =>
+                          setForm((current) => ({
+                            ...current,
+                            major: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-3 text-sm outline-none focus:border-[var(--griffin-gold)] transition-all"
+                      >
+                        <option value="math">ریاضی</option>
+                        <option value="experimental">تجربی</option>
+                        <option value="humanities">انسانی</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      تاریخ دفترچه *
+                    </span>
+                    <input
+                      type="datetime-local"
+                      value={form.examDate}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          examDate: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      مدت (دقیقه) *
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={600}
+                      value={form.duration}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          duration: Number(e.target.value),
+                        }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    />
+                  </label>
+                </div>
+
+                <button
+                  disabled={saving}
+                  onClick={() => void saveMetadata()}
+                  className="group relative mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-3 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 disabled:opacity-50 transition-all overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    {saving ? (
+                      <>
+                        <LoaderCircle size={18} className="animate-spin" />
+                        در حال ذخیره...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={17} />
+                        ذخیره اطلاعات
+                      </>
+                    )}
+                  </span>
+                  {!saving && (
+                    <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {booklet && (
+              <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
+
+                <div className="relative p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+                      <Zap size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        Status
+                      </p>
+                      <h2 className="font-heading text-sm font-black text-gray-900 dark:text-white -mt-0.5">
+                        وضعیت دفترچه
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    {booklet.status === "draft" && (
+                      <button
+                        disabled={saving || !(booklet.questions ?? []).length}
+                        onClick={() => void changeStatus("review")}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-black text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-40 transition-all"
+                      >
+                        <Send size={16} />
+                        ارسال برای بررسی
+                      </button>
+                    )}
+                    {booklet.status === "review" && (
+                      <>
+                        <button
+                          disabled={saving}
+                          onClick={() => void changeStatus("draft")}
+                          className="rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm font-black text-gray-600 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 disabled:opacity-40 transition-all"
+                        >
+                          بازگشت به پیش‌نویس
+                        </button>
+                        <button
+                          disabled={saving || !(booklet.questions ?? []).length}
+                          onClick={() => void changeStatus("published")}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl disabled:opacity-40 transition-all"
+                        >
+                          <Check size={16} strokeWidth={3} />
+                          انتشار
+                        </button>
+                      </>
+                    )}
+                    {booklet.status === "published" && (
+                      <button
+                        disabled={saving}
+                        onClick={() => void changeStatus("draft")}
+                        className="rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm font-black text-gray-600 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 disabled:opacity-40 transition-all"
+                      >
+                        ویرایش مجدد
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* QUESTIONS */}
+          <section className="relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
+
+            <div className="relative flex flex-col gap-3 p-5 border-b border-gray-200/70 dark:border-white/5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+                  <Layers size={16} />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">
+                      Questions
+                    </span>
+                  </div>
+                  <p className="font-heading text-sm font-black text-gray-900 dark:text-white">
+                    سؤال‌های دفترچه ·{" "}
+                    {displayedQuestionCount.toLocaleString("fa-IR")}
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    با Drag & Drop ترتیب رو تغییر بده
+                  </p>
+                </div>
+              </div>
+
+              <button
+                disabled={
+                  Boolean(booklet?.status === "published") || questionBusy
+                }
+                onClick={openPicker}
+                className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 disabled:opacity-40 transition-all overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <Plus size={16} strokeWidth={2.5} />
+                  افزودن سؤال
+                </span>
+                <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              {!booklet && pendingNewQuestions > 0 && (
+                <div className="mb-4 rounded-2xl border border-amber-500/30 bg-gradient-to-l from-amber-500/10 to-transparent backdrop-blur-sm p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                      <AlertCircle size={16} className="text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="font-heading text-sm font-black text-amber-700 dark:text-amber-300">
+                        {pendingNewQuestions.toLocaleString("fa-IR")} سؤال
+                        انتخاب شده
+                      </p>
+                      <p className="text-[11px] text-amber-700/80 dark:text-amber-300/70">
+                        قبل از ذخیره می‌تونی انتخاب‌ها رو بررسی یا حذف کنی.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {pendingSelectedQuestions.map((question, index) => (
+                      <div
+                        key={question.id}
+                        className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-white/60 dark:bg-white/[0.03] p-3"
+                      >
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-500/15 text-xs font-black text-amber-600 dark:text-amber-400">
+                          {(index + 1).toLocaleString("fa-IR")}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-english truncate text-[11px] font-bold text-gray-700 dark:text-gray-200">
+                            {question.code}
+                          </p>
+                          <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                            {question.lesson} · {question.chapter}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePendingQuestion(question.id)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(booklet?.questions ?? []).length > 0 ? (
+                <div className="space-y-3">
+                  {(booklet?.questions ?? []).map((item, index) => (
+                    <div
+                      key={item.id}
+                      draggable={booklet?.status !== "published"}
+                      onDragStart={() => setDraggedIndex(index)}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={() => handleDrop(index)}
+                      className="group relative rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.03] p-4 transition-all duration-200 hover:border-[var(--griffin-gold)]/40 hover:shadow-md"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1 cursor-grab text-gray-400 active:cursor-grabbing">
+                          <GripVertical size={20} />
+                        </div>
+
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 text-white font-heading font-black text-sm shadow-lg shadow-[var(--griffin-gold)]/30">
+                          {(index + 1).toLocaleString("fa-IR")}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 font-english text-gray-600 dark:text-gray-300">
+                              {item.question.code}
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--griffin-gold)]/10 text-[var(--griffin-gold)]">
+                              <BookOpen size={9} />
+                              {item.question.lesson}
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-500">
+                              <Layers size={9} />
+                              {item.question.chapter}
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500">
+                              <Award size={9} />
+                              {item.score.toLocaleString("fa-IR")} امتیاز
+                            </span>
+                          </div>
+
+                          <div className="leading-7 text-gray-900 dark:text-white text-sm">
+                            <MathText content={item.question.questionText} />
+                          </div>
+                        </div>
+
+                        <button
+                          disabled={
+                            questionBusy || booklet?.status === "published"
+                          }
+                          onClick={() => void removeQuestion(item.questionId)}
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-30 transition-colors shrink-0"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-gray-300 dark:border-white/10">
+                  <div className="text-center space-y-3">
+                    <div className="w-20 h-20 mx-auto rounded-3xl bg-gray-100 dark:bg-white/5 flex items-center justify-center">
+                      <BookOpen
+                        size={36}
+                        className="text-gray-400 dark:text-gray-500"
+                      />
+                    </div>
+                    <p className="font-heading font-black text-lg text-gray-700 dark:text-gray-300">
+                      هنوز سؤالی اضافه نشده!
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      از بانک سؤال، سؤال‌های منتشرشده رو انتخاب کن.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </section>
       </div>
 
-      {pickerOpen && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target && !questionBusy) setPickerOpen(false); }}><div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-2xl dark:border-white/10 dark:bg-[#111722]"><div className="flex items-center justify-between border-b border-slate-200/70 px-5 py-4 dark:border-white/10"><div><h2 className="text-xl font-bold">انتخاب سؤال</h2><p className="mt-1 text-xs text-gray-500">فقط سؤال‌های منتشرشده نمایش داده می‌شوند؛ برای پیدا کردن سؤال، از جستجو استفاده کنید.</p></div><button onClick={() => setPickerOpen(false)} disabled={questionBusy} className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-white/5"><X size={21} /></button></div><div className="border-b border-slate-200/70 p-5 dark:border-white/10"><div className="flex gap-2"><div className="relative flex-1"><Search size={17} className="absolute right-3 top-3.5 text-gray-400" /><input value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void loadPicker(1); }} placeholder="جستجو در کد، متن یا مبحث سؤال..." className="w-full rounded-xl border border-slate-200/70 py-3 pr-10 pl-3 outline-none focus:border-[var(--griffin-gold)] dark:border-white/10 dark:bg-white/[0.03]" /></div><button onClick={() => void loadPicker(1)} className="rounded-xl border border-slate-200/70 px-4 font-semibold dark:border-white/10">جستجو</button></div></div><div className="max-h-[55vh] overflow-y-auto p-5">{pickerLoading ? <div className="py-12 text-center text-sm text-gray-500">در حال دریافت سؤال‌ها...</div> : <div className="space-y-3">{pickerQuestions.map((question) => { const selected = pickerSelected.includes(question.id) || currentQuestionIds.has(question.id); return <button key={question.id} type="button" onClick={() => togglePickerQuestion(question)} className={`w-full rounded-2xl border p-4 text-right transition ${selected ? "border-[var(--griffin-gold)] bg-amber-50/50 dark:bg-amber-900/10" : "border-slate-200/70 hover:border-[var(--griffin-gold)]/50 dark:border-white/10"}`}><div className="flex items-start gap-3"><div className={`mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-md border ${selected ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)] text-white" : "border-slate-300 dark:border-white/20"}`}>{selected && <Check size={15} />}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap gap-2 text-xs text-gray-500"><span className="font-mono">{question.code}</span><span>·</span><span>{question.lesson}</span><span>·</span><span>{question.chapter}</span><span>·</span><span>{question.difficulty}</span></div><div className="mt-2 leading-7"><MathText content={question.questionText} /></div></div></div></button>; })}</div>}{!pickerLoading && !pickerQuestions.length && <div className="py-12 text-center text-sm text-gray-500">سؤال منتشرشده‌ای با این جستجو پیدا نشد.</div>}</div><div className="flex items-center justify-between border-t border-slate-200/70 px-5 py-4 dark:border-white/10"><div className="flex items-center gap-2 text-xs text-gray-500"><button disabled={pickerPage <= 1 || pickerLoading} onClick={() => void loadPicker(pickerPage - 1)} className="rounded-lg border border-slate-200/70 p-2 disabled:opacity-30 dark:border-white/10"><ChevronRight size={17} /></button><span>صفحه {pickerPage.toLocaleString("fa-IR")} از {pickerTotalPages.toLocaleString("fa-IR")}</span><button disabled={pickerPage >= pickerTotalPages || pickerLoading} onClick={() => void loadPicker(pickerPage + 1)} className="rounded-lg border border-slate-200/70 p-2 disabled:opacity-30 dark:border-white/10"><ChevronLeft size={17} /></button></div><button disabled={!pickerSelected.length || questionBusy} onClick={() => void addSelectedQuestions()} className="inline-flex items-center gap-2 rounded-xl bg-[var(--griffin-gold)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"><Plus size={16} /> افزودن {pickerSelected.length ? pickerSelected.length.toLocaleString("fa-IR") : ""} سؤال</button></div></div></div>}
+      {/* PICKER MODAL */}
+      {pickerOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target && !questionBusy)
+              setPickerOpen(false);
+          }}
+        >
+          <div className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl animate-[fadeInUp_0.3s_ease-out] flex flex-col">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
 
-      {previewOpen && booklet && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreviewOpen(false); }}><div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl dark:bg-[#111722]"><div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/70 bg-white/95 px-6 py-4 backdrop-blur dark:border-white/10 dark:bg-[#111722]/95"><div><h2 className="text-xl font-bold">پیش‌نمایش دفترچه</h2><p className="mt-1 text-xs text-gray-500">{booklet.title} · {(booklet.questions ?? []).length} سؤال · {booklet.duration} دقیقه</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-white/5"><XCircle size={22} /></button></div><div className="space-y-6 p-6"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-gray-50 p-4 dark:bg-white/5"><p className="text-xs text-gray-500">درس</p><p className="mt-1 font-semibold">{booklet.lesson}</p></div><div className="rounded-xl bg-gray-50 p-4 dark:bg-white/5"><p className="text-xs text-gray-500">تاریخ</p><p className="mt-1 font-semibold">{formatDate(booklet.examDate)}</p></div><div className="rounded-xl bg-gray-50 p-4 dark:bg-white/5"><p className="text-xs text-gray-500">مدت</p><p className="mt-1 inline-flex items-center gap-1 font-semibold"><Clock3 size={15} /> {booklet.duration} دقیقه</p></div></div>{(booklet.questions ?? []).map((item, index) => <article key={item.id} className="rounded-2xl border border-slate-200/70 p-5 dark:border-white/10"><div className="mb-3 flex items-center justify-between text-xs text-gray-500"><span>سؤال {index + 1}</span><span>{item.score} امتیاز</span></div><div className="leading-8"><MathText content={item.question.questionText} /></div>{item.question.questionImage && <img src={item.question.questionImage} alt="تصویر سؤال" className="mt-4 max-h-72 rounded-xl object-contain" />}<div className="mt-4 grid gap-2">{item.question.options.map((option, optionIndex) => <div key={`${item.id}-${optionIndex}`} className="rounded-xl bg-gray-50 p-3 dark:bg-white/5"><span className="ml-2 font-semibold">{optionIndex + 1}.</span><MathText content={option} /></div>)}</div></article>)}</div></div></div>}
+            <div className="flex items-center justify-between gap-3 p-5 border-b border-gray-200/70 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-60" />
+                  <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
+                    <FileQuestion size={20} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                    Question Picker
+                  </p>
+                  <h2 className="font-heading text-lg font-black text-gray-900 dark:text-white">
+                    انتخاب سؤال
+                  </h2>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    فقط سؤال‌های منتشرشده نمایش داده می‌شن
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPickerOpen(false)}
+                disabled={questionBusy}
+                className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-rose-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 border-b border-gray-200/70 dark:border-white/5">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search
+                    size={17}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--griffin-gold)]"
+                  />
+                  <input
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void loadPicker(1);
+                    }}
+                    placeholder="جستجو در کد، متن یا مبحث..."
+                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] py-3 pr-10 pl-3 text-sm outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => void loadPicker(1)}
+                  className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:shadow-xl transition-all overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    <Wand2 size={15} />
+                    جستجو
+                  </span>
+                  <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5">
+              {pickerLoading ? (
+                <div className="flex min-h-[200px] items-center justify-center gap-3 text-sm font-bold text-gray-500 dark:text-gray-400">
+                  <LoaderCircle
+                    size={20}
+                    className="animate-spin text-[var(--griffin-gold)]"
+                  />
+                  در حال دریافت سؤال‌ها...
+                </div>
+              ) : pickerQuestions.length > 0 ? (
+                <div className="space-y-3">
+                  {pickerQuestions.map((question) => {
+                    const isAlreadyAdded = currentQuestionIds.has(question.id);
+                    const isSelected =
+                      pickerSelected.includes(question.id) || isAlreadyAdded;
+
+                    return (
+                      <button
+                        key={question.id}
+                        type="button"
+                        onClick={() => togglePickerQuestion(question)}
+                        disabled={isAlreadyAdded}
+                        className={`
+                          group w-full rounded-2xl border p-4 text-right transition-all
+                          ${
+                            isSelected
+                              ? "border-[var(--griffin-gold)] bg-gradient-to-l from-[var(--griffin-gold)]/10 to-transparent shadow-md"
+                              : "border-gray-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.02] hover:border-[var(--griffin-gold)]/50 hover:bg-[var(--griffin-gold)]/5"
+                          }
+                          ${isAlreadyAdded ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:-translate-y-0.5"}
+                        `}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`
+                              mt-1 w-6 h-6 shrink-0 rounded-md border-2
+                              flex items-center justify-center transition-all
+                              ${
+                                isSelected
+                                  ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)] shadow-lg shadow-[var(--griffin-gold)]/40"
+                                  : "border-gray-300 dark:border-white/20 group-hover:border-[var(--griffin-gold)]"
+                              }
+                            `}
+                          >
+                            {isSelected && (
+                              <Check
+                                size={14}
+                                className="text-white"
+                                strokeWidth={3}
+                              />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold mb-2">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 font-english text-gray-600 dark:text-gray-300">
+                                {question.code}
+                              </span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--griffin-gold)]/10 text-[var(--griffin-gold)]">
+                                {question.lesson}
+                              </span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-500">
+                                {question.chapter}
+                              </span>
+                              {isAlreadyAdded && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                                  <CheckCircle2 size={9} />
+                                  اضافه شده
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="leading-7 text-sm text-gray-900 dark:text-white">
+                              <MathText content={question.questionText} />
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-12 text-center space-y-3">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center">
+                    <Search
+                      size={28}
+                      className="text-gray-400 dark:text-gray-500"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    سؤال منتشرشده‌ای با این جستجو پیدا نشد.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 p-5 border-t border-gray-200/70 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.01]">
+              <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                <button
+                  disabled={pickerPage <= 1 || pickerLoading}
+                  onClick={() => void loadPicker(pickerPage - 1)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] hover:border-[var(--griffin-gold)]/40 disabled:opacity-30 transition-all"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <span className="font-bold">
+                  صفحه {pickerPage.toLocaleString("fa-IR")} از{" "}
+                  {pickerTotalPages.toLocaleString("fa-IR")}
+                </span>
+                <button
+                  disabled={pickerPage >= pickerTotalPages || pickerLoading}
+                  onClick={() => void loadPicker(pickerPage + 1)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] hover:border-[var(--griffin-gold)]/40 disabled:opacity-30 transition-all"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
+
+              <button
+                disabled={!pickerSelected.length || questionBusy}
+                onClick={() => void addSelectedQuestions()}
+                className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 disabled:opacity-40 transition-all overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  {questionBusy ? (
+                    <>
+                      <LoaderCircle size={16} className="animate-spin" />
+                      در حال افزودن...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} strokeWidth={2.5} />
+                      افزودن{" "}
+                      {pickerSelected.length > 0 &&
+                        `${pickerSelected.length.toLocaleString("fa-IR")} `}
+                      سؤال
+                    </>
+                  )}
+                </span>
+                <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PREVIEW MODAL */}
+      {previewOpen && booklet && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setPreviewOpen(false);
+          }}
+        >
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl animate-[fadeInUp_0.3s_ease-out] flex flex-col">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+
+            <div className="flex items-center justify-between gap-3 p-5 border-b border-gray-200/70 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-60" />
+                  <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
+                    <Eye size={20} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+                    Preview
+                  </p>
+                  <h2 className="font-heading text-lg font-black text-gray-900 dark:text-white">
+                    پیش‌نمایش دفترچه
+                  </h2>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    {booklet.title} ·{" "}
+                    {(booklet.questions ?? []).length.toLocaleString("fa-IR")}{" "}
+                    سؤال
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-rose-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  {
+                    label: "درس",
+                    value: booklet.lesson,
+                    icon: BookOpen,
+                  },
+                  {
+                    label: "تاریخ",
+                    value: formatDate(booklet.examDate),
+                    icon: Calendar,
+                  },
+                  {
+                    label: "مدت",
+                    value: `${booklet.duration.toLocaleString("fa-IR")} دقیقه`,
+                    icon: Clock3,
+                  },
+                ].map((info, i) => {
+                  const Icon = info.icon;
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] p-4"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Icon
+                          size={11}
+                          className="text-[var(--griffin-gold)]"
+                        />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                          {info.label}
+                        </span>
+                      </div>
+                      <p className="font-bold text-sm text-gray-900 dark:text-white">
+                        {info.value}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {(booklet.questions ?? []).map((item, index) => (
+                <article
+                  key={item.id}
+                  className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] p-5"
+                >
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white font-heading font-black text-xs">
+                        {(index + 1).toLocaleString("fa-IR")}
+                      </div>
+                      <span className="font-heading font-black text-sm text-gray-900 dark:text-white">
+                        سؤال {(index + 1).toLocaleString("fa-IR")}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--griffin-gold)]/10 text-[var(--griffin-gold)] text-[10px] font-black">
+                      <Award size={9} />
+                      {item.score.toLocaleString("fa-IR")} امتیاز
+                    </span>
+                  </div>
+
+                  <div className="leading-8 text-gray-900 dark:text-white">
+                    <MathText content={item.question.questionText} />
+                  </div>
+
+                  {item.question.questionImage && (
+                    <div className="mt-4 rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <img
+                        src={item.question.questionImage}
+                        alt="تصویر سؤال"
+                        className="max-h-72 w-full object-contain"
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-4 grid gap-2">
+                    {item.question.options.map((option, optionIndex) => (
+                      <div
+                        key={`${item.id}-${optionIndex}`}
+                        className="rounded-xl bg-gray-50/70 dark:bg-white/5 p-3"
+                      >
+                        <div className="flex gap-3">
+                          <span className="w-7 h-7 rounded-lg bg-white dark:bg-white/10 flex items-center justify-center text-xs font-black text-gray-600 dark:text-gray-300 shrink-0">
+                            {String.fromCharCode(65 + optionIndex)}
+                          </span>
+                          <div className="min-w-0 flex-1 text-sm leading-7 text-gray-900 dark:text-white">
+                            <MathText content={option} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

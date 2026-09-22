@@ -30,8 +30,6 @@ export const registerSchema = z
     password: z.string().min(6, "رمز عبور حداقل ۶ کاراکتر باشد"),
 
     confirmPassword: z.string().min(1, "تکرار رمز عبور الزامی است"),
-
-    captchaAnswer: z.string().min(1, "حل کپچا الزامی است"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     path: ["confirmPassword"],

@@ -6,24 +6,45 @@ const ROLES = require("../constants/roles");
 const { jwtSecret, jwtExpiresIn } = require("../config/env");
 const { normalizePhoneNumber } = require("./smsService");
 const { issueVerificationCode, verifyCode } = require("./verificationService");
+const { generateUniqueReferralCode } = require("../utils/referralCode");
+const {
+  getUserFeatures,
+  getUserExamPurchases,
+} = require("../utils/accessHelper");
 
-const publicUser = (user) => ({
-  id: user.id,
-  firstName: user.firstName,
-  lastName: user.lastName,
-  username: user.username,
-  phoneNumber: user.phoneNumber,
-  email: user.email,
-  role: user.role.name,
-  phoneVerifiedAt: user.phoneVerifiedAt,
-  birthDate: user.birthDate,
-  major: user.major,
-  grade: user.grade,
-  nationalId: user.nationalId,
-  address: user.address,
-  city: user.city,
-  province: user.province,
-});
+/**
+ * ساخت خروجی امن کاربر + features + examPurchases
+ * @param {object} user - کاربر با role
+ * @returns {Promise<object>}
+ */
+const publicUser = async (user) => {
+  const roleName = user.role?.name;
+
+  const [features, examPurchases] = await Promise.all([
+    getUserFeatures(user.id, roleName),
+    getUserExamPurchases(user.id),
+  ]);
+
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    username: user.username,
+    phoneNumber: user.phoneNumber,
+    email: user.email,
+    role: user.role,
+    phoneVerifiedAt: user.phoneVerifiedAt,
+    birthDate: user.birthDate,
+    major: user.major,
+    grade: user.grade,
+    nationalId: user.nationalId,
+    address: user.address,
+    city: user.city,
+    province: user.province,
+    features,
+    examPurchases,
+  };
+};
 
 const issueToken = (user) =>
   jwt.sign({ id: user.id }, jwtSecret, { expiresIn: jwtExpiresIn });
@@ -55,6 +76,7 @@ const registerUser = async ({
   if (!studentRole) throw new AppError("Student role not found", 500);
 
   const hashedPassword = await bcrypt.hash(password, 12);
+  const referralCode = await generateUniqueReferralCode();
 
   const user = existingUser
     ? await prisma.user.update({
@@ -66,6 +88,7 @@ const registerUser = async ({
           email,
           password: hashedPassword,
           roleId: studentRole.id,
+          ...(existingUser.referralCode ? {} : { referralCode }),
         },
         include: { role: true },
       })
@@ -78,6 +101,7 @@ const registerUser = async ({
           phoneNumber: phone,
           password: hashedPassword,
           roleId: studentRole.id,
+          referralCode,
         },
         include: { role: true },
       });
@@ -86,8 +110,9 @@ const registerUser = async ({
     phoneNumber: phone,
     purpose: "PHONE_REGISTRATION",
   });
+
   return {
-    user: publicUser(user),
+    user: await publicUser(user),
     phoneNumber: phone,
     verificationRequired: true,
   };
@@ -103,7 +128,7 @@ const verifyRegistration = async (phoneNumber, code) => {
     include: { role: true },
   });
 
-  return { token: issueToken(user), user: publicUser(user) };
+  return { token: issueToken(user), user: await publicUser(user) };
 };
 
 const loginUser = async (identifier, password) => {
@@ -156,7 +181,7 @@ const verifyLogin = async (phoneNumber, code) => {
   if (!user || !user.phoneVerifiedAt)
     throw new AppError("Phone number is not verified", 403);
 
-  return { token: issueToken(user), user: publicUser(user) };
+  return { token: issueToken(user), user: await publicUser(user) };
 };
 
 module.exports = {

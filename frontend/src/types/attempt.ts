@@ -53,6 +53,7 @@ export interface AttemptReviewQuestion {
   selectedAnswer: number | null;
   correctAnswer: number;
   isCorrect: boolean;
+  isFlagged: boolean;
   explanation: string;
   explanationPdf: string;
   difficulty: string;

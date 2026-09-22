@@ -34,7 +34,7 @@ const getLessonAliases = (lesson) => {
     ["mathematics", "math", "ریاضی"],
     ["physics", "فیزیک"],
     ["chemistry", "شیمی"],
-    ["biology", "زیست", "زیستشناسی"],
+    ["biology", "زیست", "زیست‌شناسی"],
   ];
 
   for (const group of groups) {
@@ -48,7 +48,10 @@ const getLessonAliases = (lesson) => {
 
 const selectArenaQuestions = async (tx, lesson) => {
   const publishedQuestions = await tx.question.findMany({
-    where: { status: "published" },
+    where: {
+      status: "published",
+      isArena: true,
+    },
     select: { id: true, lesson: true },
   });
 
@@ -57,14 +60,12 @@ const selectArenaQuestions = async (tx, lesson) => {
     aliases.has(normalizeLesson(question.lesson)),
   );
 
-  // Arena leagues historically stored lesson names in both Persian and English.
-  // Prefer the league subject when at least five questions exist, otherwise use
-  // the global published pool so a naming mismatch cannot make Arena unusable.
-  const pool = lessonQuestions.length >= 5 ? lessonQuestions : publishedQuestions;
+  const pool =
+    lessonQuestions.length >= 5 ? lessonQuestions : publishedQuestions;
 
   if (pool.length < 5) {
     throw new AppError(
-      `Not enough published questions available. Required: 5, available: ${pool.length}.`,
+      `Not enough published Arena questions available. Required: 5, available: ${pool.length}.`,
       400,
     );
   }
@@ -78,7 +79,13 @@ const selectArenaQuestions = async (tx, lesson) => {
   return shuffled.slice(0, 5).map((question) => question.id);
 };
 
-const createArenaMatchTx = async (tx, userId1, userId2, leagueId) => {
+const createArenaMatchTx = async (
+  tx,
+  userId1,
+  userId2,
+  leagueId,
+  { isFriendly = false } = {},
+) => {
   if (userId1 === userId2) {
     throw new AppError("Players must be different", 400);
   }
@@ -137,6 +144,7 @@ const createArenaMatchTx = async (tx, userId1, userId2, leagueId) => {
     data: {
       leagueId,
       status: "waiting",
+      isFriendly, // 🆕
       players: {
         create: [
           { userId: userId1, lives: 3 },
@@ -159,7 +167,9 @@ const createArenaMatchTx = async (tx, userId1, userId2, leagueId) => {
 };
 
 const createArenaMatch = async (userId1, userId2, leagueId) =>
-  runArenaTransaction((tx) => createArenaMatchTx(tx, userId1, userId2, leagueId));
+  runArenaTransaction((tx) =>
+    createArenaMatchTx(tx, userId1, userId2, leagueId),
+  );
 
 const getArenaMatchById = async (matchId, userId) => {
   const match = await prisma.arenaMatch.findUnique({
@@ -361,164 +371,167 @@ const submitArenaAnswer = async ({
   selectedAnswer,
 }) => {
   return await runArenaTransaction(async (tx) => {
-      const matchQuestion = await tx.arenaMatchQuestion.findUnique({
-        where: { id: matchQuestionId },
-        include: {
-          match: { include: { players: true } },
-          question: { select: { id: true, correctAnswer: true } },
-          answers: true,
-        },
+    const matchQuestion = await tx.arenaMatchQuestion.findUnique({
+      where: { id: matchQuestionId },
+      include: {
+        match: { include: { players: true } },
+        question: { select: { id: true, correctAnswer: true } },
+        answers: true,
+      },
+    });
+
+    if (!matchQuestion) throw new AppError("Match question not found", 404);
+    if (matchQuestion.matchId !== matchId) {
+      throw new AppError("Match question does not belong to this match", 400);
+    }
+    if (matchQuestion.status !== "active") {
+      throw new AppError("Question is not active", 400);
+    }
+
+    const match = matchQuestion.match;
+    if (match.status !== "playing")
+      throw new AppError("Match is not playing", 400);
+
+    const player = match.players.find((item) => item.userId === playerId);
+    if (!player) throw new AppError("Player is not part of this match", 403);
+    if (player.status !== "playing")
+      throw new AppError("Player is not active", 400);
+
+    if (matchQuestion.answers.some((answer) => answer.playerId === playerId)) {
+      throw new AppError("You have already answered this question", 400);
+    }
+
+    if (!matchQuestion.startedAt)
+      throw new AppError("Question has not started", 400);
+
+    const now = new Date();
+    const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
+    if (elapsedMs >= matchQuestion.timeLimit * 1000) {
+      throw new AppError("Question time has expired", 400);
+    }
+
+    const isCorrect = selectedAnswer === matchQuestion.question.correctAnswer;
+    const answer = await tx.arenaAnswer.create({
+      data: {
+        matchQuestionId,
+        playerId,
+        selectedAnswer,
+        isCorrect,
+        answeredAt: now,
+        responseTimeMs: elapsedMs,
+      },
+    });
+
+    const opponent = match.players.find((item) => item.userId !== playerId);
+    if (!opponent) throw new AppError("Opponent not found", 400);
+
+    const opponentAnswer = matchQuestion.answers.find(
+      (item) => item.playerId === opponent.userId,
+    );
+
+    if (!isCorrect) {
+      // A wrong answer locks the player. The life is deducted only when the
+      // question is resolved: either the opponent answers correctly, or both
+      // players have answered incorrectly.
+      await tx.arenaMatchPlayer.update({
+        where: { id: player.id },
+        data: { status: "locked" },
       });
 
-      if (!matchQuestion) throw new AppError("Match question not found", 404);
-      if (matchQuestion.matchId !== matchId) {
-        throw new AppError("Match question does not belong to this match", 400);
-      }
-      if (matchQuestion.status !== "active") {
-        throw new AppError("Question is not active", 400);
-      }
-
-      const match = matchQuestion.match;
-      if (match.status !== "playing") throw new AppError("Match is not playing", 400);
-
-      const player = match.players.find((item) => item.userId === playerId);
-      if (!player) throw new AppError("Player is not part of this match", 403);
-      if (player.status !== "playing") throw new AppError("Player is not active", 400);
-
-      if (matchQuestion.answers.some((answer) => answer.playerId === playerId)) {
-        throw new AppError("You have already answered this question", 400);
-      }
-
-      if (!matchQuestion.startedAt) throw new AppError("Question has not started", 400);
-
-      const now = new Date();
-      const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
-      if (elapsedMs >= matchQuestion.timeLimit * 1000) {
-        throw new AppError("Question time has expired", 400);
-      }
-
-      const isCorrect = selectedAnswer === matchQuestion.question.correctAnswer;
-      const answer = await tx.arenaAnswer.create({
-        data: {
-          matchQuestionId,
-          playerId,
-          selectedAnswer,
-          isCorrect,
-          answeredAt: now,
-          responseTimeMs: elapsedMs,
-        },
-      });
-
-      const opponent = match.players.find((item) => item.userId !== playerId);
-      if (!opponent) throw new AppError("Opponent not found", 400);
-
-      const opponentAnswer = matchQuestion.answers.find(
-        (item) => item.playerId === opponent.userId,
-      );
-
-      if (!isCorrect) {
-        // A wrong answer locks the player. The life is deducted only when the
-        // question is resolved: either the opponent answers correctly, or both
-        // players have answered incorrectly.
-        await tx.arenaMatchPlayer.update({
-          where: { id: player.id },
-          data: { status: "locked" },
-        });
-
-        if (!opponentAnswer) {
-          return {
-            answer,
-            result: "wrong",
-            questionFinished: false,
-            playerLives: player.lives,
-            opponentLives: opponent.lives,
-            match: null,
-          };
-        }
-
-        // At this point the opponent can only have answered incorrectly. A
-        // correct opponent answer would already have atomically finished the
-        // question before this request reached this branch.
-        const finishedGate = await tx.arenaMatchQuestion.updateMany({
-          where: { id: matchQuestionId, status: "active" },
-          data: { status: "finished", finishedAt: now },
-        });
-
-        if (finishedGate.count === 0) {
-          throw new AppError("Question is no longer active", 409);
-        }
-
-        const playerLives = Math.max(player.lives - 1, 0);
-        const opponentLives = Math.max(opponent.lives - 1, 0);
-
-        await tx.arenaMatchPlayer.update({
-          where: { id: player.id },
-          data: {
-            lives: playerLives,
-            status: playerLives > 0 ? "playing" : "eliminated",
-          },
-        });
-
-        await tx.arenaMatchPlayer.update({
-          where: { id: opponent.id },
-          data: {
-            lives: opponentLives,
-            status: opponentLives > 0 ? "playing" : "eliminated",
-          },
-        });
-
-        const matchResult = await finishArenaMatch(tx, match.id);
+      if (!opponentAnswer) {
         return {
           answer,
           result: "wrong",
-          questionFinished: true,
-          playerLives,
-          opponentLives,
-          match: matchResult,
+          questionFinished: false,
+          playerLives: player.lives,
+          opponentLives: opponent.lives,
+          match: null,
         };
       }
 
-      // The first correct answer atomically claims the active question.
+      // At this point the opponent can only have answered incorrectly. A
+      // correct opponent answer would already have atomically finished the
+      // question before this request reached this branch.
       const finishedGate = await tx.arenaMatchQuestion.updateMany({
         where: { id: matchQuestionId, status: "active" },
-        data: {
-          status: "finished",
-          finishedAt: now,
-          winnerId: playerId,
-        },
+        data: { status: "finished", finishedAt: now },
       });
 
       if (finishedGate.count === 0) {
         throw new AppError("Question is no longer active", 409);
       }
 
-      // A correct answer costs the opponent one life whether they had not
-      // answered yet or had already answered incorrectly. The only case where
-      // no life is deducted is impossible here for a correct opponent answer,
-      // because the first correct answer atomically finishes the question.
-      let opponentLives = opponent.lives;
-      if (!opponentAnswer || !opponentAnswer.isCorrect) {
-        opponentLives = Math.max(opponent.lives - 1, 0);
-        await tx.arenaMatchPlayer.update({
-          where: { id: opponent.id },
-          data: {
-            lives: opponentLives,
-            status: opponentLives > 0 ? "locked" : "eliminated",
-          },
-        });
-      }
+      const playerLives = Math.max(player.lives - 1, 0);
+      const opponentLives = Math.max(opponent.lives - 1, 0);
+
+      await tx.arenaMatchPlayer.update({
+        where: { id: player.id },
+        data: {
+          lives: playerLives,
+          status: playerLives > 0 ? "playing" : "eliminated",
+        },
+      });
+
+      await tx.arenaMatchPlayer.update({
+        where: { id: opponent.id },
+        data: {
+          lives: opponentLives,
+          status: opponentLives > 0 ? "playing" : "eliminated",
+        },
+      });
 
       const matchResult = await finishArenaMatch(tx, match.id);
-
       return {
         answer,
-        result: "correct",
+        result: "wrong",
         questionFinished: true,
-        playerLives: player.lives,
+        playerLives,
         opponentLives,
         match: matchResult,
       };
+    }
+
+    // The first correct answer atomically claims the active question.
+    const finishedGate = await tx.arenaMatchQuestion.updateMany({
+      where: { id: matchQuestionId, status: "active" },
+      data: {
+        status: "finished",
+        finishedAt: now,
+        winnerId: playerId,
+      },
     });
+
+    if (finishedGate.count === 0) {
+      throw new AppError("Question is no longer active", 409);
+    }
+
+    // A correct answer costs the opponent one life whether they had not
+    // answered yet or had already answered incorrectly. The only case where
+    // no life is deducted is impossible here for a correct opponent answer,
+    // because the first correct answer atomically finishes the question.
+    let opponentLives = opponent.lives;
+    if (!opponentAnswer || !opponentAnswer.isCorrect) {
+      opponentLives = Math.max(opponent.lives - 1, 0);
+      await tx.arenaMatchPlayer.update({
+        where: { id: opponent.id },
+        data: {
+          lives: opponentLives,
+          status: opponentLives > 0 ? "locked" : "eliminated",
+        },
+      });
+    }
+
+    const matchResult = await finishArenaMatch(tx, match.id);
+
+    return {
+      answer,
+      result: "correct",
+      questionFinished: true,
+      playerLives: player.lives,
+      opponentLives,
+      match: matchResult,
+    };
+  });
 };
 
 const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
@@ -563,8 +576,12 @@ const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
     } else if (player2.lives > player1.lives) {
       winnerId = player2.userId;
     } else {
-      const wins1 = match.questions.filter((q) => q.winnerId === player1.userId).length;
-      const wins2 = match.questions.filter((q) => q.winnerId === player2.userId).length;
+      const wins1 = match.questions.filter(
+        (q) => q.winnerId === player1.userId,
+      ).length;
+      const wins2 = match.questions.filter(
+        (q) => q.winnerId === player2.userId,
+      ).length;
       if (wins1 > wins2) winnerId = player1.userId;
       else if (wins2 > wins1) winnerId = player2.userId;
     }
@@ -581,7 +598,9 @@ const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
   });
 
   if (finishedGate.count === 0) {
-    const currentMatch = await tx.arenaMatch.findUnique({ where: { id: matchId } });
+    const currentMatch = await tx.arenaMatch.findUnique({
+      where: { id: matchId },
+    });
     return {
       finished: currentMatch?.status === "finished",
       winnerId: currentMatch?.winnerId ?? null,
@@ -618,99 +637,109 @@ const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
     include: { players: true },
   });
 
-  const rating = await arenaRatingService.updateRatingsAfterMatchTx(tx, finishedMatch);
+  const rating = await arenaRatingService.updateRatingsAfterMatchTx(
+    tx,
+    finishedMatch,
+  );
 
   return { finished: true, winnerId, isDraw: !winnerId, rating };
 };
 
 const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
   return await runArenaTransaction(async (tx) => {
-      const matchQuestion = await tx.arenaMatchQuestion.findUnique({
-        where: { id: matchQuestionId },
-        include: {
-          match: { include: { players: true } },
-          answers: true,
-        },
-      });
+    const matchQuestion = await tx.arenaMatchQuestion.findUnique({
+      where: { id: matchQuestionId },
+      include: {
+        match: { include: { players: true } },
+        answers: true,
+      },
+    });
 
-      if (!matchQuestion) throw new AppError("Match question not found", 404);
-      if (matchQuestion.matchId !== matchId) {
-        throw new AppError("Match question does not belong to this match", 400);
-      }
-      if (matchQuestion.status !== "active") {
-        throw new AppError("Question is not active", 409);
-      }
-      if (!matchQuestion.startedAt) throw new AppError("Question has not started", 400);
-      if (matchQuestion.match.status !== "playing") {
-        throw new AppError("Match is not playing", 400);
-      }
+    if (!matchQuestion) throw new AppError("Match question not found", 404);
+    if (matchQuestion.matchId !== matchId) {
+      throw new AppError("Match question does not belong to this match", 400);
+    }
+    if (matchQuestion.status !== "active") {
+      throw new AppError("Question is not active", 409);
+    }
+    if (!matchQuestion.startedAt)
+      throw new AppError("Question has not started", 400);
+    if (matchQuestion.match.status !== "playing") {
+      throw new AppError("Match is not playing", 400);
+    }
 
-      const now = new Date();
-      const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
-      if (elapsedMs < matchQuestion.timeLimit * 1000) {
-        throw new AppError("Question time has not expired", 400);
-      }
+    const now = new Date();
+    const elapsedMs = now.getTime() - matchQuestion.startedAt.getTime();
+    if (elapsedMs < matchQuestion.timeLimit * 1000) {
+      throw new AppError("Question time has not expired", 400);
+    }
 
-      if (matchQuestion.match.players.length !== 2) {
-        throw new AppError("Invalid number of players", 400);
-      }
+    if (matchQuestion.match.players.length !== 2) {
+      throw new AppError("Invalid number of players", 400);
+    }
 
-      const answeredPlayerIds = new Set(
-        matchQuestion.answers.map((answer) => answer.playerId),
+    // Claim the active question before mutating lives so a duplicate timeout
+    // callback can never deduct lives twice.
+    const finishedGate = await tx.arenaMatchQuestion.updateMany({
+      where: { id: matchQuestionId, status: "active" },
+      data: { status: "finished", finishedAt: now },
+    });
+
+    if (finishedGate.count === 0) {
+      throw new AppError("Question is no longer active", 409);
+    }
+
+    // 🆕 FIXED: هر بازیکنی که جواب درست نداده (اشتباه، تایم‌اوت، یا جواب نداده)
+    // باید یه جان کم کنه. منطق قبلی فقط کسی که جواب نداده رو penalize می‌کرد
+    // و کسی که جواب اشتباه داده بود، نادیده گرفته می‌شد (سناریو ۴).
+    const playersWhoLostLife = [];
+
+    for (const player of matchQuestion.match.players) {
+      const answer = matchQuestion.answers.find(
+        (item) => item.playerId === player.userId,
       );
 
-      // Claim the active question before mutating lives so a duplicate timeout
-      // callback can never deduct lives twice.
-      const finishedGate = await tx.arenaMatchQuestion.updateMany({
-        where: { id: matchQuestionId, status: "active" },
-        data: { status: "finished", finishedAt: now },
+      // اگه جواب درست داده → معاف
+      if (answer?.isCorrect === true) continue;
+
+      // در غیر این صورت (اشتباه، تایم‌اوت، یا جواب نداده) → یه جان کم کن
+      const lives = Math.max(player.lives - 1, 0);
+      await tx.arenaMatchPlayer.update({
+        where: { id: player.id },
+        data: {
+          lives,
+          status: lives > 0 ? "playing" : "eliminated",
+        },
       });
+      playersWhoLostLife.push({ playerId: player.userId, lives });
+    }
 
-      if (finishedGate.count === 0) {
-        throw new AppError("Question is no longer active", 409);
-      }
+    const matchResult = await finishArenaMatch(tx, matchQuestion.match.id);
 
-      const playersWhoLostLife = [];
-
-      for (const player of matchQuestion.match.players) {
-        if (!answeredPlayerIds.has(player.userId)) {
-          const lives = Math.max(player.lives - 1, 0);
-          await tx.arenaMatchPlayer.update({
-            where: { id: player.id },
-            data: {
-              lives,
-              status: lives > 0 ? "playing" : "eliminated",
-            },
-          });
-          playersWhoLostLife.push({ playerId: player.userId, lives });
-        }
-      }
-
-      const matchResult = await finishArenaMatch(tx, matchQuestion.match.id);
-
-      return {
-        questionFinished: true,
-        result: "timeout",
-        playersWhoLostLife,
-        match: matchResult,
-      };
-    });
+    return {
+      questionFinished: true,
+      result: "timeout",
+      playersWhoLostLife,
+      match: matchResult,
+    };
+  });
 };
 
 const startNextArenaQuestion = async (matchId) => {
   return await runArenaTransaction(async (tx) => {
-      const match = await tx.arenaMatch.findUnique({
-        where: { id: matchId },
-        include: { questions: { orderBy: { order: "asc" } } },
-      });
+    const match = await tx.arenaMatch.findUnique({
+      where: { id: matchId },
+      include: { questions: { orderBy: { order: "asc" } } },
+    });
 
-      if (!match) throw new AppError("Match not found", 404);
+    if (!match) throw new AppError("Match not found", 404);
 
-      if (match.status !== "playing") {
-        return {
-          matchFinished: match.status === "finished",
-          question: null,
-          match: match.status === "finished"
+    if (match.status !== "playing") {
+      return {
+        matchFinished: match.status === "finished",
+        question: null,
+        match:
+          match.status === "finished"
             ? {
                 finished: true,
                 winnerId: match.winnerId,
@@ -719,50 +748,52 @@ const startNextArenaQuestion = async (matchId) => {
                 rating: null,
               }
             : null,
-        };
-      }
+      };
+    }
 
-      const nextQuestion = match.questions.find((q) => q.status === "pending");
+    const nextQuestion = match.questions.find((q) => q.status === "pending");
 
-      if (!nextQuestion) {
-        const matchResult = await finishArenaMatch(tx, matchId, { forceFinish: true });
-        return { matchFinished: true, question: null, match: matchResult };
-      }
-
-      const startedAt = new Date();
-
-      await tx.arenaMatchPlayer.updateMany({
-        where: { matchId, lives: { gt: 0 } },
-        data: { status: "playing" },
+    if (!nextQuestion) {
+      const matchResult = await finishArenaMatch(tx, matchId, {
+        forceFinish: true,
       });
+      return { matchFinished: true, question: null, match: matchResult };
+    }
 
-      const startedQuestion = await tx.arenaMatchQuestion.update({
-        where: { id: nextQuestion.id },
-        data: { status: "active", startedAt },
-        select: {
-          id: true,
-          matchId: true,
-          questionId: true,
-          order: true,
-          timeLimit: true,
-          status: true,
-          startedAt: true,
-          finishedAt: true,
-          winnerId: true,
-          question: {
-            select: {
-              id: true,
-              questionText: true,
-              questionImage: true,
-              options: true,
-              correctAnswer: true,
-            },
+    const startedAt = new Date();
+
+    await tx.arenaMatchPlayer.updateMany({
+      where: { matchId, lives: { gt: 0 } },
+      data: { status: "playing" },
+    });
+
+    const startedQuestion = await tx.arenaMatchQuestion.update({
+      where: { id: nextQuestion.id },
+      data: { status: "active", startedAt },
+      select: {
+        id: true,
+        matchId: true,
+        questionId: true,
+        order: true,
+        timeLimit: true,
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        winnerId: true,
+        question: {
+          select: {
+            id: true,
+            questionText: true,
+            questionImage: true,
+            options: true,
+            correctAnswer: true,
           },
         },
-      });
-
-      return { matchFinished: false, question: startedQuestion, match: null };
+      },
     });
+
+    return { matchFinished: false, question: startedQuestion, match: null };
+  });
 };
 
 module.exports = {

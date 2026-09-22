@@ -1,30 +1,45 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import ScrollToTop from "../components/common/ScrollToTop";
 
 const MainLayout = () => {
-  return (
-    <div
-      className="
-        min-h-screen
-        flex
-        flex-col
-        bg-[var(--griffin-bg)]
-        dark:bg-[var(--griffin-dark)]
-      "
-    >
-      <Navbar />
+  const location = useLocation();
 
-      <main
-        className="
-          flex-1
-        "
-      >
+  const FULLSCREEN_ROUTES = [
+    "/arena/match",
+    "/arena/matchmaking",
+    "/login",
+    "/register",
+    "/solo",
+    "/dashboard/personal-exams",
+    "/attempts",
+  ];
+
+  const isFullscreen =
+    FULLSCREEN_ROUTES.some((path) => location.pathname.startsWith(path)) ||
+    // 🆕 صفحه Review پاسخنامه (بدون navbar/footer)
+    location.pathname.endsWith("/review");
+
+  if (isFullscreen) {
+    return (
+      <div className="min-h-screen">
         <Outlet />
-      </main>
+      </div>
+    );
+  }
 
-      <Footer />
-    </div>
+  return (
+    <>
+      <ScrollToTop />
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
+    </>
   );
 };
 

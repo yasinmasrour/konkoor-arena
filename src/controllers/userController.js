@@ -12,4 +12,10 @@ const updateProfile = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getProfile, updateProfile };
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  await userService.changePassword(req.user.id, currentPassword, newPassword);
+  res.status(200).json({ message: "رمز عبور با موفقیت تغییر کرد" });
+});
+
+module.exports = { getProfile, updateProfile, changePassword };

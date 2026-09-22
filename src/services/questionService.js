@@ -13,18 +13,18 @@ const questionAuthorSelect = {
 };
 
 const ensureQuestionAccess = (question, user) => {
-  if (user.role.name === ROLES.ADMIN) {
+  if (user.role === ROLES.ADMIN) {
     return;
   }
 
   if (
-    user.role.name === ROLES.QUESTION_DESIGNER &&
+    user.role === ROLES.QUESTION_DESIGNER &&
     question.createdById === user.id
   ) {
     return;
   }
 
-  if (user.role.name === ROLES.COUNSELOR) {
+  if (user.role === ROLES.COUNSELOR) {
     return;
   }
 
@@ -62,6 +62,7 @@ const buildWhere = (query, user) => {
     difficulty,
     status,
     createdById,
+    isArena,
   } = query;
 
   const where = {
@@ -79,9 +80,12 @@ const buildWhere = (query, user) => {
     ...(difficulty && { difficulty }),
     ...(status && { status }),
     ...(createdById && { createdById }),
+    ...(isArena !== undefined && {
+      isArena: isArena === true || isArena === "true",
+    }),
   };
 
-  if (user.role.name === ROLES.QUESTION_DESIGNER) {
+  if (user.role === ROLES.QUESTION_DESIGNER) {
     where.createdById = user.id;
   }
 
@@ -101,6 +105,7 @@ const getQuestions = async (query, user) => {
     "difficulty",
     "status",
     "usageCount",
+    "isArena",
   ];
 
   const sortField = allowedSortFields.includes(sort) ? sort : "createdAt";
@@ -166,7 +171,7 @@ const updateQuestion = async (id, data, user) => {
   ensureQuestionAccess(existing, user);
 
   if (
-    user.role.name === ROLES.QUESTION_DESIGNER &&
+    user.role === ROLES.QUESTION_DESIGNER &&
     existing.status === QUESTION_STATUS.PUBLISHED
   ) {
     throw new AppError(
@@ -175,7 +180,7 @@ const updateQuestion = async (id, data, user) => {
     );
   }
 
-  if (data.status && user.role.name !== ROLES.ADMIN) {
+  if (data.status && user.role !== ROLES.ADMIN) {
     throw new AppError("Only an admin can change question status", 403);
   }
 
@@ -201,10 +206,7 @@ const submitQuestionForReview = async (id, user) => {
     throw new AppError("Question not found", 404);
   }
 
-  if (
-    user.role.name !== ROLES.QUESTION_DESIGNER &&
-    user.role.name !== ROLES.ADMIN
-  ) {
+  if (user.role !== ROLES.QUESTION_DESIGNER && user.role !== ROLES.ADMIN) {
     throw new AppError(
       "Only a question designer can submit a question for review",
       403,
@@ -237,7 +239,7 @@ const setQuestionStatus = async (id, status, user) => {
     throw new AppError("Question not found", 404);
   }
 
-  if (user.role.name !== ROLES.ADMIN) {
+  if (user.role !== ROLES.ADMIN) {
     throw new AppError(
       "Only an admin can approve, publish, or archive questions",
       403,
@@ -290,10 +292,7 @@ const duplicateQuestion = async (id, user) => {
 
   ensureQuestionAccess(existing, user);
 
-  if (
-    user.role.name !== ROLES.ADMIN &&
-    user.role.name !== ROLES.QUESTION_DESIGNER
-  ) {
+  if (user.role !== ROLES.ADMIN && user.role !== ROLES.QUESTION_DESIGNER) {
     throw new AppError(
       "Only an admin or question designer can duplicate questions",
       403,
@@ -349,7 +348,7 @@ const duplicateQuestion = async (id, user) => {
 };
 
 const bulkSetQuestionStatus = async (ids, status, user) => {
-  if (user.role.name !== ROLES.ADMIN) {
+  if (user.role !== ROLES.ADMIN) {
     throw new AppError(
       "Only an admin can change question statuses in bulk",
       403,
@@ -421,7 +420,7 @@ const exportQuestions = async (query, user) => {
   });
 
   if (
-    user.role.name === ROLES.QUESTION_DESIGNER &&
+    user.role === ROLES.QUESTION_DESIGNER &&
     questions.some((question) => question.createdById !== user.id)
   ) {
     throw new AppError("Forbidden", 403);
@@ -476,7 +475,7 @@ const exportQuestions = async (query, user) => {
 
 const getQuestionAnalytics = async (user) => {
   const where = {};
-  if (user.role.name === ROLES.QUESTION_DESIGNER) {
+  if (user.role === ROLES.QUESTION_DESIGNER) {
     where.createdById = user.id;
   }
 
@@ -494,6 +493,9 @@ const getQuestionAnalytics = async (user) => {
     draftCount,
     publishedCount,
     archivedCount,
+    arenaCount,
+    notArenaCount,
+    publishedArenaCount,
     recentQuestions,
   ] = await Promise.all([
     prisma.question.count({ where }),
@@ -539,6 +541,11 @@ const getQuestionAnalytics = async (user) => {
     prisma.question.count({
       where: { ...where, status: QUESTION_STATUS.ARCHIVED },
     }),
+    prisma.question.count({ where: { ...where, isArena: true } }),
+    prisma.question.count({ where: { ...where, isArena: false } }),
+    prisma.question.count({
+      where: { ...where, isArena: true, status: QUESTION_STATUS.PUBLISHED },
+    }),
     prisma.question.findMany({
       where,
       orderBy: { updatedAt: "desc" },
@@ -571,6 +578,9 @@ const getQuestionAnalytics = async (user) => {
       unused: unusedCount,
       publishedUnused: publishedUnusedCount,
       totalUsage: usageAggregate._sum.usageCount || 0,
+      arena: arenaCount,
+      notArena: notArenaCount,
+      publishedArena: publishedArenaCount,
     },
     status: toGroups(statusGroups, "status"),
     difficulty: toGroups(difficultyGroups, "difficulty"),
@@ -610,7 +620,7 @@ const reviewerSelect = {
 };
 
 const getReviewQueue = async (query, user) => {
-  if (user.role.name !== ROLES.ADMIN) {
+  if (user.role !== ROLES.ADMIN) {
     throw new AppError(
       "Only an admin can access the question review queue",
       403,
@@ -660,7 +670,7 @@ const getReviewQueue = async (query, user) => {
 };
 
 const getQuestionReviewDetails = async (id, user) => {
-  if (user.role.name !== ROLES.ADMIN) {
+  if (user.role !== ROLES.ADMIN) {
     throw new AppError("Only an admin can review questions", 403);
   }
 
@@ -683,7 +693,7 @@ const getQuestionReviewDetails = async (id, user) => {
 };
 
 const reviewQuestion = async (id, decision, note, user) => {
-  if (user.role.name !== ROLES.ADMIN) {
+  if (user.role !== ROLES.ADMIN) {
     throw new AppError("Only an admin can review questions", 403);
   }
 

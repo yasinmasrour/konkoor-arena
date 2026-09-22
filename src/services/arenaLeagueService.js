@@ -151,16 +151,43 @@ const processLeagueStatuses = async () => {
   });
 };
 
-const getActiveLeagues = async () => {
-  return await prisma.arenaLeague.findMany({
+const getActiveLeagues = async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { grade: true, major: true },
+  });
+
+  if (!user) throw new AppError("User not found", 404);
+
+  // 🆕 اگه grade نداره، پیام واضح بده
+  if (!user.grade) {
+    throw new AppError(
+      "برای شرکت در آرنا باید پایه تحصیلی خود را در پروفایل تکمیل کنید",
+      400,
+    );
+  }
+
+  const now = new Date();
+
+  // 🆕 major رو فقط اگه وجود داره اضافه کن
+  const majorConditions = [{ compatibleMajors: { isEmpty: true } }];
+
+  if (user.major) {
+    majorConditions.push({ compatibleMajors: { has: user.major } });
+  }
+
+  const leagues = await prisma.arenaLeague.findMany({
     where: {
       status: "active",
+      startDate: { lte: now },
+      endDate: { gte: now },
+      grade: user.grade,
+      OR: majorConditions,
     },
-
-    orderBy: {
-      startDate: "asc",
-    },
+    orderBy: { startDate: "desc" },
   });
+
+  return { leagues };
 };
 
 const getUpcomingLeagues = async () => {

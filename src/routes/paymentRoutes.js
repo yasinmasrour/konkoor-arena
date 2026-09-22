@@ -1,66 +1,22 @@
 const express = require("express");
+const protect = require("../middleware/authMiddleware");
 const paymentController = require("../controllers/paymentController");
-const authMiddleware = require("../middleware/authMiddleware");
-const validate = require("../middleware/validationMiddleware");
-const { createPaymentSchema } = require("../validations/paymentValidation");
 
 const router = express.Router();
 
-/**
- * @swagger
- * /payments:
- *   post:
- *     summary: Initialize a subscription payment
- *     tags:
- *       - Payments
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [planId]
- *             properties:
- *               planId:
- *                 type: string
- *     responses:
- *       201:
- *         description: Payment initialized successfully
- *       409:
- *         description: User already has an active subscription
- */
-router.post("/", authMiddleware, validate(createPaymentSchema), paymentController.createPayment);
+router.use(protect);
 
-/**
- * @swagger
- * /payments/me:
- *   get:
- *     summary: Get the current user's payment history
- *     tags:
- *       - Payments
- *     security:
- *       - bearerAuth: []
- */
-router.get("/me", authMiddleware, paymentController.getMyPayments);
+// 🔹 خرید اشتراک
+router.post("/subscription", paymentController.createSubscriptionPayment);
 
-/**
- * @swagger
- * /payments/me/{id}:
- *   get:
- *     summary: Get one of the current user's payments
- *     tags:
- *       - Payments
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- */
-router.get("/me/:id", authMiddleware, paymentController.getMyPaymentById);
+// 🔹 شارژ کیف پول
+router.post("/wallet-charge", paymentController.createWalletChargePayment);
+
+// 🔹 تایید پرداخت (بعد از بازگشت از درگاه)
+router.post("/:id/verify", paymentController.verifyPayment);
+
+// 🔹 لیست پرداخت‌ها
+router.get("/my", paymentController.getMyPayments);
+router.get("/:id", paymentController.getMyPaymentById);
 
 module.exports = router;
