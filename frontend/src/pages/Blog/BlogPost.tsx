@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
-  BookOpen,
   Calendar,
   Eye,
   LoaderCircle,

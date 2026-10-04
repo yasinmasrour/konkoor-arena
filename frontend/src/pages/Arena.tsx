@@ -26,10 +26,24 @@ import type { ArenaLeague } from "../types/arena";
 import RevealOnScroll from "../components/common/RevealOnScroll";
 import GriffinMascot from "../components/common/GriffinMascot";
 import { useAuth } from "../context/AuthContext";
+import { usePublicStats } from "../hooks/usePublicStats";
+
+// 🆕 ذرات ثابت
+const PARTICLES = [
+  { top: 12, left: 8, delay: 0, duration: 3.5 },
+  { top: 28, left: 22, delay: 0.8, duration: 4.2 },
+  { top: 45, left: 15, delay: 1.5, duration: 3.8 },
+  { top: 62, left: 78, delay: 0.4, duration: 4.5 },
+  { top: 18, left: 85, delay: 1.2, duration: 3.2 },
+  { top: 75, left: 35, delay: 2, duration: 4 },
+  { top: 38, left: 92, delay: 0.6, duration: 3.6 },
+  { top: 88, left: 60, delay: 1.8, duration: 4.3 },
+];
 
 const Arena = () => {
   const navigate = useNavigate();
   const { user, hasFeature } = useAuth();
+  const { stats } = usePublicStats();
 
   const canPlay = !!user && hasFeature("arena");
 
@@ -104,7 +118,6 @@ const Arena = () => {
       desc: "امتیاز و آمار شخصی",
       href: "/arena/profile",
       color: "from-blue-500 to-blue-700",
-      shadowColor: "shadow-blue-500/30",
     },
     {
       icon: History,
@@ -112,7 +125,6 @@ const Arena = () => {
       desc: "نبردهای گذشته تو",
       href: "/arena/history",
       color: "from-purple-500 to-purple-700",
-      shadowColor: "shadow-purple-500/30",
     },
     {
       icon: Swords,
@@ -120,7 +132,6 @@ const Arena = () => {
       desc: "با خودت رقابت کن",
       href: "/solo/setup",
       color: "from-purple-500 to-purple-700",
-      shadowColor: "shadow-purple-500/30",
     },
     {
       icon: BarChart3,
@@ -128,7 +139,6 @@ const Arena = () => {
       desc: "عملکردت رو ببین",
       href: "/solo/stats",
       color: "from-emerald-500 to-emerald-700",
-      shadowColor: "shadow-emerald-500/30",
     },
   ];
 
@@ -138,57 +148,40 @@ const Arena = () => {
         {/* ==================== HERO ==================== */}
         <RevealOnScroll>
           <section className="relative rounded-[2.5rem] overflow-hidden bg-[#080B12] text-white p-8 md:p-14 shadow-[0_30px_100px_-20px_rgba(197,139,42,0.4)] border border-white/5">
-            {/* گرادیان‌های پس‌زمینه */}
+            {/* گرادیان پس‌زمینه */}
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/15 via-transparent to-purple-600/15 pointer-events-none" />
-            <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/25 blur-[120px] pointer-events-none" />
-            <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-purple-600/20 blur-[120px] pointer-events-none" />
 
-            {/* الگوی نقطه‌ای */}
-            <div
-              className="absolute inset-0 opacity-[0.06] pointer-events-none"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle, white 1px, transparent 1px)",
-                backgroundSize: "28px 28px",
-              }}
-            />
+            {/* 🆕 هاله‌ها سبک‌تر */}
+            <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/20 blur-[70px] pointer-events-none" />
+            <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-purple-600/15 blur-[70px] pointer-events-none" />
 
-            {/* ذرات شناور */}
-            {Array.from({ length: 20 }).map((_, i) => (
+            {/* 🆕 ذرات ثابت */}
+            {PARTICLES.map((p, i) => (
               <div
                 key={i}
                 className="absolute w-1 h-1 rounded-full bg-[var(--griffin-gold)] pointer-events-none"
                 style={{
-                  // eslint-disable-next-line react-hooks/purity
-                  top: `${Math.random() * 100}%`,
-                  // eslint-disable-next-line react-hooks/purity
-                  left: `${Math.random() * 100}%`,
-                  // eslint-disable-next-line react-hooks/purity
-                  animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-                  // eslint-disable-next-line react-hooks/purity
-                  animationDelay: `${Math.random() * 3}s`,
-                  // eslint-disable-next-line react-hooks/purity
-                  opacity: 0.3 + Math.random() * 0.4,
+                  top: `${p.top}%`,
+                  left: `${p.left}%`,
+                  animation: `float ${p.duration}s ease-in-out infinite`,
+                  animationDelay: `${p.delay}s`,
+                  opacity: 0.5,
                 }}
               />
             ))}
 
-            {/* ==================== محتوای اصلی: grid دو ستونه ==================== */}
+            {/* ==================== محتوای اصلی ==================== */}
             <div className="relative grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
               {/* ===== سمت راست: متن ===== */}
               <div className="space-y-6 text-center lg:text-right order-2 lg:order-1">
-                {/* برچسب */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30 backdrop-blur-sm">
-                  <Flame
-                    size={14}
-                    className="text-[var(--griffin-gold)] animate-pulse"
-                  />
+                {/* 🆕 بدون backdrop-blur و animate-pulse */}
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30">
+                  <Flame size={14} className="text-[var(--griffin-gold)]" />
                   <span className="text-xs font-bold text-[var(--griffin-gold)] tracking-wider">
                     رقابت زنده · همین حالا
                   </span>
                 </div>
 
-                {/* تیتر */}
                 <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-black leading-tight">
                   کنکور{" "}
                   <span className="relative inline-block">
@@ -199,22 +192,29 @@ const Arena = () => {
                   </span>
                 </h1>
 
-                {/* توضیحات */}
                 <p className="text-gray-300 leading-8 max-w-xl mx-auto lg:mx-0">
                   با دیگر داوطلبان رقابت کن، سرعت و دقت خودت رو بسنج و در جدول
                   رده‌بندی صعود کن. هر نبرد، یک قدم به قهرمانی نزدیک‌تر!
                 </p>
 
-                {/* آمار */}
+                {/* 🆕 آمار بدون backdrop-blur — داینامیک */}
                 <div className="flex flex-wrap gap-3 justify-center lg:justify-start pt-1">
                   {[
-                    { icon: Users, label: "نبرد فعال", value: "۲٬۴۵۰+" },
+                    {
+                      icon: Users,
+                      label: "نبرد فعال",
+                      value: `${stats.totalArenaMatches.toLocaleString("fa-IR")}+`,
+                    },
                     { icon: Trophy, label: "جایزه ماهانه", value: "۵۰۰K" },
-                    { icon: Flame, label: "نبرد امروز", value: "۱۲۰+" },
+                    {
+                      icon: Flame,
+                      label: "نبرد امروز",
+                      value: `${stats.todayArenaMatches.toLocaleString("fa-IR")}+`,
+                    },
                   ].map((stat, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10"
                     >
                       <stat.icon
                         size={14}
@@ -232,12 +232,12 @@ const Arena = () => {
                   ))}
                 </div>
 
-                {/* CTA برای کاربر بدون دسترسی */}
+                {/* CTA کاربر بدون دسترسی */}
                 {!canPlay && (
                   <div className="pt-3">
                     <button
                       onClick={() => navigate("/subscriptions")}
-                      className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-6 py-3.5 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 transition-all overflow-hidden"
+                      className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-6 py-3.5 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 transition-transform duration-300 hover:-translate-y-0.5 overflow-hidden"
                     >
                       <span className="relative z-10 flex items-center gap-2">
                         <Crown size={16} />
@@ -252,7 +252,7 @@ const Arena = () => {
                   </div>
                 )}
 
-                {/* CTA برای کاربر دسترسی‌دار */}
+                {/* CTA کاربر دسترسی‌دار */}
                 {canPlay && (
                   <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-2">
                     <button
@@ -260,7 +260,7 @@ const Arena = () => {
                         leagues[0] && handleEnterLeague(leagues[0])
                       }
                       disabled={!leagues.length}
-                      className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-7 py-3.5 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all overflow-hidden"
+                      className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-7 py-3.5 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed overflow-hidden"
                     >
                       <span className="relative z-10 flex items-center gap-2">
                         <Swords size={18} />
@@ -269,9 +269,10 @@ const Arena = () => {
                       <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     </button>
 
+                    {/* 🆕 بدون backdrop-blur */}
                     <button
                       onClick={() => navigate("/arena/profile")}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm px-7 py-3.5 font-bold text-white hover:bg-white/10 transition"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 font-bold text-white hover:bg-white/10 transition-colors"
                     >
                       <Shield size={18} />
                       پروفایل من
@@ -280,7 +281,7 @@ const Arena = () => {
                 )}
               </div>
 
-              {/* ===== سمت چپ: mascot گریفین ===== */}
+              {/* ===== سمت چپ: mascot ===== */}
               <div className="relative order-1 lg:order-2 flex items-center justify-center">
                 <div className="relative w-full max-w-[380px] md:max-w-[460px]">
                   <GriffinMascot
@@ -294,9 +295,9 @@ const Arena = () => {
                   />
                 </div>
 
-                {/* برچسب شناور بالای mascot */}
+                {/* 🆕 بدون backdrop-blur-xl */}
                 <div className="absolute top-2 right-2 lg:top-6 lg:right-4 animate-[float_3s_ease-in-out_infinite]">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-xl border border-[var(--griffin-gold)]/30 shadow-2xl">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 dark:bg-[#0a0d14]/95 border border-[var(--griffin-gold)]/30 shadow-xl">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
                       <Swords size={15} />
                     </div>
@@ -311,12 +312,11 @@ const Arena = () => {
                   </div>
                 </div>
 
-                {/* برچسب شناور پایین mascot */}
                 <div
                   className="absolute bottom-6 left-2 lg:bottom-10 lg:left-4 animate-[float_3.5s_ease-in-out_infinite]"
                   style={{ animationDelay: "0.5s" }}
                 >
-                  <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-xl border border-purple-500/30 shadow-2xl">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 dark:bg-[#0a0d14]/95 border border-purple-500/30 shadow-xl">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white shadow-lg">
                       <Zap size={14} fill="white" />
                     </div>
@@ -353,13 +353,15 @@ const Arena = () => {
           </RevealOnScroll>
 
           {!canPlay ? (
-            <div className="relative rounded-3xl overflow-hidden border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 backdrop-blur-sm p-8 text-center">
-              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/15 blur-3xl pointer-events-none" />
+            <div className="relative rounded-3xl overflow-hidden border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 p-8 text-center">
+              {/* 🆕 هاله سبک‌تر */}
+              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/10 blur-[60px] pointer-events-none" />
 
               <div className="relative">
                 <div className="relative inline-flex mb-5">
-                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-50 animate-pulse" />
-                  <div className="relative w-16 h-16 rounded-3xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-2xl rotate-3">
+                  {/* 🆕 بدون blur-2xl و animate-pulse */}
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-40" />
+                  <div className="relative w-16 h-16 rounded-3xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
                     <Lock size={28} strokeWidth={2.3} />
                   </div>
                 </div>
@@ -375,7 +377,7 @@ const Arena = () => {
 
                 <button
                   onClick={() => navigate("/subscriptions")}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 transition-transform hover:-translate-y-0.5"
                 >
                   <Crown size={16} />
                   مشاهده پلن‌ها
@@ -394,26 +396,26 @@ const Arena = () => {
                         group w-full text-right
                         relative rounded-3xl overflow-hidden
                         border border-gray-200 dark:border-white/10
-                        bg-white/70 dark:bg-white/[0.04]
-                        backdrop-blur-sm
+                        bg-white dark:bg-white/[0.03]
                         p-6
-                        transition-all duration-300
-                        hover:-translate-y-2
-                        hover:shadow-2xl hover:shadow-[var(--griffin-gold)]/10
+                        transition-transform duration-300
+                        hover:-translate-y-1
                         hover:border-[var(--griffin-gold)]/40
                       "
                     >
-                      <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      {/* 🆕 هاله سبک‌تر */}
+                      <div className="absolute -top-16 -right-16 w-32 h-32 rounded-full bg-[var(--griffin-gold)]/8 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                       <div className="relative flex items-center gap-4">
+                        {/* 🆕 حذف rotate-3 */}
                         <div
                           className={`
                             relative w-14 h-14 rounded-2xl
                             bg-gradient-to-br ${action.color}
                             flex items-center justify-center text-white
-                            shadow-lg ${action.shadowColor}
+                            shadow-lg
                             transition-transform duration-300
-                            group-hover:scale-110 group-hover:rotate-3
+                            group-hover:scale-110
                           `}
                         >
                           <Icon size={24} strokeWidth={2.2} />
@@ -473,13 +475,15 @@ const Arena = () => {
               در حال دریافت لیگ‌ها...
             </div>
           ) : needsProfile ? (
-            <div className="relative rounded-3xl overflow-hidden border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent backdrop-blur-sm p-8 text-center">
-              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+            <div className="relative rounded-3xl overflow-hidden border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent p-8 text-center">
+              {/* 🆕 هاله سبک‌تر */}
+              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-amber-500/8 blur-[60px] pointer-events-none" />
 
               <div className="relative">
                 <div className="relative inline-flex mb-5">
-                  <div className="absolute inset-0 bg-amber-500 blur-2xl opacity-50 animate-pulse" />
-                  <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-2xl rotate-3">
+                  {/* 🆕 بدون blur-2xl و animate-pulse */}
+                  <div className="absolute inset-0 bg-amber-500 blur-xl opacity-40" />
+                  <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
                     <UserCircle2 size={36} strokeWidth={2.3} />
                   </div>
                 </div>
@@ -510,9 +514,8 @@ const Arena = () => {
                     px-6 py-3.5
                     font-black text-white text-sm
                     shadow-lg shadow-[var(--griffin-gold)]/40
-                    hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60
+                    transition-transform duration-300
                     hover:-translate-y-0.5
-                    transition-all duration-300
                     overflow-hidden
                   "
                 >
@@ -558,18 +561,17 @@ const Arena = () => {
                       group relative h-full flex flex-col
                       rounded-3xl overflow-hidden
                       border border-gray-200 dark:border-white/10
-                      bg-white/70 dark:bg-white/[0.04]
-                      backdrop-blur-sm
+                      bg-white dark:bg-white/[0.03]
                       p-6
-                      transition-all duration-300
-                      hover:-translate-y-2
-                      hover:shadow-2xl hover:shadow-[var(--griffin-gold)]/10
+                      transition-transform duration-300
+                      hover:-translate-y-1
                       hover:border-[var(--griffin-gold)]/40
                     "
                   >
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
 
-                    <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    {/* 🆕 هاله سبک‌تر */}
+                    <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-[var(--griffin-gold)]/8 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                     <div className="relative flex-1 flex flex-col">
                       <div className="flex items-center justify-between mb-5">
@@ -578,7 +580,8 @@ const Arena = () => {
                           لیگ فعال
                         </div>
 
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg shadow-[var(--griffin-gold)]/30 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12">
+                        {/* 🆕 حذف rotate-12 */}
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg transition-transform duration-300 group-hover:scale-110">
                           <Swords size={18} strokeWidth={2.3} />
                         </div>
                       </div>
@@ -602,7 +605,10 @@ const Arena = () => {
                             <span>شرکت‌کننده</span>
                           </div>
                           <p className="font-heading text-lg font-black text-gray-900 dark:text-white">
-                            ۱۲۰+
+                            {(league.participantsCount ?? 0).toLocaleString(
+                              "fa-IR",
+                            )}
+                            +
                           </p>
                         </div>
                         <div className="text-center">
@@ -627,10 +633,10 @@ const Arena = () => {
                           rounded-xl
                           py-3.5
                           font-black
-                          transition-all duration-300
+                          transition-transform duration-300
                           ${
                             canPlay
-                              ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/50"
+                              ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:-translate-y-0.5"
                               : "bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/40 text-[var(--griffin-gold)] hover:bg-[var(--griffin-gold)]/20"
                           }
                         `}
@@ -711,12 +717,10 @@ const Arena = () => {
                       group relative
                       rounded-3xl overflow-hidden
                       border border-gray-200 dark:border-white/10
-                      bg-white/60 dark:bg-white/[0.03]
-                      backdrop-blur-sm
+                      bg-white dark:bg-white/[0.03]
                       p-6
-                      transition-all duration-300
+                      transition-transform duration-300
                       hover:-translate-y-1
-                      hover:shadow-xl
                     "
                   >
                     <div className="relative">
@@ -726,7 +730,8 @@ const Arena = () => {
                           پایان‌یافته
                         </div>
 
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-lg shadow-amber-500/30 transition-transform duration-300 group-hover:rotate-12">
+                        {/* 🆕 حذف rotate-12 */}
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-lg transition-transform duration-300 group-hover:scale-110">
                           <Trophy size={18} strokeWidth={2.3} />
                         </div>
                       </div>
@@ -750,7 +755,7 @@ const Arena = () => {
                           bg-[var(--griffin-gold)]/10
                           py-3
                           font-bold text-[var(--griffin-gold)]
-                          transition-all duration-300
+                          transition-colors duration-300
                           hover:bg-[var(--griffin-gold)]/20
                           hover:border-[var(--griffin-gold)]/50
                         "
@@ -770,12 +775,15 @@ const Arena = () => {
         <RevealOnScroll>
           <section className="relative rounded-[2.5rem] overflow-hidden bg-[#080B12] text-white p-8 md:p-12 text-center border border-white/5">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-transparent to-[var(--griffin-gold)]/10 pointer-events-none" />
-            <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/20 blur-3xl" />
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/15 blur-3xl" />
+
+            {/* 🆕 هاله‌ها سبک‌تر */}
+            <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/15 blur-[60px]" />
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/12 blur-[60px]" />
 
             <div className="relative space-y-5">
               <div className="inline-flex relative">
-                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-40" />
+                {/* 🆕 بدون blur-xl بزرگ */}
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-40" />
                 <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center">
                   <Crown size={24} />
                 </div>
@@ -807,9 +815,8 @@ const Arena = () => {
                         px-7 py-3.5
                         font-black text-white
                         shadow-lg shadow-[var(--griffin-gold)]/40
-                        hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60
+                        transition-transform duration-300
                         hover:-translate-y-0.5
-                        transition-all duration-300
                         disabled:opacity-40 disabled:cursor-not-allowed
                         overflow-hidden
                       "
@@ -821,9 +828,10 @@ const Arena = () => {
                       <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     </button>
 
+                    {/* 🆕 بدون backdrop-blur */}
                     <button
                       onClick={() => navigate("/arena/profile")}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm px-7 py-3.5 font-bold text-white hover:bg-white/10 transition"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 font-bold text-white hover:bg-white/10 transition-colors"
                     >
                       <Shield size={18} />
                       پروفایل من
@@ -840,9 +848,8 @@ const Arena = () => {
                       px-7 py-3.5
                       font-black text-white
                       shadow-lg shadow-[var(--griffin-gold)]/40
-                      hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60
+                      transition-transform duration-300
                       hover:-translate-y-0.5
-                      transition-all duration-300
                       overflow-hidden
                     "
                   >

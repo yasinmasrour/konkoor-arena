@@ -14,13 +14,14 @@ export interface ExamPurchase {
 
 export interface CreateExamPurchaseResponse {
   message: string;
-  purchase: ExamPurchase;
+  purchase: ExamPurchase | null;
   payment: {
     id: string;
     amount: number;
     status: string;
     gateway: string;
   };
+  paymentUrl?: string;
 }
 
 // ==================== API Functions ====================
@@ -28,7 +29,7 @@ export interface CreateExamPurchaseResponse {
 // 🔹 خرید تکی آزمون
 export const purchaseExam = async (
   examId: string,
-  gateway: "wallet" | "mock" = "wallet",
+  gateway: "wallet" | "zarinpal" = "wallet",
 ): Promise<CreateExamPurchaseResponse> => {
   const response = await api.post(`/exams/${examId}/purchase`, { gateway });
   return response.data;
@@ -36,7 +37,7 @@ export const purchaseExam = async (
 
 // ==================== Helpers ====================
 
-export const EXAM_PURCHASE_PRICE = 3000000; // ۳۰۰ هزار تومان
+export const EXAM_PURCHASE_PRICE = 3000000;
 
 export const formatExamPrice = (amountInRial: number): string => {
   const toman = Math.floor(amountInRial / 10);

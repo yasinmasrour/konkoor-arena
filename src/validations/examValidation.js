@@ -1,57 +1,47 @@
 const { z } = require("zod");
+const { EXAM_ACCESS_TYPES_LIST } = require("../constants/examAccess");
 
+// ============================================================
+// CREATE
+// ============================================================
 
 const createExamSchema = z.object({
+  title: z.string().min(3),
 
-    title: z.string()
-        .min(3),
+  examDate: z.coerce.date(),
 
-    examDate: z.coerce.date(),
+  startTime: z.string().min(1),
 
-    startTime: z.string()
-        .min(1),
+  endTime: z.string().optional(),
 
-    endTime: z.string()
-        .optional(),
+  bookletIds: z.array(z.string()).min(1),
 
-    bookletIds: z.array(
-        z.string()
-    )
-    .min(1)
-
+  // 🆕 نوع دسترسی
+  accessType: z.enum(EXAM_ACCESS_TYPES_LIST).optional(),
 });
 
+// ============================================================
+// UPDATE
+// ============================================================
 
-const updateExamSchema = z.object({
+const updateExamSchema = z
+  .object({
+    title: z.string().min(3).optional(),
 
-    title: z.string()
-        .min(3)
-        .optional(),
+    examDate: z.coerce.date().optional(),
 
-    examDate: z.coerce.date()
-        .optional(),
+    startTime: z.string().optional(),
 
-    startTime: z.string()
-        .optional(),
+    endTime: z.string().optional(),
 
-    endTime: z.string()
-        .optional(),
-
-
-})
-
-.refine(
-    data => Object.keys(data).length > 0,
-    {
-        message: "At least one field is required"
-    }
-);
-
+    // 🆕 نوع دسترسی
+    accessType: z.enum(EXAM_ACCESS_TYPES_LIST).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });
 
 module.exports = {
-
-    createExamSchema,
-
-    updateExamSchema
-
+  createExamSchema,
+  updateExamSchema,
 };

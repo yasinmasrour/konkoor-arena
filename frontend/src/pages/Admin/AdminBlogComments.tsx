@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Check,
   Clock3,
-  Eye,
   LoaderCircle,
   MessageSquare,
   RefreshCw,
@@ -372,7 +371,6 @@ const CommentCard = ({
 }: CommentCardProps) => {
   const isPending = comment.status === "pending";
   const isApproved = comment.status === "approved";
-  const isRejected = comment.status === "rejected";
 
   return (
     <div

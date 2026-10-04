@@ -10,6 +10,13 @@ export interface SubscriptionPlan {
   isActive: boolean;
   order: number;
   badge: string | null;
+  discountPercent: number; // 0 اگه تخفیف نداره
+  discountEndsAt: string | null;
+  originalPrice: number; // همون price
+  finalPrice: number; // قیمت با تخفیف
+  discountAmount: number; // مقدار تخفیف (تومان)
+  hasDiscount: boolean; // آیا تخفیف فعاله
+  remainingDays: number | null; // روزهای باقی‌مونده تخفیف
   createdAt: string;
   updatedAt: string;
 }
@@ -50,7 +57,7 @@ export const getMySubscriptionHistory = async () => {
 // 🆕 خرید اشتراک
 export const purchaseSubscription = async (
   planId: string,
-  gateway: "wallet" | "mock" = "wallet",
+  gateway: "wallet" | "zarinpal" = "wallet",
   referralCode?: string,
 ) => {
   const response = await api.post<{
@@ -61,6 +68,7 @@ export const purchaseSubscription = async (
       amount: number;
     };
     subscription: Subscription | null;
+    paymentUrl?: string;
     refundInfo: {
       refundAmount: number;
       remainingDays: number;
@@ -70,17 +78,8 @@ export const purchaseSubscription = async (
     gateway,
     referralCode,
   });
+
   return response.data;
 };
 
-// 🆕 تأیید پرداخت اشتراک
-export const verifySubscriptionPayment = async (
-  paymentId: string,
-  success = true,
-) => {
-  const response = await api.post("/subscriptions/purchase/verify", {
-    paymentId,
-    success,
-  });
-  return response.data;
-};
+// ❌ verifySubscriptionPayment حذف شد

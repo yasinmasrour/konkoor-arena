@@ -4,10 +4,12 @@ import {
   CalendarDays,
   Clock3,
   FileQuestion,
+  Gift,
   GraduationCap,
   Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import type { ExamAccessType } from "../../api/examApi";
 
 interface Props {
   id: string;
@@ -19,6 +21,7 @@ interface Props {
   questionCount: number;
   status: string;
   examDate: string;
+  accessType?: ExamAccessType; // 🆕
 }
 
 const TestCard = ({
@@ -31,8 +34,10 @@ const TestCard = ({
   questionCount,
   status,
   examDate,
+  accessType, // 🆕
 }: Props) => {
   const isPublished = status === "published";
+  const isFree = accessType === "FREE"; // 🆕
   const formattedDate = new Date(examDate).toLocaleDateString("fa-IR", {
     year: "numeric",
     month: "short",
@@ -61,18 +66,34 @@ const TestCard = ({
         {/* ==================== آیکون درس ==================== */}
         <div className="relative shrink-0">
           <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-30 group-hover:opacity-50 transition-opacity" />
-          <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-2 group-hover:rotate-3 transition-transform">
-            <BookOpen size={20} strokeWidth={2.3} />
+          <div
+            className={`
+              relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl
+              flex items-center justify-center text-white shadow-lg
+              rotate-2 group-hover:rotate-3 transition-transform
+              ${
+                isFree
+                  ? "bg-gradient-to-br from-emerald-500 to-emerald-700"
+                  : "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700"
+              }
+            `}
+          >
+            {isFree ? (
+              <Gift size={20} strokeWidth={2.3} />
+            ) : (
+              <BookOpen size={20} strokeWidth={2.3} />
+            )}
           </div>
         </div>
 
         {/* ==================== اطلاعات اصلی ==================== */}
         <div className="min-w-0 flex-1">
-          {/* ردیف ۱: عنوان + وضعیت */}
+          {/* ردیف ۱: عنوان + وضعیت + رایگان */}
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <h3 className="font-heading text-sm sm:text-base font-black text-gray-900 dark:text-white truncate group-hover:text-[var(--griffin-gold)] transition-colors">
               {title}
             </h3>
+
             <span
               className={`
                 shrink-0 inline-flex items-center gap-1.5
@@ -92,6 +113,14 @@ const TestCard = ({
               />
               {isPublished ? "منتشر شده" : "در انتظار"}
             </span>
+
+            {/* 🆕 رایگان */}
+            {isFree && (
+              <span className="shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-black bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-md shadow-emerald-500/30">
+                <Gift size={9} />
+                رایگان
+              </span>
+            )}
           </div>
 
           {/* ردیف ۲: درس + پایه + رشته */}
@@ -155,7 +184,18 @@ const TestCard = ({
         </div>
 
         {/* ==================== فلش ==================== */}
-        <div className="shrink-0 w-8 h-8 rounded-lg bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)] group-hover:bg-[var(--griffin-gold)] group-hover:text-white transition-all">
+        <div
+          className={`
+            shrink-0 w-8 h-8 rounded-lg
+            flex items-center justify-center
+            transition-all
+            ${
+              isFree
+                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white"
+                : "bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 text-[var(--griffin-gold)] group-hover:bg-[var(--griffin-gold)] group-hover:text-white"
+            }
+          `}
+        >
           <ArrowLeft size={14} className="rotate-180" />
         </div>
       </div>

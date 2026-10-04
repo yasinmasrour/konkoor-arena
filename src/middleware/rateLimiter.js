@@ -1,101 +1,195 @@
 const rateLimit = require("express-rate-limit");
 
+// ============================================================
+// GENERAL API RATE LIMITER
+// ============================================================
+
 const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
-    status: "fail",
-    message: "Too many requests, please try again later",
+    status: "error",
+    message: "Too many requests, please try again later.",
   },
 });
+
+// ============================================================
+// LOGIN RATE LIMITER
+// ============================================================
 
 const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true,
+
   message: {
-    status: "fail",
-    message: "تعداد تلاش‌های ورود زیاد است. ۱۵ دقیقه بعد امتحان کن.",
+    status: "error",
+    message: "Too many login attempts, please try again later.",
   },
 });
+
+// ============================================================
+// REGISTER RATE LIMITER
+// ============================================================
 
 const registerRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 3,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
-    status: "fail",
-    message: "تعداد درخواست‌های ثبت‌نام زیاد است. ۱ ساعت بعد امتحان کن.",
+    status: "error",
+    message: "Too many registration attempts, please try again later.",
   },
 });
 
+/*
+ * ============================================================
+ * SMS / OTP VERIFICATION RATE LIMITER — DISABLED
+ * ============================================================
+ *
+ * این Rate Limiter مربوط به endpoint تأیید کد SMS است.
+ * فعلاً endpoint مربوطه نیز غیرفعال شده است.
+ *
 const verifyRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true,
+
   message: {
-    status: "fail",
-    message: "تعداد تلاش‌های تایید زیاد است. ۱۵ دقیقه بعد امتحان کن.",
+    status: "error",
+    message: "Too many verification attempts, please try again later.",
   },
 });
+*/
 
+/*
+ * ============================================================
+ * SMS / OTP RESEND RATE LIMITER — DISABLED
+ * ============================================================
+ *
+ * این Rate Limiter مربوط به ارسال مجدد کد SMS است.
+ *
 const resendRateLimiter = rateLimit({
-  windowMs: 30 * 60 * 1000,
-  max: 3,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    status: "fail",
-    message: "تعداد ارسال مجدد کد زیاد است. ۳۰ دقیقه بعد امتحان کن.",
-  },
-});
-
-const aiAnalysisRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: {
-    message: "Too many AI analysis requests. Please try again later.",
-  },
-});
-
-const changePasswordRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 3,
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
-    status: "fail",
-    message: "تعداد تلاش‌های تغییر رمز زیاد است. ۱ ساعت بعد امتحان کن.",
+    status: "error",
+    message: "Too many verification code requests, please try again later.",
+  },
+});
+*/
+
+// ============================================================
+// AI ANALYSIS RATE LIMITER
+// ============================================================
+
+const aiAnalysisRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    status: "error",
+    message: "Too many AI analysis requests, please try again later.",
   },
 });
 
-const walletRateLimiter = rateLimit({
+// ============================================================
+// CHANGE PASSWORD RATE LIMITER
+// ============================================================
+
+const changePasswordRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
-    status: "fail",
-    message: "تعداد درخواست‌های کیف پول زیاد است. ۱۵ دقیقه بعد امتحان کن.",
+    status: "error",
+    message: "Too many password change attempts, please try again later.",
   },
 });
+
+// ============================================================
+// WALLET RATE LIMITER
+// ============================================================
+
+const walletRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    status: "error",
+    message: "Too many wallet requests, please try again later.",
+  },
+});
+
+// ============================================================
+// 🆕 FORGOT PASSWORD RATE LIMITER
+// ============================================================
+
+const forgotPasswordRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    status: "error",
+    message: "Too many password reset attempts, please try again later.",
+  },
+});
+
+// ============================================================
+// 🆕 SECURITY SETUP RATE LIMITER
+// ============================================================
+
+const setupSecurityRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    status: "error",
+    message: "Too many security setup attempts, please try again later.",
+  },
+});
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   apiRateLimiter,
   loginRateLimiter,
   registerRateLimiter,
-  verifyRateLimiter,
-  resendRateLimiter,
+
+  // SMS / OTP rate limiters are temporarily disabled.
+  // They are intentionally kept above in comments so they
+  // can be restored later.
+  //
+  // verifyRateLimiter,
+  // resendRateLimiter,
+
   aiAnalysisRateLimiter,
   changePasswordRateLimiter,
   walletRateLimiter,
+
+  // 🆕
+  forgotPasswordRateLimiter,
+  setupSecurityRateLimiter,
 };

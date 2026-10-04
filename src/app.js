@@ -2,6 +2,7 @@ const express = require("express");
 const routes = require("./routes");
 const errorHandler = require("./middleware/errorHandler");
 const app = express();
+app.set("trust proxy", 1);
 const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");

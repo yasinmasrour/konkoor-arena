@@ -344,7 +344,7 @@ const Navbar = () => {
                         })}
 
                         <Link
-                          to="/profile"
+                          to="/dashboard?section=profile"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-all duration-200"
                         >
                           <User size={16} className="shrink-0" />

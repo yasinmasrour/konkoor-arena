@@ -56,7 +56,7 @@ const QuestionCard = ({
   const diffStyle = difficultyStyles[difficulty] || difficultyStyles.medium;
 
   return (
-    <section className="relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm">
+    <section className="relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03]">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
       <div className="relative p-5 sm:p-6">
@@ -92,39 +92,52 @@ const QuestionCard = ({
               type="button"
               onClick={onToggleFlag}
               className={`
-                group w-9 h-9 rounded-xl flex items-center justify-center transition-all
+                group w-9 h-9 rounded-xl flex items-center justify-center transition-colors
                 ${
                   isFlagged
-                    ? "bg-amber-500/15 text-amber-500 border border-amber-500/40 shadow-lg shadow-amber-500/20"
+                    ? "bg-amber-500/15 text-amber-500 border border-amber-500/40"
                     : "bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-gray-500 border border-transparent hover:border-amber-500/40 hover:text-amber-500"
                 }
               `}
               title={isFlagged ? "برداشتن علامت" : "علامت‌گذاری برای مرور"}
             >
-              <Flag
-                size={15}
-                fill={isFlagged ? "currentColor" : "none"}
-                className="transition-transform group-hover:scale-110"
-              />
+              <Flag size={15} fill={isFlagged ? "currentColor" : "none"} />
             </button>
           </div>
         </div>
 
-        {/* متن سوال */}
-        <div className="text-base sm:text-lg leading-8 font-semibold text-gray-900 dark:text-white mb-6">
-          <MathText content={questionText} />
-        </div>
-
-        {/* تصویر */}
-        {questionImage && (
-          <div className="mb-6 rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-2">
-            <img
-              src={questionImage}
-              alt="تصویر سوال"
-              className="max-h-80 w-full rounded-xl object-contain mx-auto"
-            />
+        {/* 🆕 متن سوال با تصویر گوشه‌ی پایین-چپ */}
+        <div className="relative mb-6 pb-32 sm:pb-40">
+          {/* متن سوال */}
+          <div className="text-base sm:text-lg leading-8 font-semibold text-gray-900 dark:text-white">
+            <MathText content={questionText} />
           </div>
-        )}
+
+          {/* 🆕 تصویر - گوشه‌ی پایین-چپ */}
+          {questionImage && (
+            <div
+              className="
+                absolute
+                bottom-0
+                left-0
+                w-32 h-32
+                sm:w-40 sm:h-40
+                rounded-xl
+                overflow-hidden
+                border border-gray-200 dark:border-white/10
+                bg-white dark:bg-white/[0.02]
+                p-1
+                shadow-sm
+              "
+            >
+              <img
+                src={questionImage}
+                alt="تصویر سوال"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+        </div>
 
         {/* راهنما */}
         {selectedAnswer !== null && (
@@ -163,22 +176,22 @@ const QuestionCard = ({
                 }}
                 disabled={loadingAnswer}
                 className={`
-                  group relative w-full rounded-2xl border-2 p-4 text-right transition-all duration-300
+                  group relative w-full rounded-2xl border-2 p-4 text-right transition-colors
                   disabled:opacity-70 disabled:cursor-wait
                   ${
                     isSelected
-                      ? "border-[var(--griffin-gold)] bg-gradient-to-l from-[var(--griffin-gold)]/15 via-[var(--griffin-gold)]/5 to-transparent shadow-lg shadow-[var(--griffin-gold)]/20"
-                      : "border-gray-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.02] hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/5"
+                      ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)]/5"
+                      : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/5"
                   }
                 `}
               >
                 <div className="flex items-start gap-3">
                   <div
                     className={`
-                      shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-heading font-black text-sm transition-all
+                      shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-heading font-black text-sm transition-colors
                       ${
                         isSelected
-                          ? "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 text-white shadow-lg shadow-[var(--griffin-gold)]/40 scale-110"
+                          ? "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 text-white shadow-lg"
                           : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 group-hover:bg-[var(--griffin-gold)]/15 group-hover:text-[var(--griffin-gold)]"
                       }
                     `}

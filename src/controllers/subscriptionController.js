@@ -86,6 +86,9 @@ const purchaseSubscription = asyncHandler(async (req, res) => {
         : "پرداخت ایجاد شد. لطفاً به درگاه هدایت شوید.",
     payment: result.payment,
     subscription: result.subscription,
+    ...(result.paymentUrl && {
+      paymentUrl: result.paymentUrl,
+    }),
     refundInfo: result.refundInfo || null,
   });
 });

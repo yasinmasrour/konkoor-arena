@@ -1,5 +1,22 @@
-// در بالای فایل Footer.tsx
-const InstagramIcon = ({ size = 17 }: { size?: number }) => (
+import {
+  ArrowUp,
+  BookOpen,
+  Mail,
+  MapPin,
+  Phone,
+  Heart,
+  Sparkles,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
+import EnamadBadge from "../common/EnamadBadge";
+
+// ==================== Social Icons (SVG) ====================
+interface IconProps {
+  size?: number;
+}
+
+const InstagramIcon = ({ size = 18 }: IconProps) => (
   <svg
     width={size}
     height={size}
@@ -16,7 +33,7 @@ const InstagramIcon = ({ size = 17 }: { size?: number }) => (
   </svg>
 );
 
-const TwitterIcon = ({ size = 17 }: { size?: number }) => (
+const TelegramIcon = ({ size = 18 }: IconProps) => (
   <svg
     width={size}
     height={size}
@@ -27,11 +44,12 @@ const TwitterIcon = ({ size = 17 }: { size?: number }) => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
+    <path d="M21.5 4.5 2.5 12l5.5 2 2 6 3-4 6 4z" />
+    <path d="M8 14l10-8-6 10" />
   </svg>
 );
 
-const YoutubeIcon = ({ size = 17 }: { size?: number }) => (
+const AparatIcon = ({ size = 18 }: IconProps) => (
   <svg
     width={size}
     height={size}
@@ -42,62 +60,38 @@ const YoutubeIcon = ({ size = 17 }: { size?: number }) => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
-    <path d="m10 15 5-3-5-3z" />
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="3" fill="currentColor" />
+    <circle cx="12" cy="12" r="7" />
   </svg>
 );
 
-const LinkedinIcon = ({ size = 17 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-    <rect width="4" height="12" x="2" y="9" />
-    <circle cx="4" cy="4" r="2" />
-  </svg>
-);
+// ==================== Data ====================
+const productLinks = [
+  { label: "آزمون‌ها", href: "/tests" },
+  { label: "آرنا", href: "/arena" },
+  { label: "بازی انفرادی", href: "/solo/setup" },
+  { label: "اشتراک‌ها", href: "/subscriptions" },
+  { label: "برنامه راهبردی", href: "/strategy" },
+];
 
-const GithubIcon = ({ size = 17 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-    <path d="M9 18c-4.51 2-5-2-7-2" />
-  </svg>
-);
-// ❌ این‌ها را حذف کنید:
-// import { Github, Instagram, Linkedin, Twitter, Youtube } from "lucide-react";
+const companyLinks = [
+  { label: "درباره ما", href: "/about" },
+  { label: "وبلاگ", href: "/blog" },
+  { label: "تماس با ما", href: "/contact" },
+  { label: "دعوت دوستان", href: "/referral" },
+  { label: "داشبورد", href: "/dashboard" },
+];
 
-// ✅ این‌ها را نگه دارید:
-import { ArrowUp, BookOpen, Mail, MapPin, Phone, Send } from "lucide-react";
+const legalLinks = [
+  { label: "قوانین و مقررات", href: "/terms" },
+  { label: "حریم خصوصی", href: "/privacy" },
+  { label: "سوالات متداول", href: "/faq" },
+];
 
-import { useState } from "react";
-
+// ==================== کامپوننت ====================
 const Footer = () => {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setSubscribed(true);
-    setEmail("");
-    setTimeout(() => setSubscribed(false), 3000);
-  };
+  const { siteInfo } = useSiteInfo();
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -105,34 +99,47 @@ const Footer = () => {
 
   const currentYear = new Date().getFullYear();
 
+  // 🆕 شبکه‌های اجتماعی از API
+  const socialLinks = [
+    siteInfo.instagramUrl && {
+      icon: InstagramIcon,
+      href: siteInfo.instagramUrl,
+      label: "اینستاگرام",
+      color:
+        "hover:bg-gradient-to-br hover:from-purple-500 hover:via-pink-500 hover:to-orange-500",
+    },
+    siteInfo.telegramUrl && {
+      icon: TelegramIcon,
+      href: siteInfo.telegramUrl,
+      label: "تلگرام",
+      color: "hover:bg-sky-500",
+    },
+    siteInfo.aparatUrl && {
+      icon: AparatIcon,
+      href: siteInfo.aparatUrl,
+      label: "آپارات",
+      color: "hover:bg-red-500",
+    },
+  ].filter(Boolean) as Array<{
+    icon: ({ size }: IconProps) => React.ReactElement;
+    href: string;
+    label: string;
+    color: string;
+  }>;
+
   return (
     <footer className="relative mt-24 overflow-hidden bg-[#080B12] text-white">
-      {/* 🔹 گرادیان طلایی بالای footer */}
       <div className="h-1 w-full bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
 
-      {/* 🔹 گرادیان‌های پس‌زمینه */}
       <div className="absolute inset-0 bg-gradient-to-b from-[var(--griffin-gold)]/5 via-transparent to-purple-600/5 pointer-events-none" />
 
-      {/* 🔹 ذرات نورانی */}
-      <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full bg-purple-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-[var(--griffin-gold)]/10 blur-[80px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-600/10 blur-[80px] pointer-events-none" />
 
-      {/* 🔹 الگوی نقطه‌ای */}
-      <div
-        className="absolute inset-0 opacity-[0.04] pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, white 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
-
-      {/* 🔹 محتوای اصلی */}
       <div className="relative max-w-7xl mx-auto px-6 pt-16 pb-8">
-        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-12">
-          {/* ===== ستون برند ===== */}
-          <div className="lg:col-span-4 space-y-5">
-            {/* لوگو */}
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-12">
+          {/* ===== ستون ۱: برند + شبکه‌ها ===== */}
+          <div className="lg:col-span-5 space-y-5">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-40" />
@@ -150,231 +157,184 @@ const Footer = () => {
               </div>
             </div>
 
-            <p className="text-sm leading-7 text-gray-400 max-w-sm">
-              آکادمی گریفین، پلتفرم هوشمند یادگیری، آزمون و رقابت برای
-              دانش‌آموزان کنکوری. مسیر موفقیت را با ما تجربه کن.
-            </p>
+            {/* 🆕 توضیحات از API */}
+            {siteInfo.aboutShort && (
+              <p className="text-sm leading-7 text-gray-400 max-w-md">
+                {siteInfo.aboutShort}
+              </p>
+            )}
 
             {/* شبکه‌های اجتماعی */}
-            <div className="flex gap-2 pt-2">
-              {[
-                { icon: InstagramIcon, href: "#", label: "اینستاگرام" },
-                { icon: TwitterIcon, href: "#", label: "توییتر" },
-                { icon: YoutubeIcon, href: "#", label: "یوتیوب" },
-                { icon: LinkedinIcon, href: "#", label: "لینکدین" },
-                { icon: GithubIcon, href: "#", label: "گیت‌هاب" },
-              ].map((social, i) => {
-                const Icon = social.icon;
-                return (
-                  <a
-                    key={i}
-                    href={social.href}
-                    aria-label={social.label}
-                    className="group relative w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 transition-all duration-300 hover:bg-[var(--griffin-gold)] hover:border-[var(--griffin-gold)] hover:text-white hover:-translate-y-1 hover:shadow-lg hover:shadow-[var(--griffin-gold)]/40"
-                  >
-                    <Icon size={17} />
-                  </a>
-                );
-              })}
-            </div>
+            {socialLinks.length > 0 && (
+              <div className="pt-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">
+                  ما را دنبال کن
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {socialLinks.map((social, i) => {
+                    const Icon = social.icon;
+                    return (
+                      <a
+                        key={i}
+                        href={social.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={social.label}
+                        title={social.label}
+                        className={`
+                          group relative w-10 h-10 rounded-xl
+                          bg-white/5 border border-white/10
+                          flex items-center justify-center
+                          text-gray-400
+                          transition-colors duration-300
+                          hover:border-transparent hover:text-white
+                          ${social.color}
+                        `}
+                      >
+                        <Icon size={17} />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* ===== ستون لینک‌های سریع ===== */}
+          {/* ===== ستون ۲: محصولات ===== */}
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="font-heading text-sm font-bold text-white">
-              دسترسی سریع
+            <h3 className="font-heading text-sm font-black text-white">
+              محصولات
             </h3>
             <ul className="space-y-2.5">
-              {[
-                { label: "صفحه اصلی", href: "/" },
-                { label: "آزمون‌ها", href: "/exams" },
-                { label: "Arena", href: "/arena" },
-                { label: "بانک سوال", href: "/questions" },
-                { label: "داشبورد", href: "/dashboard" },
-              ].map((link, i) => (
+              {productLinks.map((link, i) => (
                 <li key={i}>
-                  <a
-                    href={link.href}
-                    className="
-                      group inline-flex items-center gap-1
-                      text-sm text-gray-400
-                      transition-colors duration-200
-                      hover:text-[var(--griffin-gold)]
-                    "
+                  <Link
+                    to={link.href}
+                    className="group inline-flex items-center gap-1.5 text-sm text-gray-400 transition-colors duration-200 hover:text-[var(--griffin-gold)]"
                   >
                     <span className="w-0 h-px bg-[var(--griffin-gold)] transition-all duration-300 group-hover:w-3" />
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* ===== ستون خدمات ===== */}
+          {/* ===== ستون ۳: شرکت ===== */}
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="font-heading text-sm font-bold text-white">
-              خدمات ما
-            </h3>
+            <h3 className="font-heading text-sm font-black text-white">شرکت</h3>
             <ul className="space-y-2.5">
-              {[
-                { label: "آزمون آنلاین", href: "#" },
-                { label: "مشاوره تحصیلی", href: "#" },
-                { label: "برنامه‌ریزی", href: "#" },
-                { label: "تحلیل عملکرد", href: "#" },
-                { label: "رتبه‌بندی", href: "#" },
-              ].map((link, i) => (
+              {companyLinks.map((link, i) => (
                 <li key={i}>
-                  <a
-                    href={link.href}
-                    className="
-                      group inline-flex items-center gap-1
-                      text-sm text-gray-400
-                      transition-colors duration-200
-                      hover:text-[var(--griffin-gold)]
-                    "
+                  <Link
+                    to={link.href}
+                    className="group inline-flex items-center gap-1.5 text-sm text-gray-400 transition-colors duration-200 hover:text-[var(--griffin-gold)]"
                   >
                     <span className="w-0 h-px bg-[var(--griffin-gold)] transition-all duration-300 group-hover:w-3" />
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* ===== ستون خبرنامه و تماس ===== */}
-          <div className="lg:col-span-4 space-y-5">
-            <h3 className="font-heading text-sm font-bold text-white">
+          {/* ===== ستون ۴: تماس ===== */}
+          <div className="lg:col-span-3 space-y-4">
+            <h3 className="font-heading text-sm font-black text-white">
               با ما در تماس باش
             </h3>
 
-            {/* اطلاعات تماس */}
             <ul className="space-y-3 text-sm">
-              <li className="flex items-center gap-3 text-gray-400">
-                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[var(--griffin-gold)]">
-                  <Mail size={14} />
-                </div>
-                <span>info@griffin-academy.ir</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-400">
-                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[var(--griffin-gold)]">
-                  <Phone size={14} />
-                </div>
-                <span>۰۲۱-۱۲۳۴۵۶۷۸</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-400">
-                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[var(--griffin-gold)]">
-                  <MapPin size={14} />
-                </div>
-                <span>تهران، ایران</span>
-              </li>
+              {/* 🆕 ایمیل اصلی */}
+              {siteInfo.emailMain && (
+                <li>
+                  <a
+                    href={`mailto:${siteInfo.emailMain}`}
+                    className="group flex items-center gap-3 text-gray-400 hover:text-[var(--griffin-gold)] transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[var(--griffin-gold)] transition-colors group-hover:border-[var(--griffin-gold)]/40 shrink-0">
+                      <Mail size={15} />
+                    </div>
+                    <span className="text-xs break-all" dir="ltr">
+                      {siteInfo.emailMain}
+                    </span>
+                  </a>
+                </li>
+              )}
+
+              {/* 🆕 تلفن ثابت */}
+              {siteInfo.phoneFixed && (
+                <li>
+                  <a
+                    href={`tel:${siteInfo.phoneFixed.replace(/\D/g, "")}`}
+                    className="group flex items-center gap-3 text-gray-400 hover:text-[var(--griffin-gold)] transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[var(--griffin-gold)] transition-colors group-hover:border-[var(--griffin-gold)]/40 shrink-0">
+                      <Phone size={15} />
+                    </div>
+                    <span className="text-xs">{siteInfo.phoneFixed}</span>
+                  </a>
+                </li>
+              )}
+
+              {/* 🆕 آدرس */}
+              {siteInfo.address && (
+                <li className="flex items-center gap-3 text-gray-400">
+                  <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[var(--griffin-gold)] shrink-0">
+                    <MapPin size={15} />
+                  </div>
+                  <span className="text-xs">{siteInfo.address}</span>
+                </li>
+              )}
             </ul>
 
-            {/* فرم خبرنامه */}
-            <div className="pt-2">
-              <p className="text-xs text-gray-400 mb-2">
-                خبرنامه گریفین را دریافت کن
-              </p>
-              <form onSubmit={handleSubscribe} className="relative group">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ایمیل خود را وارد کنید"
-                  className="
-                    w-full rounded-xl
-                    bg-white/5
-                    border border-white/10
-                    px-4 py-3 pl-12
-                    text-sm text-white
-                    placeholder:text-gray-500
-                    outline-none
-                    transition-all duration-300
-                    focus:border-[var(--griffin-gold)]
-                    focus:bg-white/10
-                    focus:shadow-lg
-                    focus:shadow-[var(--griffin-gold)]/20
-                  "
-                />
-                <button
-                  type="submit"
-                  aria-label="عضویت"
-                  className="
-                    absolute left-2 top-1/2 -translate-y-1/2
-                    w-8 h-8 rounded-lg
-                    bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600
-                    flex items-center justify-center
-                    text-white
-                    transition-transform duration-300
-                    hover:scale-110
-                    shadow-lg shadow-[var(--griffin-gold)]/30
-                  "
-                >
-                  <Send size={14} />
-                </button>
-              </form>
-
-              {subscribed && (
-                <p className="text-xs text-emerald-400 mt-2 animate-pulse">
-                  ✅ با موفقیت عضو شدی!
-                </p>
-              )}
-            </div>
+            {/* 🆕 Enamad */}
+            {siteInfo.enamadEnabled && siteInfo.enamadHtml && (
+              <div className="pt-2">
+                <EnamadBadge />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ===== خط جداکننده ===== */}
+        {/* خط جداکننده */}
         <div className="relative my-10">
           <div className="h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          {/* نقطه‌ی تزئینی وسط */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[var(--griffin-gold)] shadow-lg shadow-[var(--griffin-gold)]/50" />
         </div>
 
-        {/* ===== بخش پایین (کپی‌رایت و لینک‌های قانونی) ===== */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-500 text-center md:text-right">
-            © {currentYear} آکادمی گریفین — تمامی حقوق محفوظ است.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-gray-500">
-            <a
-              href="#"
-              className="hover:text-[var(--griffin-gold)] transition-colors"
-            >
-              قوانین و مقررات
-            </a>
+        {/* بخش پایین */}
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2 text-xs text-gray-500 text-center lg:text-right order-3 lg:order-1 flex-wrap justify-center">
+            <span>© {currentYear} آکادمی گریفین</span>
             <span className="w-1 h-1 rounded-full bg-gray-600" />
-            <a
-              href="#"
-              className="hover:text-[var(--griffin-gold)] transition-colors"
-            >
-              حریم خصوصی
-            </a>
-            <span className="w-1 h-1 rounded-full bg-gray-600" />
-            <a
-              href="#"
-              className="hover:text-[var(--griffin-gold)] transition-colors"
-            >
-              تماس با ما
-            </a>
+            <span>تمامی حقوق محفوظ است</span>
+            <span className="inline-flex items-center gap-1 text-[var(--griffin-gold)]/70">
+              ساخته‌شده با
+              <Heart size={11} fill="currentColor" className="text-rose-500" />
+            </span>
           </div>
 
-          {/* دکمه بازگشت به بالا */}
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-gray-500 order-2">
+            {legalLinks.map((link, i) => (
+              <div key={i} className="flex items-center gap-5">
+                <Link
+                  to={link.href}
+                  className="hover:text-[var(--griffin-gold)] transition-colors"
+                >
+                  {link.label}
+                </Link>
+                {i < legalLinks.length - 1 && (
+                  <span className="w-1 h-1 rounded-full bg-gray-600" />
+                )}
+              </div>
+            ))}
+          </div>
+
           <button
             onClick={scrollToTop}
             aria-label="بازگشت به بالا"
-            className="
-              group
-              flex items-center gap-2
-              px-4 py-2
-              rounded-xl
-              bg-white/5
-              border border-white/10
-              text-xs text-gray-400
-              hover:text-white
-              hover:bg-[var(--griffin-gold)]/20
-              hover:border-[var(--griffin-gold)]/40
-              transition-all duration-300
-            "
+            className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-black text-gray-400 hover:text-white hover:bg-[var(--griffin-gold)]/20 hover:border-[var(--griffin-gold)]/40 transition-colors duration-300 order-1 lg:order-3"
           >
             <ArrowUp
               size={14}
@@ -382,6 +342,14 @@ const Footer = () => {
             />
             <span>بازگشت به بالا</span>
           </button>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-center gap-2 text-[10px] text-gray-600">
+          <Sparkles size={11} className="text-[var(--griffin-gold)]/50" />
+          <span className="tracking-widest uppercase">
+            Griffin Academy · Konkoor Arena
+          </span>
+          <Sparkles size={11} className="text-[var(--griffin-gold)]/50" />
         </div>
       </div>
     </footer>

@@ -12,9 +12,11 @@ import WalletPanel from "../panels/WalletPanel";
 import StrategyPanel from "../panels/StrategyPanel";
 import AdminHome from "../panels/admin/AdminHome";
 import AdminUsers from "../panels/admin/AdminUsers";
+import SiteInfoPanel from "../panels/admin/SiteInfoPanel";
 import { useAuth } from "../../../context/AuthContext";
 import DesignerHome from "../panels/designer/DesignerHome";
 import CounselorHome from "../panels/counselor/CounselorHome";
+import SecurityRecoveryBanner from "../panels/SecurityRecoveryBanner";
 
 const VALID_SECTIONS: DashboardSection[] = [
   "home",
@@ -45,6 +47,7 @@ const VALID_SECTIONS: DashboardSection[] = [
   "admin-blog",
   "study-plans",
   "counselor-students",
+  "admin-site-info",
 ];
 
 const isValidSection = (value: string | null): value is DashboardSection => {
@@ -111,6 +114,7 @@ export default function DashboardLayout() {
       wallet: WalletPanel,
       payments: PaymentsPanel,
       settings: ProfilePanel,
+      "admin-site-info": SiteInfoPanel,
     };
 
     if (role === "QUESTION_DESIGNER") return designerPanels;
@@ -217,7 +221,7 @@ export default function DashboardLayout() {
             onClick={() => setSidebarOpen(false)}
           />
 
-          <div className="fixed top-0 right-0 bottom-0 z-50 w-[280px] lg:hidden animate-[slideInRight_0.3s_ease-out]">
+          <div className="fixed top-0 right-0 bottom-0 z-50 w-[280px] lg:hidden animate-[slideInRight_0.3s_ease-out] p-2">
             <DashboardSidebar
               active={active}
               onChange={handleSectionChange}
@@ -229,6 +233,8 @@ export default function DashboardLayout() {
 
       {/* ==================== محتوای اصلی ==================== */}
       <section className="min-w-0">
+        <SecurityRecoveryBanner />
+        <br />
         <Panel />
       </section>
     </div>

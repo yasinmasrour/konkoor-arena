@@ -10,12 +10,23 @@ import {
   Zap,
 } from "lucide-react";
 import RevealOnScroll from "../components/common/RevealOnScroll";
+import { usePublicStats } from "../hooks/usePublicStats";
 
 const About = () => {
+  const { stats } = usePublicStats();
+
+  const formatCompact = (n: number) => {
+    if (n >= 1000) {
+      const k = Math.floor(n / 100) / 10;
+      return `${k.toLocaleString("fa-IR")}K+`;
+    }
+    return `${n.toLocaleString("fa-IR")}+`;
+  };
+
   const values = [
     {
       icon: Target,
-      title: "هدفمندی",
+      title: "هدف‌مندی",
       description:
         "هر ابزار و ویژگی ما با هدف کمک به پیشرفت واقعی دانش‌آموزان طراحی شده است.",
     },
@@ -41,36 +52,21 @@ const About = () => {
 
   const milestones = [
     { year: "۱۴۰۲", title: "تولد گریفین", desc: "با یک ایده ساده شروع کردیم" },
-    { year: "۱۴۰۳", title: "راه‌اندازی Arena", desc: "رقابت زنده بین دانش‌آموزان" },
-    { year: "۱۴۰۳", title: "۱۲٬۰۰۰ کاربر", desc: "جامعه‌ای رو به رشد" },
+    {
+      year: "۱۴۰۳",
+      title: "راه‌اندازی Arena",
+      desc: "رقابت زنده بین دانش‌آموزان",
+    },
+    {
+      year: "۱۴۰۳",
+      title: "رشد جامعه",
+      desc: "جامعه‌ای رو به رشد از دانش‌آموزان",
+    },
     { year: "۱۴۰۴", title: "امروز", desc: "در مسیر موفقیت با شما" },
   ];
 
-  const team = [
-    {
-      name: "ادمین مسرور",
-      role: "مؤسس و مدیرعامل",
-      initial: "م",
-    },
-    {
-      name: "علی رضایی",
-      role: "سرپرست فنی",
-      initial: "ع",
-    },
-    {
-      name: "سارا احمدی",
-      role: "مدیر محتوا",
-      initial: "س",
-    },
-    {
-      name: "رضا کریمی",
-      role: "طراح تجربه کاربری",
-      initial: "ر",
-    },
-  ];
-
   return (
-    <main className="min-h-screen px-6 py-16">
+    <main className="min-h-screen px-6 py-16 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-24">
         {/* ===== Hero ===== */}
         <section className="text-center space-y-6">
@@ -95,8 +91,8 @@ const About = () => {
 
           <RevealOnScroll delay={200}>
             <p className="text-lg leading-9 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              آکادمی گریفین یک پلتفرم هوشمند یادگیری، آزمون و رقابت است که با هدف
-              کمک به دانش‌آموزان کنکوری برای رسیدن به موفقیت طراحی شده است.
+              آکادمی گریفین یک پلتفرم هوشمند یادگیری، آزمون و رقابت است که با
+              هدف کمک به دانش‌آموزان کنکوری برای رسیدن به موفقیت طراحی شده است.
             </p>
           </RevealOnScroll>
         </section>
@@ -117,20 +113,33 @@ const About = () => {
               </p>
               <p className="leading-9 text-gray-600 dark:text-gray-300">
                 امروز هزاران دانش‌آموز از گریفین استفاده می‌کنند تا با آزمون‌های
-                هوشمند، رقابت در Arena و تحلیل دقیق عملکرد، به بهترین نسخه خودشان
-                تبدیل شوند.
+                هوشمند، رقابت در Arena و تحلیل دقیق عملکرد، به بهترین نسخه
+                خودشان تبدیل شوند.
               </p>
             </div>
           </RevealOnScroll>
 
           <RevealOnScroll direction="left" delay={100}>
-            <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-br from-[var(--griffin-gold)]/20 to-purple-600/20 blur-2xl rounded-3xl" />
+            {/* 🆕 relative + overflow-hidden برای جلوگیری از بیرون‌زدگی blur */}
+            <div className="relative rounded-3xl">
+              <div className="absolute -inset-4 bg-gradient-to-br from-[var(--griffin-gold)]/20 to-purple-600/20 blur-2xl rounded-3xl pointer-events-none" />
               <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-xl p-8 space-y-6">
                 {[
-                  { icon: Users, value: "۱۲٬۰۰۰+", label: "دانش‌آموز فعال" },
-                  { icon: BookOpen, value: "۴۵٬۰۰۰+", label: "سوال حل‌شده" },
-                  { icon: Award, value: "۹۸٪", label: "رضایت کاربران" },
+                  {
+                    icon: Users,
+                    value: formatCompact(stats.totalStudents),
+                    label: "دانش‌آموز فعال",
+                  },
+                  {
+                    icon: BookOpen,
+                    value: formatCompact(stats.totalQuestions),
+                    label: "سوال در بانک",
+                  },
+                  {
+                    icon: Award,
+                    value: formatCompact(stats.totalExams),
+                    label: "آزمون برگزارشده",
+                  },
                 ].map((item, i) => {
                   const Icon = item.icon;
                   return (
@@ -138,10 +147,10 @@ const About = () => {
                       key={i}
                       className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-white/5"
                     >
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 flex items-center justify-center text-white shadow-lg shadow-[var(--griffin-gold)]/30">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 flex items-center justify-center text-white shadow-lg shadow-[var(--griffin-gold)]/30 shrink-0">
                         <Icon size={20} />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-heading text-2xl font-black text-gray-900 dark:text-white">
                           {item.value}
                         </p>
@@ -177,7 +186,7 @@ const About = () => {
               return (
                 <RevealOnScroll key={i} delay={i * 100}>
                   <div className="group relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-7 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-[var(--griffin-gold)]/10 hover:border-[var(--griffin-gold)]/40 overflow-hidden h-full">
-                    <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                     <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 text-white mb-5 shadow-lg shadow-[var(--griffin-gold)]/30 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
                       <Icon size={22} strokeWidth={2.2} />
@@ -238,48 +247,13 @@ const About = () => {
           </div>
         </section>
 
-        {/* ===== تیم ما ===== */}
-        <section>
-          <RevealOnScroll>
-            <div className="text-center mb-14">
-              <h2 className="font-heading text-3xl md:text-4xl font-black text-gray-900 dark:text-white">
-                تیم ما
-              </h2>
-              <div className="w-20 h-1 bg-[var(--griffin-gold)] mx-auto mt-4 rounded-full" />
-              <p className="mt-5 text-gray-600 dark:text-gray-300">
-                افرادی که گریفین را می‌سازند
-              </p>
-            </div>
-          </RevealOnScroll>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {team.map((member, i) => (
-              <RevealOnScroll key={i} delay={i * 100}>
-                <div className="group text-center rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-7 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-[var(--griffin-gold)]/10 hover:border-[var(--griffin-gold)]/40">
-                  <div className="relative w-20 h-20 mx-auto mb-5">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 blur-lg opacity-40 group-hover:opacity-80 transition-opacity duration-300" />
-                    <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white font-black text-2xl shadow-lg">
-                      {member.initial}
-                    </div>
-                  </div>
-                  <h3 className="font-heading font-bold text-gray-900 dark:text-white">
-                    {member.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {member.role}
-                  </p>
-                </div>
-              </RevealOnScroll>
-            ))}
-          </div>
-        </section>
-
         {/* ===== CTA ===== */}
         <section>
           <RevealOnScroll>
+            {/* 🆕 overflow-hidden اضافه شد */}
             <div className="relative rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 backdrop-blur-xl p-10 md:p-14 text-center">
-              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/20 blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/10 blur-3xl" />
+              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/20 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/10 blur-3xl pointer-events-none" />
 
               <div className="relative space-y-5">
                 <Rocket

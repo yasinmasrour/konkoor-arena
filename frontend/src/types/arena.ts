@@ -1,4 +1,5 @@
 export interface ArenaLeague {
+  participantsCount: number;
   id: string;
   title: string;
   lesson: string;

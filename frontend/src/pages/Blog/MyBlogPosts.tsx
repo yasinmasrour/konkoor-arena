@@ -15,7 +15,6 @@ import {
   Send,
   Sparkles,
   Trash2,
-  X,
   XCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -71,6 +70,7 @@ const MyBlogPosts = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);

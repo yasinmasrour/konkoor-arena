@@ -1,69 +1,141 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { lazy, Suspense } from "react";
 
 import MainLayout from "../layouts/MainLayout";
-import Home from "../pages/Home";
-import Login from "../pages/Login";
-import Register from "../pages/Register";
-import Dashboard from "../pages/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
 import GuestRoute from "./GuestRoute";
 import FeatureGuard from "../components/common/FeatureGuard";
-import Tests from "../pages/Tests";
-import ExamDetail from "../pages/ExamDetail";
-import Attempt from "../pages/Attempt";
-import AttemptResult from "../pages/AttemptResult";
-import AttemptReview from "../pages/AttemptReview";
-import Arena from "../pages/Arena";
-import Matchmaking from "../pages/Arena/Matchmaking";
-import Match from "../pages/Arena/Match";
-import ArenaProfile from "../pages/Arena/ArenaProfile";
-import ArenaHistory from "../pages/Arena/ArenaHistory";
-import ArenaRanking from "../pages/Arena/ArenaRanking";
-import ArenaSeasonResults from "../pages/Arena/ArenaSeasonResults";
 import ErrorPage from "../components/common/ErrorPage";
 import RoleRoute from "./RoleRoute";
-import Forbidden from "../pages/Forbidden";
-import Subscriptions from "../pages/Subscriptions";
-import QuestionBank from "../pages/Questions/QuestionBank";
-import QuestionAnalyticsPage from "../pages/Questions/QuestionAnalytics";
-import QuestionImport from "../pages/Questions/QuestionImport";
-import QuestionDesigner from "../pages/Questions/QuestionDesigner";
-import QuestionReview from "../pages/Questions/QuestionReview";
-import BookletBuilder from "../pages/Booklets/BookletBuilder";
-import ExamBuilder from "../pages/ExamBuilder";
-import About from "../pages/About";
-import Contact from "../pages/Contact";
-import Notifications from "../pages/Notifications";
-import WithdrawRequests from "../pages/Admin/WithdrawRequests";
-import InviteAccept from "../pages/Arena/InviteAccept";
-import ArenaLeagues from "../pages/Admin/ArenaLeagues";
-import Referral from "../pages/Referral";
-import AdminComments from "../pages/Admin/AdminComments";
-import Strategy from "../pages/Strategy";
-import AdminStrategyPlans from "../pages/Admin/AdminStrategyPlans";
-import StrategyPlanEditor from "../pages/Admin/StrategyPlanEditor";
-import SoloSetup from "../pages/Solo/SoloSetup";
-import SoloMatch from "../pages/Solo/SoloMatch";
-import SoloResult from "../pages/Solo/SoloResult";
-import SoloHistory from "../pages/Solo/SoloHistory";
-import SoloStats from "../pages/Solo/SoloStats";
-import BlogList from "../pages/Blog/BlogList";
-import BlogPost from "../pages/Blog/BlogPost";
-import BlogEditor from "../pages/Blog/BlogEditor";
-import MyBlogPosts from "../pages/Blog/MyBlogPosts";
-import AdminBlog from "../pages/Admin/AdminBlog";
-import AdminBlogComments from "../pages/Admin/AdminBlogComments";
-import MyStudyPlans from "../pages/StudyPlan/MyStudyPlans";
-import StudyPlanDetail from "../pages/StudyPlan/StudyPlanDetail";
-import PersonalExam from "../pages/PersonalExam/PersonalExam";
-import PersonalExamResult from "../pages/PersonalExam/PersonalExamResult";
-import StudentsList from "../pages/Counselor/StudentsList";
-import StudentDetail from "../pages/Counselor/StudentDetail";
-import StudyPlanEditor from "../pages/Counselor/StudyPlanEditor";
-import PersonalExamBuilder from "../pages/Counselor/PersonalExamBuilder";
-import AdminSubscriptionPlans from "../pages/Admin/AdminSubscriptionPlans";
-import PaymentVerify from "../pages/PaymentVerify";
+import PageLoading from "../components/common/PageLoading";
 
+// ==================== 🆕 Public (فوری) ====================
+import Home from "../pages/Home";
+import Login from "../pages/Login";
+import Register from "../pages/Register";
+
+// ==================== 🆕 Lazy (کم‌استفاده‌تر یا سنگین) ====================
+const Dashboard = lazy(() => import("../pages/Dashboard"));
+const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
+const Subscriptions = lazy(() => import("../pages/Subscriptions"));
+const PaymentVerify = lazy(() => import("../pages/PaymentVerify"));
+const Notifications = lazy(() => import("../pages/Notifications"));
+const Referral = lazy(() => import("../pages/Referral"));
+const Strategy = lazy(() => import("../pages/Strategy"));
+
+// Tests
+const Tests = lazy(() => import("../pages/Tests"));
+const ExamDetail = lazy(() => import("../pages/ExamDetail"));
+const Attempt = lazy(() => import("../pages/Attempt"));
+const AttemptResult = lazy(() => import("../pages/AttemptResult"));
+const AttemptReview = lazy(() => import("../pages/AttemptReview"));
+
+// Arena
+const Arena = lazy(() => import("../pages/Arena"));
+const Matchmaking = lazy(() => import("../pages/Arena/Matchmaking"));
+const Match = lazy(() => import("../pages/Arena/Match"));
+const ArenaProfile = lazy(() => import("../pages/Arena/ArenaProfile"));
+const ArenaHistory = lazy(() => import("../pages/Arena/ArenaHistory"));
+const ArenaRanking = lazy(() => import("../pages/Arena/ArenaRanking"));
+const ArenaSeasonResults = lazy(
+  () => import("../pages/Arena/ArenaSeasonResults"),
+);
+const InviteAccept = lazy(() => import("../pages/Arena/InviteAccept"));
+
+// Solo
+const SoloSetup = lazy(() => import("../pages/Solo/SoloSetup"));
+const SoloMatch = lazy(() => import("../pages/Solo/SoloMatch"));
+const SoloResult = lazy(() => import("../pages/Solo/SoloResult"));
+const SoloHistory = lazy(() => import("../pages/Solo/SoloHistory"));
+const SoloStats = lazy(() => import("../pages/Solo/SoloStats"));
+
+// Questions (سنگین!)
+const QuestionBank = lazy(() => import("../pages/Questions/QuestionBank"));
+const QuestionAnalyticsPage = lazy(
+  () => import("../pages/Questions/QuestionAnalytics"),
+);
+const QuestionImport = lazy(() => import("../pages/Questions/QuestionImport"));
+const QuestionDesigner = lazy(
+  () => import("../pages/Questions/QuestionDesigner"),
+);
+const QuestionReview = lazy(() => import("../pages/Questions/QuestionReview"));
+
+// 🆕 Builders (سنگین‌ترین‌ها!)
+const ExamBuilder = lazy(() => import("../pages/ExamBuilder"));
+const BookletBuilder = lazy(
+  () => import("../pages/Booklets/BookletBuilder"),
+);
+
+// Blog
+const BlogList = lazy(() => import("../pages/Blog/BlogList"));
+const BlogPost = lazy(() => import("../pages/Blog/BlogPost"));
+const BlogEditor = lazy(() => import("../pages/Blog/BlogEditor"));
+const MyBlogPosts = lazy(() => import("../pages/Blog/MyBlogPosts"));
+const AdminBlog = lazy(() => import("../pages/Admin/AdminBlog"));
+const AdminBlogComments = lazy(
+  () => import("../pages/Admin/AdminBlogComments"),
+);
+
+// Study Plans
+const MyStudyPlans = lazy(() => import("../pages/StudyPlan/MyStudyPlans"));
+const StudyPlanDetail = lazy(
+  () => import("../pages/StudyPlan/StudyPlanDetail"),
+);
+
+// Personal Exam
+const PersonalExam = lazy(() => import("../pages/PersonalExam/PersonalExam"));
+const PersonalExamResult = lazy(
+  () => import("../pages/PersonalExam/PersonalExamResult"),
+);
+
+// Counselor
+const StudentsList = lazy(() => import("../pages/Counselor/StudentsList"));
+const StudentDetail = lazy(() => import("../pages/Counselor/StudentDetail"));
+const StudyPlanEditor = lazy(
+  () => import("../pages/Counselor/StudyPlanEditor"),
+);
+const PersonalExamBuilder = lazy(
+  () => import("../pages/Counselor/PersonalExamBuilder"),
+);
+
+// Admin
+const WithdrawRequests = lazy(
+  () => import("../pages/Admin/WithdrawRequests"),
+);
+const ArenaLeagues = lazy(() => import("../pages/Admin/ArenaLeagues"));
+const AdminComments = lazy(() => import("../pages/Admin/AdminComments"));
+const AdminStrategyPlans = lazy(
+  () => import("../pages/Admin/AdminStrategyPlans"),
+);
+const StrategyPlanEditor = lazy(
+  () => import("../pages/Admin/StrategyPlanEditor"),
+);
+const AdminSubscriptionPlans = lazy(
+  () => import("../pages/Admin/AdminSubscriptionPlans"),
+);
+const SiteInfoPanel = lazy(
+  () => import("../components/dashboard/panels/admin/SiteInfoPanel"),
+);
+
+// Public (سبک)
+const About = lazy(() => import("../pages/About"));
+const Contact = lazy(() => import("../pages/Contact"));
+const Terms = lazy(() => import("../pages/Terms"));
+const Privacy = lazy(() => import("../pages/Privacy"));
+const FAQ = lazy(() => import("../pages/FAQ"));
+const Forbidden = lazy(() => import("../pages/Forbidden"));
+
+// Temp
+const StudySchedule = lazy(() => import("../pages/Temp/StudySchedule"));
+
+// ==================== 🆕 Wrapper ====================
+const withSuspense = (Component: React.LazyExoticComponent<React.ComponentType>) => (
+  <Suspense fallback={<PageLoading />}>
+    <Component />
+  </Suspense>
+);
+
+// ==================== Router ====================
 const router = createBrowserRouter([
   {
     path: "/",
@@ -80,6 +152,7 @@ const router = createBrowserRouter([
         children: [
           { path: "login", element: <Login /> },
           { path: "register", element: <Register /> },
+          { path: "forgot-password", element: withSuspense(ForgotPassword) },
         ],
       },
 
@@ -87,38 +160,45 @@ const router = createBrowserRouter([
       {
         element: <ProtectedRoute />,
         children: [
-          { path: "dashboard", element: <Dashboard /> },
-          { path: "subscriptions", element: <Subscriptions /> },
-          { path: "payment/verify", element: <PaymentVerify /> },
-          { path: "notifications", element: <Notifications /> },
-          { path: "referral", element: <Referral /> },
+          { path: "dashboard", element: withSuspense(Dashboard) },
+          { path: "subscriptions", element: withSuspense(Subscriptions) },
+          { path: "payment/verify", element: withSuspense(PaymentVerify) },
+          { path: "notifications", element: withSuspense(Notifications) },
+          { path: "referral", element: withSuspense(Referral) },
+          { path: "strategy", element: withSuspense(Strategy) },
 
-          // 🟢 برنامه راهبردی — آزاد برای همه
-          { path: "strategy", element: <Strategy /> },
-
-          // 🟢 وبلاگ شخصی — آزاد
-          { path: "dashboard/blog/new", element: <BlogEditor /> },
-          { path: "dashboard/blog/:id/edit", element: <BlogEditor /> },
-          { path: "dashboard/my-blog-posts", element: <MyBlogPosts /> },
-
-          // 🟢 لیست برنامه‌های مطالعاتی — آزاد (کاربر ببینه چیه)
-          { path: "dashboard/study-plans", element: <MyStudyPlans /> },
           {
-            path: "dashboard/study-plans/:id",
-            element: <StudyPlanDetail />,
+            path: "dashboard/blog/new",
+            element: withSuspense(BlogEditor),
+          },
+          {
+            path: "dashboard/blog/:id/edit",
+            element: withSuspense(BlogEditor),
+          },
+          {
+            path: "dashboard/my-blog-posts",
+            element: withSuspense(MyBlogPosts),
           },
 
-          // 🔒 آزمون شخصی و نتیجه — نیاز به اشتراک
+          {
+            path: "dashboard/study-plans",
+            element: withSuspense(MyStudyPlans),
+          },
+          {
+            path: "dashboard/study-plans/:id",
+            element: withSuspense(StudyPlanDetail),
+          },
+
           {
             element: <FeatureGuard feature="study-plans" />,
             children: [
               {
                 path: "dashboard/personal-exams/:id",
-                element: <PersonalExam />,
+                element: withSuspense(PersonalExam),
               },
               {
                 path: "dashboard/personal-exams/:id/result",
-                element: <PersonalExamResult />,
+                element: withSuspense(PersonalExamResult),
               },
             ],
           },
@@ -129,141 +209,161 @@ const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={["ADMIN"]} />,
         children: [
-          { path: "question-review", element: <QuestionReview /> },
-          { path: "admin/withdraw-requests", element: <WithdrawRequests /> },
-          { path: "admin/arena/leagues", element: <ArenaLeagues /> },
-          { path: "admin/comments", element: <AdminComments /> },
-          { path: "admin/strategy-plans", element: <AdminStrategyPlans /> },
-          { path: "admin/strategy-plans/new", element: <StrategyPlanEditor /> },
+          {
+            path: "question-review",
+            element: withSuspense(QuestionReview),
+          },
+          {
+            path: "admin/withdraw-requests",
+            element: withSuspense(WithdrawRequests),
+          },
+          {
+            path: "admin/arena/leagues",
+            element: withSuspense(ArenaLeagues),
+          },
+          {
+            path: "admin/comments",
+            element: withSuspense(AdminComments),
+          },
+          {
+            path: "admin/strategy-plans",
+            element: withSuspense(AdminStrategyPlans),
+          },
+          {
+            path: "admin/strategy-plans/new",
+            element: withSuspense(StrategyPlanEditor),
+          },
           {
             path: "admin/strategy-plans/:id/edit",
-            element: <StrategyPlanEditor />,
+            element: withSuspense(StrategyPlanEditor),
           },
-          { path: "admin/blog", element: <AdminBlog /> },
-          { path: "admin/blog/new", element: <BlogEditor /> },
-          { path: "admin/blog/comments", element: <AdminBlogComments /> },
-          { path: "admin/blog/:id/edit", element: <BlogEditor /> },
+          { path: "admin/blog", element: withSuspense(AdminBlog) },
+          { path: "admin/blog/new", element: withSuspense(BlogEditor) },
+          {
+            path: "admin/blog/comments",
+            element: withSuspense(AdminBlogComments),
+          },
+          {
+            path: "admin/blog/:id/edit",
+            element: withSuspense(BlogEditor),
+          },
           {
             path: "admin/subscription-plans",
-            element: <AdminSubscriptionPlans />,
+            element: withSuspense(AdminSubscriptionPlans),
+          },
+          {
+            path: "admin/site-info",
+            element: withSuspense(SiteInfoPanel),
           },
         ],
       },
 
-      // ==================== آزمون‌ها (عمومی) ====================
-      {
-        path: "tests",
-        element: <Tests />,
-      },
-      {
-        path: "tests/:id",
-        element: <ExamDetail />,
-      },
-      {
-        path: "attempts/:attemptId",
-        element: <Attempt />,
-      },
-      {
-        path: "attempts/:id/result",
-        element: <AttemptResult />,
-      },
-      {
-        path: "attempts/:id/review",
-        element: <AttemptReview />,
-      },
+      // ==================== آزمون‌ها ====================
+      { path: "tests", element: withSuspense(Tests) },
+      { path: "tests/:id", element: withSuspense(ExamDetail) },
+      { path: "attempts/:attemptId", element: withSuspense(Attempt) },
+      { path: "attempts/:id/result", element: withSuspense(AttemptResult) },
+      { path: "attempts/:id/review", element: withSuspense(AttemptReview) },
 
       // ==================== عمومی ====================
-      {
-        path: "about",
-        element: <About />,
-      },
-      {
-        path: "contact",
-        element: <Contact />,
-      },
-      {
-        path: "blog",
-        element: <BlogList />,
-      },
-      {
-        path: "blog/:slug",
-        element: <BlogPost />,
-      },
+      { path: "about", element: withSuspense(About) },
+      { path: "contact", element: withSuspense(Contact) },
+      { path: "temp/schedule", element: withSuspense(StudySchedule) },
+      { path: "terms", element: withSuspense(Terms) },
+      { path: "privacy", element: withSuspense(Privacy) },
+      { path: "faq", element: withSuspense(FAQ) },
+      { path: "blog", element: withSuspense(BlogList) },
+      { path: "blog/:slug", element: withSuspense(BlogPost) },
 
       // ==================== Protected (آرنا و بازی انفرادی) ====================
       {
         element: <ProtectedRoute />,
         children: [
-          // 🟢 صفحه اصلی آرنا — آزاد (Landing + لیست لیگ‌ها)
-          { path: "arena", element: <Arena /> },
+          { path: "arena", element: withSuspense(Arena) },
+          {
+            path: "arena/ranking/:leagueId",
+            element: withSuspense(ArenaRanking),
+          },
 
-          // 🟢 رتبه‌بندی لیگ — آزاد (برای جذابیت)
-          { path: "arena/ranking/:leagueId", element: <ArenaRanking /> },
-
-          // 🔒 بقیه صفحات آرنا — نیاز به اشتراک
           {
             element: <FeatureGuard feature="arena" />,
             children: [
-              { path: "arena/profile", element: <ArenaProfile /> },
-              { path: "arena/history", element: <ArenaHistory /> },
+              {
+                path: "arena/profile",
+                element: withSuspense(ArenaProfile),
+              },
+              {
+                path: "arena/history",
+                element: withSuspense(ArenaHistory),
+              },
               {
                 path: "arena/season/:leagueId",
-                element: <ArenaSeasonResults />,
+                element: withSuspense(ArenaSeasonResults),
               },
-              { path: "arena/leagues/:leagueId", element: <Matchmaking /> },
-              { path: "arena/match/:matchId", element: <Match /> },
-              { path: "arena/invite/:code", element: <InviteAccept /> },
+              {
+                path: "arena/leagues/:leagueId",
+                element: withSuspense(Matchmaking),
+              },
+              { path: "arena/match/:matchId", element: withSuspense(Match) },
+              {
+                path: "arena/invite/:code",
+                element: withSuspense(InviteAccept),
+              },
             ],
           },
 
-          // 🔒 بازی انفرادی — نیاز به اشتراک
           {
             element: <FeatureGuard feature="solo" />,
             children: [
-              { path: "solo/setup", element: <SoloSetup /> },
-              { path: "solo/:id", element: <SoloMatch /> },
-              { path: "solo/:id/result", element: <SoloResult /> },
-              { path: "solo/history", element: <SoloHistory /> },
-              { path: "solo/stats", element: <SoloStats /> },
+              { path: "solo/setup", element: withSuspense(SoloSetup) },
+              { path: "solo/:id", element: withSuspense(SoloMatch) },
+              {
+                path: "solo/:id/result",
+                element: withSuspense(SoloResult),
+              },
+              { path: "solo/history", element: withSuspense(SoloHistory) },
+              { path: "solo/stats", element: withSuspense(SoloStats) },
             ],
           },
         ],
       },
 
-      // ==================== 403 ====================
-      {
-        path: "403",
-        element: <Forbidden />,
-      },
+      { path: "403", element: withSuspense(Forbidden) },
 
       // ==================== Counselor / Admin ====================
       {
         element: <RoleRoute allowedRoles={["ADMIN", "COUNSELOR"]} />,
         children: [
-          { path: "booklets", element: <BookletBuilder /> },
-          { path: "booklet-builder", element: <BookletBuilder /> },
-          { path: "booklet-builder/:id", element: <BookletBuilder /> },
-          { path: "exam-builder", element: <ExamBuilder /> },
-          { path: "exam-builder/:id", element: <ExamBuilder /> },
+          { path: "booklets", element: withSuspense(BookletBuilder) },
+          { path: "booklet-builder", element: withSuspense(BookletBuilder) },
+          {
+            path: "booklet-builder/:id",
+            element: withSuspense(BookletBuilder),
+          },
+          { path: "exam-builder", element: withSuspense(ExamBuilder) },
+          {
+            path: "exam-builder/:id",
+            element: withSuspense(ExamBuilder),
+          },
           {
             path: "dashboard/counselor/students",
-            element: <StudentsList />,
+            element: withSuspense(StudentsList),
           },
           {
             path: "dashboard/counselor/students/:id",
-            element: <StudentDetail />,
+            element: withSuspense(StudentDetail),
           },
           {
             path: "dashboard/counselor/students/:studentId/plans/new",
-            element: <StudyPlanEditor />,
+            element: withSuspense(StudyPlanEditor),
           },
           {
             path: "dashboard/counselor/plans/:planId/edit",
-            element: <StudyPlanEditor />,
+            element: withSuspense(StudyPlanEditor),
           },
           {
             path: "dashboard/counselor/plans/:planId/exam-builder",
-            element: <PersonalExamBuilder />,
+            element: withSuspense(PersonalExamBuilder),
           },
         ],
       },
@@ -272,15 +372,26 @@ const router = createBrowserRouter([
       {
         element: <RoleRoute allowedRoles={["ADMIN", "QUESTION_DESIGNER"]} />,
         children: [
-          { path: "question-bank", element: <QuestionBank /> },
-          { path: "question-analytics", element: <QuestionAnalyticsPage /> },
-          { path: "question-import", element: <QuestionImport /> },
-          { path: "question-designer", element: <QuestionDesigner /> },
-          { path: "question-designer/:id", element: <QuestionDesigner /> },
+          { path: "question-bank", element: withSuspense(QuestionBank) },
+          {
+            path: "question-analytics",
+            element: withSuspense(QuestionAnalyticsPage),
+          },
+          {
+            path: "question-import",
+            element: withSuspense(QuestionImport),
+          },
+          {
+            path: "question-designer",
+            element: withSuspense(QuestionDesigner),
+          },
+          {
+            path: "question-designer/:id",
+            element: withSuspense(QuestionDesigner),
+          },
         ],
       },
 
-      // ==================== 404 ====================
       {
         path: "*",
         loader: () => {

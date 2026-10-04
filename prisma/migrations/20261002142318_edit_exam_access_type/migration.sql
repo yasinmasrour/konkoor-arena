@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Exam" ALTER COLUMN "accessType" SET DEFAULT 'SUBSCRIPTION';

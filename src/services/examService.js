@@ -2,12 +2,26 @@ const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const getPagination = require("../utils/pagination");
 const { hasExamAccess } = require("../utils/accessHelper");
+const {
+  EXAM_ACCESS_TYPE,
+  EXAM_ACCESS_TYPES_LIST,
+} = require("../constants/examAccess");
 
 const getExamOwnerWhere = (user) =>
   user?.role === "ADMIN" ? {} : { createdById: user.id };
 
+// ============================================================
+// CREATE
+// ============================================================
+
 const createExam = async (data) => {
-  const { createdBy, bookletIds, ...examData } = data;
+  const { createdBy, bookletIds, accessType, ...examData } = data;
+
+  // 🆕 ولیدیشن accessType
+  const finalAccessType = accessType || EXAM_ACCESS_TYPE.SUBSCRIPTION;
+  if (!EXAM_ACCESS_TYPES_LIST.includes(finalAccessType)) {
+    throw new AppError("Invalid access type", 400);
+  }
 
   const uniqueBookletIds = [...new Set(bookletIds)];
   if (!uniqueBookletIds.length)
@@ -26,6 +40,7 @@ const createExam = async (data) => {
     const exam = await tx.exam.create({
       data: {
         ...examData,
+        accessType: finalAccessType,
         createdBy: { connect: { id: createdBy } },
       },
     });
@@ -50,6 +65,10 @@ const createExam = async (data) => {
     });
   });
 };
+
+// ============================================================
+// LIST
+// ============================================================
 
 const getExams = async (query) => {
   const { page, limit, skip } = getPagination(query);
@@ -88,6 +107,7 @@ const getExams = async (query) => {
       startTime: exam.startTime,
       endTime: exam.endTime,
       status: exam.status,
+      accessType: exam.accessType,
       booklets: exam.booklets,
       lesson: exam.booklets[0]?.booklet?.lesson || "",
       grade: exam.booklets[0]?.booklet?.grade || "",
@@ -106,6 +126,10 @@ const getExams = async (query) => {
   };
 };
 
+// ============================================================
+// INCLUDE
+// ============================================================
+
 const examInclude = {
   booklets: {
     orderBy: { order: "asc" },
@@ -120,11 +144,14 @@ const examInclude = {
   createdBy: { select: { id: true, firstName: true, lastName: true } },
 };
 
+// ============================================================
+// GET BY ID
+// ============================================================
+
 /**
  * گرفتن یه آزمون با چک دسترسی
  * @param {string} id
  * @param {object|null} [user] - کاربر لاگین‌شده (اختیاری)
- * @returns {Promise<object>}
  */
 const getExamById = async (id, user = null) => {
   const exam = await prisma.exam.findUnique({
@@ -149,6 +176,10 @@ const getExamById = async (id, user = null) => {
   };
 };
 
+// ============================================================
+// OWNED EXAM HELPERS
+// ============================================================
+
 const getOwnedExam = async (id, user) => {
   const exam = await prisma.exam.findFirst({
     where: { id, ...getExamOwnerWhere(user) },
@@ -169,6 +200,10 @@ const getOwnedExamWithBooklets = async (id, user) => {
   return exam;
 };
 
+// ============================================================
+// ASSERTIONS
+// ============================================================
+
 const assertDraft = (exam) => {
   if (exam.status !== "draft") {
     throw new AppError("Only draft exams can be edited", 409);
@@ -181,11 +216,16 @@ const assertHasBooklets = (exam) => {
   }
 };
 
+// ============================================================
+// UPDATE
+// ============================================================
+
 const updateExam = async (id, data, user) => {
   const exam = await getOwnedExam(id, user);
   assertDraft(exam);
 
-  const { status, bookletIds, ...editableData } = data;
+  const { status, bookletIds, accessType, ...editableData } = data;
+
   if (status !== undefined) {
     throw new AppError("Use the exam status endpoint to change status", 400);
   }
@@ -196,6 +236,14 @@ const updateExam = async (id, data, user) => {
     );
   }
 
+  // 🆕 ولیدیشن accessType
+  if (accessType !== undefined) {
+    if (!EXAM_ACCESS_TYPES_LIST.includes(accessType)) {
+      throw new AppError("Invalid access type", 400);
+    }
+    editableData.accessType = accessType;
+  }
+
   const updated = await prisma.exam.update({
     where: { id },
     data: editableData,
@@ -203,6 +251,10 @@ const updateExam = async (id, data, user) => {
   });
   return updated;
 };
+
+// ============================================================
+// CHANGE STATUS
+// ============================================================
 
 const changeExamStatus = async (id, nextStatus, user) => {
   const exam = await getOwnedExamWithBooklets(id, user);
@@ -238,6 +290,10 @@ const changeExamStatus = async (id, nextStatus, user) => {
     include: examInclude,
   });
 };
+
+// ============================================================
+// BOOKLETS
+// ============================================================
 
 const getPublishedBooklets = async (bookletIds) => {
   const uniqueIds = [...new Set(bookletIds)];
@@ -361,6 +417,10 @@ const updateBookletOrder = async (id, booklets, user) => {
   return getExamById(id, user);
 };
 
+// ============================================================
+// DUPLICATE
+// ============================================================
+
 const duplicateExam = async (id, user) => {
   const source = await getOwnedExamWithBooklets(id, user);
   if (!source.booklets.length)
@@ -374,6 +434,7 @@ const duplicateExam = async (id, user) => {
         startTime: source.startTime,
         endTime: source.endTime,
         status: "draft",
+        accessType: source.accessType,
         createdById: user.id,
       },
     });
@@ -390,12 +451,20 @@ const duplicateExam = async (id, user) => {
   });
 };
 
+// ============================================================
+// DELETE
+// ============================================================
+
 const deleteExam = async (id, user) => {
   const exam = await getOwnedExam(id, user);
   if (exam.status === "published")
     throw new AppError("Published exams cannot be deleted", 409);
   await prisma.exam.delete({ where: { id } });
 };
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   createExam,

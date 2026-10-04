@@ -109,7 +109,6 @@ const QuestionDesigner = () => {
   const navigate = useNavigate();
   const editing = Boolean(id);
 
-  // ==================== State ====================
   const [form, setForm] = useState<QuestionPayload>(emptyForm);
   const [tagsText, setTagsText] = useState("");
   const [loading, setLoading] = useState(editing);
@@ -160,7 +159,6 @@ const QuestionDesigner = () => {
     void load();
   }, [id]);
 
-  // ==================== توابع کمکی ====================
   const setField = <K extends keyof QuestionPayload>(
     key: K,
     value: QuestionPayload[K],
@@ -286,7 +284,6 @@ const QuestionDesigner = () => {
   const checklistPassed = checklist.filter((item) => item.ok).length;
   const currentStatusStyle = statusStyles[questionStatus] ?? statusStyles.draft;
 
-  // ==================== Loading ====================
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center px-6">
@@ -305,20 +302,17 @@ const QuestionDesigner = () => {
     );
   }
 
-  // ==================== JSX ====================
   return (
     <main className="min-h-screen px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* ==================== HEADER ==================== */}
-        <header className="relative rounded-[2rem] overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm p-6 sm:p-8">
+        <header className="relative rounded-[2rem] overflow-hidden border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-6 sm:p-8">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
-          <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-purple-600/10 blur-3xl pointer-events-none" />
 
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
-                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-60 animate-pulse" />
+                <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-xl opacity-50" />
                 <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
                   <Wand2 size={24} strokeWidth={2.3} />
                 </div>
@@ -373,7 +367,7 @@ const QuestionDesigner = () => {
 
             <button
               onClick={() => setPreview(true)}
-              className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 transition-all overflow-hidden"
+              className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:-translate-y-0.5 transition-transform overflow-hidden"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <Eye size={16} />
@@ -386,7 +380,7 @@ const QuestionDesigner = () => {
 
         {/* ==================== ERROR ==================== */}
         {error && (
-          <div className="relative rounded-2xl overflow-hidden border border-rose-500/30 bg-gradient-to-l from-rose-500/10 to-transparent backdrop-blur-sm p-4">
+          <div className="relative rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
                 <AlertCircle size={16} className="text-rose-500" />
@@ -403,7 +397,7 @@ const QuestionDesigner = () => {
           {/* ==================== ستون اصلی ==================== */}
           <div className="space-y-5 lg:col-span-2">
             {/* اطلاعات سؤال */}
-            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
               <div className="relative p-5">
@@ -457,7 +451,7 @@ const QuestionDesigner = () => {
                         value={(form[field.key] as string) ?? ""}
                         onChange={(e) => setField(field.key, e.target.value)}
                         placeholder={field.placeholder}
-                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-colors"
                       />
                     </label>
                   ))}
@@ -469,7 +463,7 @@ const QuestionDesigner = () => {
                     <select
                       value={form.grade}
                       onChange={(e) => setField("grade", e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-colors"
                     >
                       <option value="10">دهم</option>
                       <option value="11">یازدهم</option>
@@ -484,7 +478,7 @@ const QuestionDesigner = () => {
                     <select
                       value={form.major}
                       onChange={(e) => setField("major", e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-colors"
                     >
                       <option value="math">ریاضی</option>
                       <option value="experimental">تجربی</option>
@@ -504,7 +498,7 @@ const QuestionDesigner = () => {
                           e.target.value as QuestionDifficulty,
                         )
                       }
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-colors"
                     >
                       {Object.entries(difficultyLabels).map(([key, label]) => (
                         <option key={key} value={key}>
@@ -528,15 +522,15 @@ const QuestionDesigner = () => {
                         )
                       }
                       placeholder="۱۴۰۳"
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-colors"
                     />
                   </label>
                 </div>
               </div>
             </div>
 
-            {/* صورت سؤال */}
-            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+            {/* صورت سؤال - 🆕 با preview و toolbar */}
+            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
               <div className="relative p-5">
@@ -560,6 +554,8 @@ const QuestionDesigner = () => {
                   rows={7}
                   placeholder="متن سؤال را وارد کنید... *"
                   label="متن سؤال *"
+                  showPreview={true}
+                  showToolbar={true}
                 />
 
                 <label className="block mt-4">
@@ -570,7 +566,7 @@ const QuestionDesigner = () => {
                     value={form.questionImage}
                     onChange={(e) => setField("questionImage", e.target.value)}
                     placeholder="https://example.com/image.png"
-                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-colors"
                   />
                 </label>
 
@@ -581,17 +577,13 @@ const QuestionDesigner = () => {
                       alt="پیش‌نمایش تصویر سؤال"
                       className="max-h-72 w-full rounded-xl object-contain"
                     />
-                    <div className="absolute top-4 left-4 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--griffin-gold)]/90 text-white text-[9px] font-black backdrop-blur-sm">
-                      <ImageIcon size={9} />
-                      تصویر
-                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* گزینه‌ها */}
-            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+            {/* گزینه‌ها - 🆕 بدون preview و بدون toolbar */}
+            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
               <div className="relative p-5">
@@ -623,11 +615,11 @@ const QuestionDesigner = () => {
                       <div
                         key={index}
                         className={`
-                          rounded-2xl border p-4 transition-all
+                          rounded-2xl border p-4 transition-colors
                           ${
                             isCorrect
-                              ? "border-emerald-500/40 bg-gradient-to-l from-emerald-500/10 via-emerald-500/5 to-transparent shadow-lg shadow-emerald-500/10"
-                              : "border-gray-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.02]"
+                              ? "border-emerald-500/40 bg-emerald-500/5"
+                              : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02]"
                           }
                         `}
                       >
@@ -642,10 +634,10 @@ const QuestionDesigner = () => {
                             />
                             <div
                               className={`
-                                w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                                w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
                                 ${
                                   isCorrect
-                                    ? "border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-500/40"
+                                    ? "border-emerald-500 bg-emerald-500"
                                     : "border-gray-300 dark:border-white/20 hover:border-[var(--griffin-gold)]"
                                 }
                               `}
@@ -665,7 +657,7 @@ const QuestionDesigner = () => {
                               w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black
                               ${
                                 isCorrect
-                                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                                  ? "bg-emerald-500 text-white"
                                   : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
                               }
                             `}
@@ -689,6 +681,8 @@ const QuestionDesigner = () => {
                           onChange={(value) => updateOption(index, value)}
                           rows={2}
                           placeholder={`متن گزینه ${String.fromCharCode(65 + index)}`}
+                          showPreview={false}
+                          showToolbar={false}
                         />
                       </div>
                     );
@@ -700,8 +694,8 @@ const QuestionDesigner = () => {
 
           {/* ==================== ستون کنار ==================== */}
           <aside className="space-y-5">
-            {/* توضیحات و منابع */}
-            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+            {/* توضیحات و منابع - 🆕 با preview */}
+            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
               <div className="relative p-5">
@@ -725,6 +719,8 @@ const QuestionDesigner = () => {
                   rows={7}
                   placeholder="پاسخ تشریحی / توضیح حل"
                   label="پاسخ تشریحی"
+                  showPreview={true}
+                  showToolbar={false}
                 />
 
                 <div className="space-y-3 mt-4">
@@ -732,26 +728,26 @@ const QuestionDesigner = () => {
                     value={form.source}
                     onChange={(e) => setField("source", e.target.value)}
                     placeholder="منبع"
-                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-colors"
                   />
                   <input
                     value={form.author}
                     onChange={(e) => setField("author", e.target.value)}
                     placeholder="نام مؤلف / منبع"
-                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-colors"
                   />
                   <input
                     value={form.explanationPdf}
                     onChange={(e) => setField("explanationPdf", e.target.value)}
                     placeholder="آدرس PDF پاسخ (اختیاری)"
-                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-colors"
                   />
                 </div>
               </div>
             </div>
 
             {/* برچسب‌ها */}
-            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
               <div className="relative p-5">
@@ -773,7 +769,7 @@ const QuestionDesigner = () => {
                   value={tagsText}
                   onChange={(e) => setTagsText(e.target.value)}
                   placeholder="مثلاً حد، تابع، کنکور"
-                  className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                  className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-colors"
                 />
                 <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
                   برچسب‌ها را با ویرگول جدا کن.
@@ -781,8 +777,8 @@ const QuestionDesigner = () => {
               </div>
             </div>
 
-            {/* 🆕 مناسب آرنا */}
-            <div className="relative rounded-3xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-transparent to-purple-600/5 backdrop-blur-sm overflow-hidden">
+            {/* مناسب آرنا */}
+            <div className="relative rounded-3xl border border-purple-500/30 bg-purple-500/5 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
 
               <div className="relative p-5">
@@ -809,10 +805,10 @@ const QuestionDesigner = () => {
                   />
                   <div
                     className={`
-                      shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all mt-0.5
+                      shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors mt-0.5
                       ${
                         form.isArena
-                          ? "border-purple-500 bg-purple-500 shadow-lg shadow-purple-500/40"
+                          ? "border-purple-500 bg-purple-500"
                           : "border-gray-300 dark:border-white/20 group-hover:border-purple-500/50"
                       }
                     `}
@@ -835,7 +831,7 @@ const QuestionDesigner = () => {
             </div>
 
             {/* چک‌لیست */}
-            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-sm overflow-hidden">
+            <div className="relative rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
               <div className="relative p-5">
@@ -880,7 +876,7 @@ const QuestionDesigner = () => {
                           w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5
                           ${
                             item.ok
-                              ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40"
+                              ? "bg-emerald-500 text-white"
                               : "bg-gray-200 dark:bg-white/10 text-gray-400"
                           }
                         `}
@@ -910,13 +906,13 @@ const QuestionDesigner = () => {
             </div>
 
             {/* ذخیره */}
-            <div className="relative rounded-3xl border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 backdrop-blur-sm overflow-hidden">
+            <div className="relative rounded-3xl border border-[var(--griffin-gold)]/30 bg-[var(--griffin-gold)]/5 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
 
               <div className="relative p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="relative">
-                    <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-60 animate-pulse" />
+                    <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-60" />
                     <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
                       <Save size={16} />
                     </div>
@@ -936,13 +932,13 @@ const QuestionDesigner = () => {
                   <strong className="text-gray-900 dark:text-white">
                     پیش‌نویس
                   </strong>{" "}
-                  نگه می‌دارد. بعداً می‌تونی برای بررسی ارسالش کنی.
+                  نگه می‌دارد.
                 </p>
 
                 <button
                   disabled={saving}
                   onClick={() => void save()}
-                  className="group relative w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-3 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all overflow-hidden"
+                  className="group relative w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-3 font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed transition-transform overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center gap-2">
                     {saving ? (
@@ -964,7 +960,7 @@ const QuestionDesigner = () => {
                   <button
                     disabled={saving || reviewing}
                     onClick={() => void saveAndReview()}
-                    className="group relative w-full mt-2.5 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--griffin-gold)]/30 bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm px-4 py-3 font-black text-[var(--griffin-gold)] text-sm hover:bg-[var(--griffin-gold)]/5 hover:border-[var(--griffin-gold)]/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="group relative w-full mt-2.5 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--griffin-gold)]/30 bg-white dark:bg-white/[0.03] px-4 py-3 font-black text-[var(--griffin-gold)] text-sm hover:bg-[var(--griffin-gold)]/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {reviewing ? (
                       <>
@@ -988,12 +984,12 @@ const QuestionDesigner = () => {
       {/* ==================== PREVIEW MODAL ==================== */}
       {preview && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
           onClick={() => setPreview(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl animate-[fadeInUp_0.3s_ease-out] flex flex-col"
+            className="relative w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0d14] shadow-2xl flex flex-col"
           >
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
 
@@ -1013,32 +1009,11 @@ const QuestionDesigner = () => {
                   <h2 className="font-heading text-lg font-black text-gray-900 dark:text-white">
                     پیش‌نمایش و بررسی سؤال
                   </h2>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
-                      {form.code || "بدون کد"}
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-white/20" />
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-black ${difficultyStyles[form.difficulty ?? "medium"].text}`}
-                    >
-                      <Zap size={10} />
-                      {difficultyLabels[form.difficulty ?? "medium"]}
-                    </span>
-                    {form.isArena && (
-                      <>
-                        <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-white/20" />
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-purple-600 dark:text-purple-400">
-                          <Swords size={10} />
-                          آرنا
-                        </span>
-                      </>
-                    )}
-                  </div>
                 </div>
               </div>
               <button
                 onClick={() => setPreview(false)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-rose-500 transition-colors"
+                className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-rose-500 transition-colors"
               >
                 <X size={16} />
               </button>
@@ -1061,11 +1036,11 @@ const QuestionDesigner = () => {
                     key={tab.key}
                     onClick={() => setPreviewMode(tab.key)}
                     className={`
-                      inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all
+                      inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-colors
                       ${
                         isActive
-                          ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/30"
-                          : "border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] text-gray-600 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)]"
+                          ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white"
+                          : "border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] text-gray-600 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40"
                       }
                     `}
                   >
@@ -1078,34 +1053,42 @@ const QuestionDesigner = () => {
 
             {/* محتوای مودال */}
             <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_320px] gap-4 p-5">
-              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.02] p-6">
-                <div className="mb-5 flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 text-[11px] font-black text-[var(--griffin-gold)]">
-                    <BookOpen size={12} />
-                    {form.lesson || "درس نامشخص"}
-                  </span>
-                  {form.year && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      سال {form.year.toLocaleString("fa-IR")}
-                    </span>
-                  )}
-                </div>
-
-                <div className="mb-6 text-lg font-bold leading-9 text-gray-900 dark:text-white">
-                  <MathText
-                    content={form.questionText || "متن سؤال وارد نشده است."}
-                  />
-                </div>
-
-                {form.questionImage && (
-                  <div className="mb-6 overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 p-2">
-                    <img
-                      src={form.questionImage}
-                      alt="تصویر سؤال"
-                      className="max-h-96 w-full rounded-xl object-contain"
+              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-6">
+                {/* 🆕 کادر متن سوال با تصویر گوشه‌ی پایین-چپ */}
+                <div className="relative mb-6 pb-32 sm:pb-40">
+                  {/* متن سوال */}
+                  <div className="text-lg font-bold leading-9 text-gray-900 dark:text-white">
+                    <MathText
+                      content={form.questionText || "متن سؤال وارد نشده است."}
                     />
                   </div>
-                )}
+
+                  {/* 🆕 تصویر سوال - گوشه‌ی پایین-چپ */}
+                  {form.questionImage && (
+                    <div
+                      className="
+                        absolute
+                        bottom-0
+                        left-0
+                        w-32 h-32
+                        sm:w-40 sm:h-40
+                        rounded-xl
+                        overflow-hidden
+                        border border-gray-200 dark:border-white/10
+                        bg-white dark:bg-white/[0.02]
+                        p-1
+                        shadow-sm
+                        group
+                      "
+                    >
+                      <img
+                        src={form.questionImage}
+                        alt="تصویر سؤال"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-3">
                   {form.options.map((option, index) => {
@@ -1115,11 +1098,11 @@ const QuestionDesigner = () => {
                       <div
                         key={index}
                         className={`
-                          rounded-2xl border p-4 transition-all
+                          rounded-2xl border p-4 transition-colors
                           ${
                             isCorrectAnswer
-                              ? "border-emerald-500/40 bg-gradient-to-l from-emerald-500/10 via-emerald-500/5 to-transparent"
-                              : "border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/[0.02]"
+                              ? "border-emerald-500/40 bg-emerald-500/5"
+                              : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02]"
                           }
                         `}
                       >
@@ -1129,7 +1112,7 @@ const QuestionDesigner = () => {
                               w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shrink-0
                               ${
                                 isCorrectAnswer
-                                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/40"
+                                  ? "bg-emerald-500 text-white"
                                   : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
                               }
                             `}
@@ -1139,12 +1122,6 @@ const QuestionDesigner = () => {
                           <div className="min-w-0 flex-1 leading-8 text-gray-900 dark:text-white">
                             <MathText content={option || "گزینه خالی"} />
                           </div>
-                          {isCorrectAnswer && (
-                            <CheckCircle2
-                              className="shrink-0 text-emerald-500 mt-1"
-                              size={18}
-                            />
-                          )}
                         </div>
                       </div>
                     );
@@ -1153,14 +1130,9 @@ const QuestionDesigner = () => {
 
                 {previewMode === "review" && form.explanation && (
                   <div className="mt-6 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.02] p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-7 h-7 rounded-lg bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
-                        <BookOpen size={13} />
-                      </div>
-                      <h3 className="font-heading text-sm font-black text-gray-900 dark:text-white">
-                        پاسخ تشریحی
-                      </h3>
-                    </div>
+                    <h3 className="font-heading text-sm font-black text-gray-900 dark:text-white mb-3">
+                      پاسخ تشریحی
+                    </h3>
                     <div className="leading-8 text-gray-700 dark:text-gray-300">
                       <MathText content={form.explanation} />
                     </div>
@@ -1170,203 +1142,87 @@ const QuestionDesigner = () => {
 
               <aside className="space-y-3">
                 {previewMode === "review" ? (
-                  <>
-                    <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.02] p-5">
-                      <div className="flex items-center justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
-                            <Award size={14} />
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                              Checklist
-                            </p>
-                            <p className="font-heading text-xs font-black text-gray-900 dark:text-white -mt-0.5">
-                              چک‌لیست بررسی
-                            </p>
-                          </div>
-                        </div>
-
-                        <div
-                          className={`
-                            w-11 h-11 rounded-xl flex items-center justify-center font-heading font-black text-white shadow-lg
-                            ${
-                              checklistPassed === checklist.length
-                                ? "bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-emerald-500/40"
-                                : checklistPassed >= 5
-                                  ? "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 shadow-[var(--griffin-gold)]/40"
-                                  : "bg-gradient-to-br from-rose-500 to-rose-700 shadow-rose-500/40"
-                            }
-                          `}
-                        >
-                          {checklistPassed}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {checklist.map((item, i) => (
-                          <div
-                            key={i}
-                            className={`
-                              flex items-start gap-2 p-2 rounded-lg text-[11px]
-                              ${item.ok ? "bg-emerald-500/5" : "bg-rose-500/5"}
-                            `}
-                          >
-                            <div
-                              className={`
-                                w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5
-                                ${
-                                  item.ok
-                                    ? "bg-emerald-500 text-white"
-                                    : "bg-rose-500 text-white"
-                                }
-                              `}
-                            >
-                              {item.ok ? (
-                                <Check size={9} strokeWidth={3} />
-                              ) : (
-                                <X size={9} strokeWidth={3} />
-                              )}
-                            </div>
-                            <span
-                              className={`
-                                font-bold leading-5
-                                ${
-                                  item.ok
-                                    ? "text-emerald-600 dark:text-emerald-400"
-                                    : "text-rose-600 dark:text-rose-400"
-                                }
-                              `}
-                            >
-                              {item.label}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.02] p-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
-                          <Layers size={13} />
-                        </div>
-                        <h3 className="font-heading text-xs font-black text-gray-900 dark:text-white">
-                          اطلاعات سؤال
-                        </h3>
-                      </div>
-                      <dl className="space-y-2 text-[11px]">
-                        {[
-                          { label: "درس", value: form.lesson || "—" },
-                          {
-                            label: "پایه",
-                            value:
-                              form.grade === "10"
-                                ? "دهم"
-                                : form.grade === "11"
-                                  ? "یازدهم"
-                                  : "دوازدهم",
-                          },
-                          {
-                            label: "رشته",
-                            value:
-                              form.major === "math"
-                                ? "ریاضی"
-                                : form.major === "experimental"
-                                  ? "تجربی"
-                                  : "انسانی",
-                          },
-                          { label: "فصل", value: form.chapter || "—" },
-                          { label: "مبحث", value: form.topic || "—" },
-                          {
-                            label: "وضعیت",
-                            value:
-                              statusLabels[questionStatus] ?? questionStatus,
-                          },
-                          {
-                            label: "آرنا",
-                            value: form.isArena ? "مناسب آرنا" : "عادی",
-                          },
-                        ].map((row, i) => (
-                          <div
-                            key={i}
-                            className="flex justify-between gap-3 pb-1.5 border-b border-gray-100 dark:border-white/5 last:border-0"
-                          >
-                            <dt className="text-gray-500 dark:text-gray-400 font-bold">
-                              {row.label}
-                            </dt>
-                            <dd className="font-black text-gray-900 dark:text-white">
-                              {row.value}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.02] p-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
-                          <Eye size={14} />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                            Student View
-                          </p>
-                          <h3 className="font-heading text-xs font-black text-gray-900 dark:text-white -mt-0.5">
-                            نمای دانش‌آموز
-                          </h3>
-                        </div>
-                      </div>
-                      <p className="text-[11px] leading-6 text-gray-500 dark:text-gray-400">
-                        در این حالت پاسخ صحیح و پاسخ تشریحی مخفی هستند. این
-                        نزدیک‌ترین حالت به نمایش سؤال برای دانش‌آموز است.
-                      </p>
-                    </div>
-
-                    {form.isArena && (
-                      <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500">
-                            <Swords size={14} />
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-purple-500">
-                              Arena
-                            </p>
-                            <h3 className="font-heading text-xs font-black text-gray-900 dark:text-white -mt-0.5">
-                              مناسب آرنا
-                            </h3>
-                          </div>
-                        </div>
-                        <p className="text-[11px] leading-6 text-gray-500 dark:text-gray-400">
-                          این سؤال برای استفاده در نبردهای آرنا علامت‌گذاری شده
-                          است.
+                  <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-5">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Award
+                          size={14}
+                          className="text-[var(--griffin-gold)]"
+                        />
+                        <p className="font-heading text-xs font-black text-gray-900 dark:text-white">
+                          چک‌لیست بررسی
                         </p>
                       </div>
-                    )}
 
-                    <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.02] p-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500">
-                          <ImageIcon size={14} />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                            Image
-                          </p>
-                          <h3 className="font-heading text-xs font-black text-gray-900 dark:text-white -mt-0.5">
-                            وضعیت تصویر
-                          </h3>
-                        </div>
+                      <div
+                        className={`
+                          w-11 h-11 rounded-xl flex items-center justify-center font-heading font-black text-white
+                          ${
+                            checklistPassed === checklist.length
+                              ? "bg-emerald-500"
+                              : checklistPassed >= 5
+                                ? "bg-[var(--griffin-gold)]"
+                                : "bg-rose-500"
+                          }
+                        `}
+                      >
+                        {checklistPassed}
                       </div>
-                      <p className="text-[11px] leading-6 text-gray-500 dark:text-gray-400">
-                        {form.questionImage
-                          ? "✓ تصویر برای پیش‌نمایش ثبت شده است."
-                          : "برای این سؤال تصویری ثبت نشده است."}
-                      </p>
                     </div>
-                  </>
+
+                    <div className="space-y-1.5">
+                      {checklist.map((item, i) => (
+                        <div
+                          key={i}
+                          className={`
+                            flex items-start gap-2 p-2 rounded-lg text-[11px]
+                            ${item.ok ? "bg-emerald-500/5" : "bg-rose-500/5"}
+                          `}
+                        >
+                          <div
+                            className={`
+                              w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5
+                              ${item.ok ? "bg-emerald-500" : "bg-rose-500"}
+                            `}
+                          >
+                            {item.ok ? (
+                              <Check
+                                size={9}
+                                strokeWidth={3}
+                                className="text-white"
+                              />
+                            ) : (
+                              <X
+                                size={9}
+                                strokeWidth={3}
+                                className="text-white"
+                              />
+                            )}
+                          </div>
+                          <span
+                            className={`
+                              font-bold leading-5
+                              ${item.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}
+                            `}
+                          >
+                            {item.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Eye size={14} className="text-emerald-500" />
+                      <h3 className="font-heading text-xs font-black text-gray-900 dark:text-white">
+                        نمای دانش‌آموز
+                      </h3>
+                    </div>
+                    <p className="text-[11px] leading-6 text-gray-500 dark:text-gray-400">
+                      در این حالت پاسخ صحیح و پاسخ تشریحی مخفی هستند.
+                    </p>
+                  </div>
                 )}
               </aside>
             </div>

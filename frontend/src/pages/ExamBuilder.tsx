@@ -5,18 +5,16 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock3,
   Copy,
   FileQuestion,
+  Gift,
   GripVertical,
   Layers,
   LoaderCircle,
   Pencil,
   Plus,
   Save,
-  Search,
   Send,
   Sparkles,
   Target,
@@ -38,9 +36,16 @@ import {
   updateExam,
   type Exam,
   type ExamStatus,
+  type ExamAccessType,
 } from "../api/examApi";
-import { getBooklets, type Booklet } from "../api/bookletApi";
+import { type Booklet } from "../api/bookletApi";
 import { useAuth } from "../context/AuthContext";
+import {
+  EXAM_ACCESS_LABELS,
+  EXAM_ACCESS_DESCRIPTIONS,
+  EXAM_ACCESS_LIST,
+} from "../constants/examAccess";
+import BookletPickerModal from "./ExamBuilder/components/BookletPickerModal";
 
 // ==================== ثابت‌ها ====================
 const emptyForm = {
@@ -48,6 +53,7 @@ const emptyForm = {
   examDate: "",
   startTime: "08:00",
   endTime: "10:30",
+  accessType: "SUBSCRIPTION" as ExamAccessType,
 };
 
 const statusLabels: Record<ExamStatus, string> = {
@@ -126,12 +132,6 @@ export default function ExamBuilder() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerBooklets, setPickerBooklets] = useState<Booklet[]>([]);
-  const [pickerSearch, setPickerSearch] = useState("");
-  const [pickerPage, setPickerPage] = useState(1);
-  const [pickerTotalPages, setPickerTotalPages] = useState(1);
-  const [pickerLoading, setPickerLoading] = useState(false);
-  const [pickerSelected, setPickerSelected] = useState<string[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -191,7 +191,6 @@ export default function ExamBuilder() {
           setForm(emptyForm);
           setPendingBooklets([]);
           setPickerOpen(false);
-          setPickerSelected([]);
           setLoading(false);
         }
         return;
@@ -206,6 +205,7 @@ export default function ExamBuilder() {
           examDate: result.examDate ? result.examDate.slice(0, 16) : "",
           startTime: result.startTime ?? "08:00",
           endTime: result.endTime ?? "",
+          accessType: (result.accessType as ExamAccessType) ?? "SUBSCRIPTION",
         });
       } catch (err) {
         if (!cancelled) setError(apiError(err, "دریافت آزمون انجام نشد."));
@@ -222,68 +222,41 @@ export default function ExamBuilder() {
   }, [id, isList, isNew]);
 
   // ==================== Picker ====================
-  const loadPicker = async (page = 1) => {
-    setPickerLoading(true);
-    try {
-      const result = await getBooklets({
-        page,
-        limit: 8,
-        search: pickerSearch || undefined,
-        status: "published",
-        sort: "updatedAt",
-        order: "desc",
-      });
-      setPickerBooklets(result.booklets ?? []);
-      setPickerPage(result.pagination.page);
-      setPickerTotalPages(Math.max(1, result.pagination.totalPages));
-    } catch (err) {
-      setError(apiError(err, "دریافت دفترچه‌های منتشرشده انجام نشد."));
-    } finally {
-      setPickerLoading(false);
-    }
-  };
-
   const openPicker = () => {
     if (!editable || saving) return;
-    setPickerSelected([]);
     setPickerOpen(true);
-    void loadPicker(1);
   };
 
-  const togglePicker = (booklet: Booklet) => {
-    if (currentIds.has(booklet.id)) return;
-    setPickerSelected((current) =>
-      current.includes(booklet.id)
-        ? current.filter((item) => item !== booklet.id)
-        : [...current, booklet.id],
-    );
-  };
-
-  const addSelected = async () => {
-    if (!pickerSelected.length || saving || !editable) return;
+  // 🆕 افزودن دفترچه‌های انتخاب‌شده — حالا کل Booklet رو می‌گیره
+  const handlePickerAdd = async (booklets: Booklet[]) => {
     setSaving(true);
     setError("");
     try {
       if (exam) {
-        setExam(
-          await addExamBooklets(
-            exam.id,
-            pickerSelected.filter((item) => !currentIds.has(item)),
-          ),
+        // برای آزمون موجود، فقط ids رو بفرست
+        const ids = booklets.map((b) => b.id);
+        const updated = await addExamBooklets(
+          exam.id,
+          ids.filter((id) => !currentIds.has(id)),
         );
+        setExam(updated);
       } else {
-        const selected = pickerBooklets.filter((item) =>
-          pickerSelected.includes(item.id),
-        );
+        // 🆕 برای آزمون جدید: هم ids رو نگه دار، هم Booklet ها رو
+        const ids = booklets.map((b) => b.id);
         setPendingBooklets((current) => {
-          const ids = new Set(current.map((item) => item.id));
-          return [...current, ...selected.filter((item) => !ids.has(item.id))];
+          const existingIds = new Set(current.map((b) => b.id));
+          return [
+            ...current,
+            ...booklets.filter((b) => !existingIds.has(b.id)),
+          ];
         });
+        // ids توی form نیازی نیست چون displayedBooklets از pendingBooklets میاد
+        void ids;
       }
-      setPickerSelected([]);
       setPickerOpen(false);
     } catch (err) {
       setError(apiError(err, "افزودن دفترچه به آزمون انجام نشد."));
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -365,8 +338,10 @@ export default function ExamBuilder() {
           ...form,
           title: form.title.trim(),
           bookletIds: displayedBooklets.map((item) => item.bookletId),
+          accessType: form.accessType,
         });
         setExam(created);
+        setPendingBooklets([]);
         navigate(`/exam-builder/${created.id}`, { replace: true });
       } else {
         setExam(
@@ -375,6 +350,7 @@ export default function ExamBuilder() {
             examDate: form.examDate,
             startTime: form.startTime,
             endTime: form.endTime,
+            accessType: form.accessType,
           }),
         );
       }
@@ -553,7 +529,6 @@ export default function ExamBuilder() {
                   >
                     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
-                    {/* هدر */}
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="min-w-0 flex-1">
                         <h3 className="font-heading text-base font-black text-gray-900 dark:text-white truncate group-hover:text-[var(--griffin-gold)] transition-colors">
@@ -573,7 +548,6 @@ export default function ExamBuilder() {
                       </span>
                     </div>
 
-                    {/* اطلاعات */}
                     <div className="grid grid-cols-2 gap-2 mb-3">
                       <div className="rounded-xl bg-gray-50/70 dark:bg-white/[0.02] border border-gray-200/70 dark:border-white/5 p-2">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -606,7 +580,6 @@ export default function ExamBuilder() {
                       </div>
                     </div>
 
-                    {/* دکمه‌ها */}
                     <div className="flex gap-2">
                       <button
                         onClick={() => navigate(`/exam-builder/${item.id}`)}
@@ -810,6 +783,33 @@ export default function ExamBuilder() {
                       />
                     </label>
                   </div>
+
+                  <label className="block">
+                    <span className="flex items-center gap-1.5 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                      <Gift size={10} />
+                      نوع دسترسی
+                    </span>
+                    <select
+                      disabled={!editable}
+                      value={form.accessType}
+                      onChange={(e) =>
+                        setForm((x) => ({
+                          ...x,
+                          accessType: e.target.value as ExamAccessType,
+                        }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all"
+                    >
+                      {EXAM_ACCESS_LIST.map((type) => (
+                        <option key={type} value={type}>
+                          {EXAM_ACCESS_LABELS[type]}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1.5 text-[10px] text-gray-500 dark:text-gray-400 leading-5">
+                      {EXAM_ACCESS_DESCRIPTIONS[form.accessType]}
+                    </p>
+                  </label>
                 </div>
 
                 <button
@@ -962,7 +962,6 @@ export default function ExamBuilder() {
                       `}
                     >
                       <div className="flex items-center gap-3">
-                        {/* Drag Handle */}
                         <div
                           className={`
                             shrink-0 w-6 flex items-center justify-center
@@ -973,7 +972,6 @@ export default function ExamBuilder() {
                           <GripVertical size={16} />
                         </div>
 
-                        {/* شماره */}
                         <div className="relative shrink-0">
                           <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-md opacity-30" />
                           <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white font-heading font-black text-base shadow-lg">
@@ -981,7 +979,6 @@ export default function ExamBuilder() {
                           </div>
                         </div>
 
-                        {/* اطلاعات */}
                         <div className="min-w-0 flex-1">
                           <p className="font-heading text-sm font-black text-gray-900 dark:text-white truncate">
                             {item.booklet.title ||
@@ -1016,7 +1013,6 @@ export default function ExamBuilder() {
                           </div>
                         </div>
 
-                        {/* دکمه حذف */}
                         <button
                           disabled={
                             saving || !editable || displayedBooklets.length <= 1
@@ -1056,169 +1052,14 @@ export default function ExamBuilder() {
         </section>
       </div>
 
-      {/* ==================== PICKER MODAL ==================== */}
-      {pickerOpen && (
-        <Modal
-          title="انتخاب دفترچه"
-          subtitle="فقط دفترچه‌های منتشرشده"
-          onClose={() => !saving && setPickerOpen(false)}
-        >
-          <div className="flex gap-2 mb-4">
-            <div className="relative flex-1">
-              <Search
-                size={15}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--griffin-gold)]"
-              />
-              <input
-                value={pickerSearch}
-                onChange={(e) => setPickerSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void loadPicker(1);
-                }}
-                placeholder="جستجو در عنوان، درس یا مشخصات..."
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] py-3 pr-10 pl-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
-              />
-            </div>
-            <button
-              onClick={() => void loadPicker(1)}
-              className="shrink-0 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 text-sm font-black text-white shadow-md shadow-[var(--griffin-gold)]/30"
-            >
-              جستجو
-            </button>
-          </div>
-
-          <div className="max-h-[50vh] overflow-y-auto space-y-2">
-            {pickerLoading ? (
-              <div className="py-12 text-center">
-                <LoaderCircle
-                  size={24}
-                  className="mx-auto text-[var(--griffin-gold)] animate-spin mb-2"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  در حال دریافت...
-                </p>
-              </div>
-            ) : pickerBooklets.length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  دفترچه منتشرشده‌ای پیدا نشد.
-                </p>
-              </div>
-            ) : (
-              pickerBooklets.map((booklet) => {
-                const isCurrent = currentIds.has(booklet.id);
-                const isSelected = pickerSelected.includes(booklet.id);
-                const selected = isSelected || isCurrent;
-
-                return (
-                  <button
-                    key={booklet.id}
-                    type="button"
-                    disabled={isCurrent}
-                    onClick={() => togglePicker(booklet)}
-                    className={`
-                      w-full rounded-2xl border p-3.5 text-right transition-all
-                      ${
-                        selected
-                          ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)]/5 shadow-md shadow-[var(--griffin-gold)]/10"
-                          : "border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] hover:border-[var(--griffin-gold)]/40"
-                      }
-                      ${isCurrent ? "opacity-50 cursor-not-allowed" : ""}
-                    `}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`
-                          mt-0.5 shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all
-                          ${
-                            selected
-                              ? "border-[var(--griffin-gold)] bg-[var(--griffin-gold)] text-white"
-                              : "border-gray-300 dark:border-white/20"
-                          }
-                        `}
-                      >
-                        {selected && <Check size={13} strokeWidth={3} />}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="font-heading text-sm font-black text-gray-900 dark:text-white truncate">
-                          {booklet.title || booklet.lesson}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                          <span className="font-bold text-[var(--griffin-gold)]">
-                            {booklet.lesson}
-                          </span>
-                          <span>·</span>
-                          <span>
-                            {booklet.grade} | {booklet.major}
-                          </span>
-                          <span>·</span>
-                          <span>
-                            {bookletQuestionCount(booklet).toLocaleString(
-                              "fa-IR",
-                            )}{" "}
-                            سوال
-                          </span>
-                          <span>·</span>
-                          <span>
-                            {booklet.duration.toLocaleString("fa-IR")} دقیقه
-                          </span>
-                        </div>
-                        {isCurrent && (
-                          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 mt-1">
-                            ✓ قبلاً به این آزمون اضافه شده
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          {/* Pagination + Actions */}
-          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200/70 dark:border-white/5 pt-4">
-            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <button
-                disabled={pickerPage <= 1 || pickerLoading}
-                onClick={() => void loadPicker(pickerPage - 1)}
-                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-white/10 flex items-center justify-center hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-30 transition-all"
-              >
-                <ChevronRight size={14} />
-              </button>
-              <span className="font-bold tabular-nums">
-                صفحه {pickerPage.toLocaleString("fa-IR")} از{" "}
-                {pickerTotalPages.toLocaleString("fa-IR")}
-              </span>
-              <button
-                disabled={pickerPage >= pickerTotalPages || pickerLoading}
-                onClick={() => void loadPicker(pickerPage + 1)}
-                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-white/10 flex items-center justify-center hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-30 transition-all"
-              >
-                <ChevronLeft size={14} />
-              </button>
-            </div>
-
-            <button
-              disabled={!pickerSelected.length || saving}
-              onClick={() => void addSelected()}
-              className="group relative inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/30 hover:shadow-xl disabled:opacity-40 transition-all overflow-hidden"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <Plus size={15} />
-                افزودن{" "}
-                {pickerSelected.length > 0 &&
-                  `${pickerSelected.length.toLocaleString("fa-IR")} `}
-                دفترچه
-              </span>
-              {pickerSelected.length > 0 && (
-                <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              )}
-            </button>
-          </div>
-        </Modal>
-      )}
+      {/* 🆕 BOOKLET PICKER MODAL (مستقل) */}
+      <BookletPickerModal
+        open={pickerOpen}
+        currentIds={currentIds}
+        onClose={() => !saving && setPickerOpen(false)}
+        onAdd={handlePickerAdd}
+        onError={setError}
+      />
 
       {/* ==================== PREVIEW MODAL ==================== */}
       {previewOpen && exam && (
@@ -1325,16 +1166,15 @@ function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-[fadeIn_0.2s_ease-out]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 animate-[fadeIn_0.2s_ease-out]"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl animate-[fadeInUp_0.3s_ease-out] flex flex-col"
+        className="relative max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 shadow-2xl animate-[fadeInUp_0.3s_ease-out] flex flex-col"
       >
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
 
-        {/* Header */}
         <div className="relative p-5 border-b border-gray-200/70 dark:border-white/5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1365,7 +1205,6 @@ function Modal({
           </div>
         </div>
 
-        {/* Content */}
         <div className="relative flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </div>

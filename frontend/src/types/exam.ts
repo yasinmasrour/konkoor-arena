@@ -1,3 +1,23 @@
+// ============================================================
+// EXAM ACCESS TYPE
+// ============================================================
+
+export type ExamAccessType =
+  | "FREE"
+  | "PURCHASE"
+  | "SUBSCRIPTION"
+  | "SUBSCRIPTION_OR_PURCHASE";
+
+// ============================================================
+// EXAM STATUS
+// ============================================================
+
+export type ExamStatus = "draft" | "review" | "published" | "archived";
+
+// ============================================================
+// EXAM TYPES
+// ============================================================
+
 export interface ExamQuestion {
   id: string;
   questionId: string;
@@ -13,6 +33,7 @@ export interface ExamBooklet {
 
   booklet: {
     id: string;
+    title: string;
     lesson: string;
     grade: string;
     major: string;
@@ -35,7 +56,22 @@ export interface Exam {
 
   endTime: string;
 
-  status: string;
+  status: ExamStatus;
+
+  accessType: ExamAccessType; // 🆕
 
   booklets: ExamBooklet[];
+
+  // 🆕 اینا برای نمایش توی لیست (اختیاری)
+  duration?: number;
+  questionCount?: number;
+  lesson?: string;
+  grade?: string;
+  major?: string;
+
+  createdBy?: {
+    id?: string;
+    firstName: string;
+    lastName: string;
+  };
 }

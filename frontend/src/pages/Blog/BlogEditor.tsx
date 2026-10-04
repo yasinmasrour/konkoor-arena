@@ -19,7 +19,6 @@ import {
   getPostBySlug,
   submitForReview,
   updatePost,
-  CATEGORY_LABELS,
   type BlogCategory,
 } from "../../api/blogApi";
 import { useAuth } from "../../context/AuthContext";

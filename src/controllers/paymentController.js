@@ -12,7 +12,7 @@ const createSubscriptionPayment = asyncHandler(async (req, res) => {
     userId: req.user.id,
     planId,
     gateway: gateway || "wallet",
-    referralCode: referralCode || null, // 🆕
+    referralCode: referralCode || null,
   });
 
   res.status(201).json({
@@ -21,7 +21,9 @@ const createSubscriptionPayment = asyncHandler(async (req, res) => {
       : "پرداخت ایجاد شد. لطفاً به درگاه هدایت شوید.",
     payment: result.payment,
     subscription: result.subscription,
-    // 🆕 اگه Referral اعمال شده، تخفیف رو هم برگردون
+    ...(result.paymentUrl && {
+      paymentUrl: result.paymentUrl,
+    }),
     ...(result.payment?.discountAmount > 0 && {
       discount: {
         amount: result.payment.discountAmount,
@@ -37,38 +39,25 @@ const createWalletChargePayment = asyncHandler(async (req, res) => {
 
   if (!amount) throw new AppError("amount الزامی است", 400);
 
-  const payment = await paymentService.createWalletChargePayment({
+  const result = await paymentService.createWalletChargePayment({
     userId: req.user.id,
     amount: Number(amount),
-    gateway: gateway || "mock",
+    gateway: gateway || "wallet",
   });
 
   res.status(201).json({
-    message: "پرداخت ایجاد شد. لطفاً به درگاه هدایت شوید.",
-    payment,
-    paymentUrl: `https://mock-gateway.test/pay/${payment.merchantOrderId}`,
-  });
-});
-
-// ==================== تایید پرداخت (Mock) ====================
-const verifyPayment = asyncHandler(async (req, res) => {
-  const { success = true } = req.body;
-
-  const result = await paymentService.verifyPayment({
-    paymentId: req.params.id,
-    success: Boolean(success),
-  });
-
-  res.status(200).json({
-    message: result.subscription
-      ? "پرداخت تایید شد و اشتراک فعال شد"
-      : "پرداخت تایید شد",
+    message:
+      result.payment.status === "paid"
+        ? "کیف پول با موفقیت شارژ شد"
+        : "پرداخت ایجاد شد. لطفاً به درگاه هدایت شوید.",
     payment: result.payment,
-    subscription: result.subscription,
+    ...(result.paymentUrl && {
+      paymentUrl: result.paymentUrl,
+    }),
   });
 });
 
-// ==================== لیست پرداختها ====================
+// ==================== لیست پرداخت‌ها ====================
 const getMyPayments = asyncHandler(async (req, res) => {
   const payments = await paymentService.getMyPayments(req.user.id);
   res.status(200).json({ payments });
@@ -85,7 +74,6 @@ const getMyPaymentById = asyncHandler(async (req, res) => {
 module.exports = {
   createSubscriptionPayment,
   createWalletChargePayment,
-  verifyPayment,
   getMyPayments,
   getMyPaymentById,
 };

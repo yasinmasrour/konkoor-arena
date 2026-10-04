@@ -8,7 +8,6 @@ import {
   startPersonalExam,
   submitPersonalExam,
   submitPersonalExamAnswer,
-  type PersonalExamAnswerResult,
   type PersonalExamQuestionData,
   type PersonalExamStartResponse,
 } from "../../api/personalExamApi";

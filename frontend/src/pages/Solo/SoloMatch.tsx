@@ -22,6 +22,7 @@ import {
 import QuestionCard from "../Arena/components/QuestionCard";
 import AnswerOptions from "../Arena/components/AnswerOptions";
 import MatchTimer from "../Arena/components/MatchTimer";
+import MathText from "../../components/questions/MathText";
 // 🆕 امنیت
 import { useExamSecurity } from "../../hooks/useExamSecurity";
 import SecurityWatermark from "../../components/security/SecurityWatermark";
@@ -306,7 +307,7 @@ const SoloMatch = () => {
   // ==================== Render ====================
   return (
     <main className="fixed inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-[#080B12] via-[#0a0d14] to-[#080B12] text-white">
-      {/* پسزمینه */}
+      {/* پس‌زمینه */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-purple-600/15 blur-[120px]" />
         <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/15 blur-[120px]" />
@@ -365,7 +366,7 @@ const SoloMatch = () => {
               <button
                 type="button"
                 onClick={() => setShowAbandonModal(true)}
-                className="group inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black text-gray-300 hover:border-rose-400/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                className="group inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black text-gray-300 hover:border-rose-400/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
               >
                 <X
                   size={11}
@@ -376,7 +377,7 @@ const SoloMatch = () => {
             </div>
           </div>
 
-          <div className="rounded-xl overflow-hidden border border-white/10 bg-white/[0.02] backdrop-blur-sm">
+          <div className="rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]">
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/60 to-transparent" />
             <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -456,7 +457,7 @@ const SoloMatch = () => {
         {question && (
           <div className="h-full flex flex-col overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-4 gap-2 sm:gap-3 overflow-hidden">
-              {/* 🆕 سؤال — با select-none */}
+              {/* سؤال — با select-none */}
               <div className="flex-1 min-h-0 overflow-hidden select-none">
                 <QuestionCard
                   order={question.order}
@@ -479,7 +480,7 @@ const SoloMatch = () => {
                 </div>
               )}
 
-              {/* 🆕 گزینه‌ها — با select-none */}
+              {/* گزینه‌ها — با select-none */}
               <div
                 key={question.order}
                 className="h-[24vh] min-h-[160px] max-h-[220px] sm:h-[32vh] sm:min-h-[200px] sm:max-h-[280px] p-3 sm:p-4 pt-2 animate-[slideUpFromBottom_0.4s_ease-out] select-none"
@@ -527,8 +528,8 @@ const SoloMatch = () => {
                 انصراف از بازی؟
               </h3>
               <p className="text-sm text-gray-400 leading-7">
-                اگه انصراف بدی، این بازی بهعنوان{" "}
-                <strong className="text-rose-400">باخت</strong> ثبت میشه.
+                اگه انصراف بدی، این بازی به‌عنوان{" "}
+                <strong className="text-rose-400">باخت</strong> ثبت می‌شه.
               </p>
             </div>
 
@@ -537,7 +538,7 @@ const SoloMatch = () => {
                 type="button"
                 onClick={() => setShowAbandonModal(false)}
                 disabled={abandoning}
-                className="flex-1 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-xs font-black text-gray-400 hover:border-white/20 hover:text-white disabled:opacity-40 transition-all"
+                className="flex-1 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-xs font-black text-gray-400 hover:border-white/20 hover:text-white disabled:opacity-40 transition-colors"
               >
                 ادامه بازی
               </button>
@@ -584,12 +585,12 @@ const SoloRoundFeedback = ({
   return (
     <div
       className={`
-        relative rounded-2xl overflow-hidden border-2 backdrop-blur-md
+        relative rounded-2xl overflow-hidden border-2
         animate-[slideUp_0.3s_ease-out]
         ${
           isCorrect
-            ? "border-emerald-500/60 bg-gradient-to-br from-emerald-500/20 to-emerald-700/20 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)]"
-            : "border-rose-500/60 bg-gradient-to-br from-rose-500/20 to-rose-700/20 shadow-[0_10px_40px_-10px_rgba(244,63,94,0.5)]"
+            ? "border-emerald-500/60 bg-emerald-500/15"
+            : "border-rose-500/60 bg-rose-500/15"
         }
       `}
     >
@@ -626,10 +627,11 @@ const SoloRoundFeedback = ({
               پاسخ درست: گزینه {(correctAnswer + 1).toLocaleString("fa-IR")}
             </p>
           )}
+          {/* 🆕 توضیحات با MathText */}
           {explanation && (
-            <p className="text-[10px] text-white/60 mt-0.5 line-clamp-1">
-              {explanation}
-            </p>
+            <div className="text-[10px] text-white/60 mt-0.5 line-clamp-1">
+              <MathText content={explanation} />
+            </div>
           )}
         </div>
       </div>

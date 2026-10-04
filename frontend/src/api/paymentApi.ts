@@ -7,8 +7,15 @@ export type PaymentStatus =
   | "failed"
   | "cancelled"
   | "refunded";
-export type PaymentGateway = "pending" | "wallet" | "zarinpal" | "mock";
-export type PaymentType = "subscription" | "wallet_charge" | "exam";
+
+// 🆕 mock حذف شد
+export type PaymentGateway = "pending" | "wallet" | "zarinpal";
+
+export type PaymentType =
+  | "subscription"
+  | "wallet_charge"
+  | "exam"
+  | "exam_purchase";
 
 export interface Payment {
   id: string;
@@ -48,6 +55,7 @@ export interface CreateSubscriptionPaymentResponse {
     endDate: string;
     status: string;
   } | null;
+  paymentUrl?: string;
   discount?: {
     amount: number;
     finalAmount: number;
@@ -58,19 +66,6 @@ export interface CreateWalletChargeResponse {
   message: string;
   payment: Payment;
   paymentUrl?: string;
-}
-
-export interface VerifyPaymentResponse {
-  message: string;
-  payment: Payment;
-  subscription: {
-    id: string;
-    userId: string;
-    planId: string;
-    startDate: string;
-    endDate: string;
-    status: string;
-  } | null;
 }
 
 // ==================== API Functions ====================
@@ -92,7 +87,7 @@ export const getMyPaymentById = async (
 // 🔹 خرید اشتراک
 export const createSubscriptionPayment = async (data: {
   planId: string;
-  gateway?: "wallet" | "mock";
+  gateway?: "wallet" | "zarinpal";
   referralCode?: string;
 }): Promise<CreateSubscriptionPaymentResponse> => {
   const response = await api.post("/payments/subscription", data);
@@ -102,24 +97,14 @@ export const createSubscriptionPayment = async (data: {
 // 🔹 شارژ کیف پول
 export const createWalletChargePayment = async (data: {
   amount: number;
-  gateway?: "mock";
+  gateway?: "zarinpal";
 }): Promise<CreateWalletChargeResponse> => {
   const response = await api.post("/payments/wallet-charge", data);
   return response.data;
 };
 
-// 🔹 تایید پرداخت
-export const verifyPayment = async (
-  id: string,
-  success = true,
-): Promise<VerifyPaymentResponse> => {
-  const response = await api.post(`/payments/${id}/verify`, { success });
-  return response.data;
-};
-
 // ==================== Helpers ====================
 
-// 🔹 تبدیل وضعیت Backend به Frontend
 export const mapPaymentStatus = (
   status: PaymentStatus,
 ): "success" | "pending" | "failed" | "refunded" => {
@@ -130,35 +115,30 @@ export const mapPaymentStatus = (
   return "pending";
 };
 
-// 🔹 تبدیل نوع پرداخت به متن فارسی
 export const getPaymentTypeLabel = (type: PaymentType): string => {
   if (type === "subscription") return "خرید اشتراک";
   if (type === "wallet_charge") return "شارژ کیف پول";
   if (type === "exam") return "خرید آزمون";
+  if (type === "exam_purchase") return "خرید آزمون";
   return "پرداخت";
 };
 
-// 🔹 تبدیل gateway به متن فارسی
 export const getGatewayLabel = (gateway: PaymentGateway): string => {
   if (gateway === "wallet") return "کیف پول";
   if (gateway === "zarinpal") return "زرین‌پال";
-  if (gateway === "mock") return "درگاه آزمایشی";
   if (gateway === "pending") return "—";
   return gateway;
 };
 
-// 🔹 فرمت قیمت (ریال → تومان)
 export const formatPrice = (amountInRial: number): string => {
   const toman = Math.floor(amountInRial / 10);
   return new Intl.NumberFormat("fa-IR").format(toman);
 };
 
-// 🔹 تبدیل ریال به تومان
 export const toToman = (amountInRial: number): number => {
   return Math.floor(amountInRial / 10);
 };
 
-// 🔹 تبدیل تومان به ریال
 export const toRial = (amountInToman: number): number => {
   return amountInToman * 10;
 };

@@ -15,7 +15,6 @@ import {
   ClipboardList,
   X,
   AlertCircle,
-  Sparkles,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -256,7 +255,7 @@ const NotificationBell = () => {
           w-9 h-9 md:w-10 md:h-10
           rounded-xl
           flex items-center justify-center
-          border transition-all duration-300
+          border transition-colors duration-300
           ${
             open
               ? "border-[var(--griffin-gold)]/40 bg-[var(--griffin-gold)]/10 text-[var(--griffin-gold)]"
@@ -277,18 +276,28 @@ const NotificationBell = () => {
         )}
       </button>
 
+      {/* ==================== Overlay موبایل ==================== */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm sm:hidden animate-[fadeIn_0.2s_ease-out]"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
       {/* ==================== Dropdown ==================== */}
       {open && (
         <div
           className="
-            absolute top-full left-0 mt-2 z-50
-            w-[340px] sm:w-[400px]
-            max-h-[500px]
+            fixed sm:absolute
+            top-20 sm:top-full
+            left-4 right-4 sm:left-auto sm:right-0
+            sm:mt-2 z-50
+            w-auto sm:w-[400px]
+            max-h-[calc(100vh-6rem)] sm:max-h-[500px]
             rounded-2xl
             border border-gray-200 dark:border-white/10
             bg-white dark:bg-[#0a0d14]
             shadow-2xl shadow-black/10 dark:shadow-black/50
-            backdrop-blur-2xl
             overflow-hidden
             flex flex-col
             animate-[fadeInDown_0.2s_ease-out]

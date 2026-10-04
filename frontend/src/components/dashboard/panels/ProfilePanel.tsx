@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../api/axios";
+import SecurityRecoverySection from "./SecurityRecoverySection";
 
 interface ProfileForm {
   firstName: string;
@@ -622,6 +623,8 @@ const ProfilePanel = () => {
           )}
         </div>
       </section>
+      {/* ==================== بازیابی رمز ==================== */}
+      <SecurityRecoverySection />
     </div>
   );
 };

@@ -1,0 +1,97 @@
+# robots.txt — Griffin Academy
+# https://griffinedu.ir
+
+
+User-agent: *
+Allow: /
+
+
+Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /admin
+Disallow: /admin/
+Disallow: /question-review
+Disallow: /question-bank
+Disallow: /question-designer
+Disallow: /question-analytics
+Disallow: /question-import
+Disallow: /booklet-builder
+Disallow: /exam-builder
+Disallow: /counselor
+Disallow: /dashboard/counselor/
+Disallow: /attempts/
+Disallow: /arena/match/
+Disallow: /arena/queue/
+Disallow: /arena/leagues/
+Disallow: /solo/
+Disallow: /wallet
+Disallow: /payments
+Disallow: /payment/
+Disallow: /notifications
+Disallow: /referral
+Disallow: /profile
+Disallow: /dashboard/blog/new
+Disallow: /dashboard/blog/
+Disallow: /dashboard/my-blog-posts
+Disallow: /api/
+Disallow: /*.json$
+Disallow: /*?*
+
+Allow: /
+Allow: /tests
+Allow: /tests/
+Allow: /arena
+Allow: /subscriptions
+Allow: /blog
+Allow: /blog/
+Allow: /about
+Allow: /contact
+Allow: /terms
+Allow: /privacy
+Allow: /faq
+Allow: /strategy
+Allow: /assets/
+Allow: /images/
+Allow: /*.css$
+Allow: /*.js$
+Allow: /*.webp$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.svg$
+Allow: /*.woff2$
+
+
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api/
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: PETALBOT
+Disallow: /
+
+Sitemap: https://griffinedu.ir/sitemap.xml

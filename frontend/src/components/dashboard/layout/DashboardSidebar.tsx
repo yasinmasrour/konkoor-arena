@@ -10,6 +10,7 @@ import {
   FileCheck2,
   FileQuestion,
   FileText,
+  Globe,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -54,7 +55,9 @@ export type DashboardSection =
   | "new-blog-post"
   | "admin-blog"
   | "study-plans"
-  | "counselor-students";
+  | "counselor-students"
+  | "admin-site-info";
+
 interface MenuItem {
   id: DashboardSection;
   label: string;
@@ -155,7 +158,7 @@ const getMenuForRole = (role?: string): MenuGroup[] => {
         items: [
           {
             id: "admin-strategy-plans",
-            label: "مدیریت برنامهها",
+            label: "مدیریت برنامه‌ها",
             icon: Compass,
           },
         ],
@@ -163,7 +166,11 @@ const getMenuForRole = (role?: string): MenuGroup[] => {
       {
         title: "برنامه مطالعاتی",
         items: [
-          { id: "counselor-students", label: "دانش‌آموزان و برنامه‌ها", icon: Target },
+          {
+            id: "counselor-students",
+            label: "دانش‌آموزان و برنامه‌ها",
+            icon: Target,
+          },
         ],
       },
       {
@@ -172,6 +179,11 @@ const getMenuForRole = (role?: string): MenuGroup[] => {
           { id: "wallet", label: "کیف پول", icon: Wallet },
           { id: "payments", label: "سوابق پرداخت", icon: CreditCard },
         ],
+      },
+      // 🆕 تنظیمات سایت
+      {
+        title: "تنظیمات سایت",
+        items: [{ id: "admin-site-info", label: "اطلاعات سایت", icon: Globe }],
       },
       {
         title: "سیستم",
@@ -233,7 +245,6 @@ const getMenuForRole = (role?: string): MenuGroup[] => {
           { id: "users", label: "دانش‌آموزان", icon: Users },
           { id: "counselor-students", label: "لیست دانش‌آموزان", icon: Users },
         ],
-        
       },
       {
         title: "آزمون",
@@ -300,12 +311,12 @@ export default function DashboardSidebar({
   };
 
   return (
-    <aside className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-xl flex flex-col">
+    <aside className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-xl flex flex-col h-full lg:h-auto lg:max-h-[calc(100vh-2.5rem)]">
       {/* خط طلایی بالا */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/60 to-transparent" />
 
       {/* ==================== هدر کاربر ==================== */}
-      <div className="relative p-4 border-b border-gray-200/70 dark:border-white/5">
+      <div className="relative shrink-0 p-4 border-b border-gray-200/70 dark:border-white/5">
         <div className="flex items-center gap-3">
           {/* آواتار */}
           <div className="relative shrink-0">
@@ -343,7 +354,7 @@ export default function DashboardSidebar({
       </div>
 
       {/* ==================== منو ==================== */}
-      <nav className="relative flex-1 overflow-y-auto p-3 dashboard-scroll">
+      <nav className="relative flex-1 min-h-0 overflow-y-auto p-3 dashboard-scroll">
         {menuGroups.map((group, groupIndex) => (
           <div key={group.title} className={groupIndex > 0 ? "mt-5" : ""}>
             {/* عنوان گروه */}
@@ -407,7 +418,7 @@ export default function DashboardSidebar({
       </nav>
 
       {/* ==================== فوتر (خروج) ==================== */}
-      <div className="relative p-3 border-t border-gray-200/70 dark:border-white/5">
+      <div className="relative shrink-0 p-3 border-t border-gray-200/70 dark:border-white/5">
         <button
           type="button"
           onClick={handleLogout}

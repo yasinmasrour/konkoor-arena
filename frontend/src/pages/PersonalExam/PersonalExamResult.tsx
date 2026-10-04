@@ -96,7 +96,6 @@ const PersonalExamResult = () => {
 
   const isExcellent = percent >= 80;
   const isGood = percent >= 60 && percent < 80;
-  const isBad = percent < 60;
 
   const formatTime = (startedAt: string | null, submittedAt: string | null) => {
     if (!startedAt || !submittedAt) return "—";

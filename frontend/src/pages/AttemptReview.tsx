@@ -68,7 +68,6 @@ const AttemptReview = () => {
   const [error, setError] = useState("");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  // ==================== Fetch ====================
   useEffect(() => {
     if (!id) return;
 
@@ -87,7 +86,6 @@ const AttemptReview = () => {
     void fetchReview();
   }, [id]);
 
-  // ==================== کیبورد ====================
   useEffect(() => {
     if (selectedIndex === null || !review) return;
 
@@ -99,16 +97,13 @@ const AttemptReview = () => {
         );
       if (e.key === "ArrowLeft")
         setSelectedIndex((prev) =>
-          prev !== null && prev < review.questions.length - 1
-            ? prev + 1
-            : prev,
+          prev !== null && prev < review.questions.length - 1 ? prev + 1 : prev,
         );
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [selectedIndex, review]);
 
-  // ==================== Loading ====================
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center px-6">
@@ -127,7 +122,6 @@ const AttemptReview = () => {
     );
   }
 
-  // ==================== Error ====================
   if (error || !review) {
     return (
       <main className="min-h-screen flex items-center justify-center px-6">
@@ -148,7 +142,6 @@ const AttemptReview = () => {
     );
   }
 
-  // ==================== آمار ====================
   const total = review.questions.length;
   const correct = review.questions.filter((q) => q.isCorrect).length;
   const unanswered = review.questions.filter(
@@ -161,12 +154,11 @@ const AttemptReview = () => {
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] dark:bg-[#080B12] pb-32">
-      {/* ==================== HEADER ==================== */}
       <header className="sticky top-0 z-30 border-b border-gray-200 dark:border-white/10 bg-white/90 dark:bg-[#080B12]/90 backdrop-blur-lg">
         <div className="mx-auto max-w-3xl px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => navigate(`/attempts/${review.attemptId}/result`)}
-            className="group inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-2 text-xs font-black text-gray-700 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] transition-all shrink-0"
+            className="group inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-2 text-xs font-black text-gray-700 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] transition-colors shrink-0"
           >
             <ArrowRight
               size={14}
@@ -210,7 +202,6 @@ const AttemptReview = () => {
         </div>
       </header>
 
-      {/* ==================== محتوا ==================== */}
       <div className="mx-auto max-w-3xl px-4 py-5 space-y-5">
         <div className="text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -218,7 +209,6 @@ const AttemptReview = () => {
           </p>
         </div>
 
-        {/* راهنما */}
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
@@ -238,7 +228,6 @@ const AttemptReview = () => {
           </span>
         </div>
 
-        {/* ==================== پاسخنامه ==================== */}
         <div className="flex flex-col items-start gap-2">
           {review.questions.map((question, index) => (
             <AnswerRow
@@ -252,7 +241,6 @@ const AttemptReview = () => {
         </div>
       </div>
 
-      {/* ==================== کارت جزئیات (fixed bottom) ==================== */}
       {selectedQuestion && selectedIndex !== null && (
         <div className="fixed bottom-0 left-0 right-0 z-40 animate-[slideUp_0.3s_ease-out]">
           <div className="mx-auto max-w-3xl">
@@ -294,9 +282,7 @@ const StatPill = ({ icon: Icon, value, color, bg }: StatPillProps) => (
     className={`inline-flex items-center gap-1 rounded-lg ${bg} px-2 py-1.5`}
   >
     <Icon size={11} className={color} />
-    <span
-      className={`font-heading text-xs font-black tabular-nums ${color}`}
-    >
+    <span className={`font-heading text-xs font-black tabular-nums ${color}`}>
       {value.toLocaleString("fa-IR")}
     </span>
   </div>
@@ -345,7 +331,6 @@ const AnswerRow = ({
       `}
       style={{ padding: "5px 7px" }}
     >
-      {/* شماره سوال */}
       <div className="relative shrink-0">
         <div
           className={`
@@ -378,7 +363,6 @@ const AnswerRow = ({
         )}
       </div>
 
-      {/* مربع‌های گزینه‌ها — خیلی کوچیک */}
       <div className="flex items-center" style={{ gap: "3px" }}>
         {Array.from({ length: optionCount }).map((_, optIndex) => {
           const isCorrect = optIndex === question.correctAnswer;
@@ -468,10 +452,9 @@ const QuestionDetailDock = ({
     difficultyBadge[question.difficulty] || difficultyBadge.medium;
 
   return (
-    <div className="relative rounded-t-3xl border-t-2 border-x-2 border-[var(--griffin-gold)]/40 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl">
+    <div className="relative rounded-t-3xl border-t-2 border-x-2 border-[var(--griffin-gold)]/40 bg-white dark:bg-[#0a0d14] shadow-2xl">
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
 
-      {/* ==================== HEADER ==================== */}
       <div className="relative px-4 py-3 border-b border-gray-200/70 dark:border-white/5">
         <div className="flex items-center gap-3">
           <div
@@ -489,7 +472,6 @@ const QuestionDetailDock = ({
                 {status.label}
               </span>
 
-              {/* 🆕 برچسب سختی */}
               <span
                 className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black ${diffBadge.bg} ${diffBadge.text}`}
               >
@@ -520,29 +502,45 @@ const QuestionDetailDock = ({
         </div>
       </div>
 
-      {/* ==================== محتوا ==================== */}
       <div className="relative max-h-[50vh] overflow-y-auto p-4 space-y-3">
-        {/* صورت سوال */}
-        <div className="rounded-2xl bg-white/60 dark:bg-white/[0.02] border border-gray-200 dark:border-white/10 p-3.5">
+        {/* 🆕 صورت سوال با تصویر گوشه‌ی پایین-چپ */}
+        <div className="rounded-2xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/10 p-3.5">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">
             صورت سوال
           </p>
-          <div className="text-sm leading-7 font-semibold text-gray-900 dark:text-white">
-            <MathText content={question.questionText} />
-          </div>
 
-          {question.questionImage && (
-            <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-2">
-              <img
-                src={question.questionImage}
-                alt="تصویر سوال"
-                className="max-h-60 w-full rounded-lg object-contain mx-auto"
-              />
+          <div className="relative pb-24 sm:pb-28">
+            {/* متن سوال */}
+            <div className="text-sm leading-7 font-semibold text-gray-900 dark:text-white">
+              <MathText content={question.questionText} />
             </div>
-          )}
+
+            {/* 🆕 تصویر - گوشه‌ی پایین-چپ */}
+            {question.questionImage && (
+              <div
+                className="
+                  absolute
+                  bottom-0
+                  left-0
+                  w-24 h-24
+                  sm:w-28 sm:h-28
+                  rounded-xl
+                  overflow-hidden
+                  border border-gray-200 dark:border-white/10
+                  bg-white dark:bg-white/[0.02]
+                  p-1
+                "
+              >
+                <img
+                  src={question.questionImage}
+                  alt="تصویر سوال"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* گزینه‌ها */}
         <div className="space-y-2">
           {question.options.map((option, optIndex) => {
             const isCorrectAnswer = question.correctAnswer === optIndex;
@@ -553,13 +551,13 @@ const QuestionDetailDock = ({
               <div
                 key={optIndex}
                 className={`
-                  rounded-xl border-2 p-2.5 transition-all
+                  rounded-xl border-2 p-2.5 transition-colors
                   ${
                     isCorrectAnswer
-                      ? "border-emerald-500/50 bg-gradient-to-l from-emerald-500/10 via-emerald-500/5 to-transparent"
+                      ? "border-emerald-500/50 bg-emerald-500/5"
                       : isSelectedAnswer
-                        ? "border-rose-500/50 bg-gradient-to-l from-rose-500/10 via-rose-500/5 to-transparent"
-                        : "border-gray-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.02]"
+                        ? "border-rose-500/50 bg-rose-500/5"
+                        : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02]"
                   }
                 `}
               >
@@ -605,9 +603,8 @@ const QuestionDetailDock = ({
           })}
         </div>
 
-        {/* پاسخ تشریحی */}
         {question.explanation && (
-          <div className="relative rounded-2xl overflow-hidden border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-amber-500/5 to-transparent p-3.5">
+          <div className="relative rounded-2xl overflow-hidden border border-[var(--griffin-gold)]/30 bg-[var(--griffin-gold)]/5 p-3.5">
             <div className="flex items-center gap-2 mb-2.5">
               <div className="w-7 h-7 rounded-lg bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30 flex items-center justify-center text-[var(--griffin-gold)]">
                 <Lightbulb size={12} />
@@ -628,7 +625,6 @@ const QuestionDetailDock = ({
           </div>
         )}
 
-        {/* متادیتا */}
         <div className="flex flex-wrap gap-1.5 pb-1">
           {question.lesson && (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black">
@@ -645,13 +641,12 @@ const QuestionDetailDock = ({
         </div>
       </div>
 
-      {/* ==================== FOOTER ==================== */}
       <div className="relative px-4 py-3 border-t border-gray-200/70 dark:border-white/5 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onPrev}
           disabled={index === 0}
-          className="group inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-2 text-[11px] font-black text-gray-700 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-30 transition-all"
+          className="group inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-[11px] font-black text-gray-700 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-30 transition-colors"
         >
           <ChevronRight
             size={12}

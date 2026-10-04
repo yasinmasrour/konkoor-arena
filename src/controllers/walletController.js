@@ -23,40 +23,25 @@ const getTransactions = asyncHandler(async (req, res) => {
 
 // ==================== 🆕 ایجاد پرداخت شارژ ====================
 const createChargePayment = asyncHandler(async (req, res) => {
-  const { amount } = req.body;
+  const { amount, gateway } = req.body;
 
   if (!amount || amount <= 0) {
     throw new AppError("مبلغ شارژ الزامی است", 400);
   }
 
-  const payment = await paymentService.createWalletChargePayment({
+  const result = await paymentService.createWalletChargePayment({
     userId: req.user.id,
     amount: Number(amount),
-    gateway: "mock",
+    gateway: gateway || "zarinpal",
   });
 
   res.status(201).json({
-    message: "پرداخت ایجاد شد. لطفاً به درگاه هدایت شوید.",
-    payment,
-  });
-});
-
-// ==================== 🆕 تأیید شارژ ====================
-const verifyChargePayment = asyncHandler(async (req, res) => {
-  const { paymentId, success = true } = req.body;
-
-  if (!paymentId) {
-    throw new AppError("paymentId الزامی است", 400);
-  }
-
-  const result = await paymentService.verifyPayment({
-    paymentId,
-    success,
-  });
-
-  res.status(200).json({
-    message: success ? "کیف پول با موفقیت شارژ شد" : "پرداخت ناموفق بود",
+    message:
+      result.payment.status === "paid"
+        ? "کیف پول با موفقیت شارژ شد"
+        : "پرداخت ایجاد شد. لطفاً به درگاه هدایت شوید.",
     payment: result.payment,
+    ...(result.paymentUrl && { paymentUrl: result.paymentUrl }),
   });
 });
 
@@ -171,7 +156,6 @@ module.exports = {
   getBalance,
   getTransactions,
   createChargePayment, // 🆕
-  verifyChargePayment, // 🆕
   createWithdrawRequest,
   getMyWithdrawRequests,
   getAllWithdrawRequests,

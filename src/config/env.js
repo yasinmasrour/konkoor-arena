@@ -36,6 +36,25 @@ const gapgptBaseUrl =
 
 const gapgptModel = process.env.GAPGPT_MODEL || "gapgpt-qwen-3.6";
 
+const zarinpalMerchantId = process.env.ZARINPAL_MERCHANT_ID || "";
+
+const zarinpalSandbox = process.env.ZARINPAL_SANDBOX === "true";
+
+// 🆕 آدرس فرانت برای callback
+const zarinpalFrontendUrl =
+  process.env.ZARINPAL_FRONTEND_URL || "http://localhost:5173";
+
+// 🆕 آدرس callback بک‌اند (که زرین‌پال کاربر رو بهش برمی‌گردونه)
+const zarinpalCallbackUrl =
+  process.env.ZARINPAL_CALLBACK_URL ||
+  "http://localhost:3000/payments/zarinpal/callback";
+
+if (isProduction && !zarinpalMerchantId) {
+  console.warn(
+    "WARNING: ZARINPAL_MERCHANT_ID is not set. ZarinPal payments will be unavailable.",
+  );
+}
+
 if (!gapgptApiKey) {
   console.warn(
     "WARNING: GAPGPT_API_KEY is not set. AI analysis will be unavailable.",
@@ -56,4 +75,8 @@ module.exports = {
   gapgptApiKey,
   gapgptBaseUrl,
   gapgptModel,
+  zarinpalMerchantId,
+  zarinpalSandbox,
+  zarinpalFrontendUrl, // 🆕
+  zarinpalCallbackUrl, // 🆕
 };

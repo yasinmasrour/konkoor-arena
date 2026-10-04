@@ -22,7 +22,6 @@ router.get("/transactions", walletController.getTransactions);
 
 // ==================== 🆕 شارژ کیف پول ====================
 router.post("/charge", walletController.createChargePayment);
-router.post("/charge/verify", walletController.verifyChargePayment);
 
 // ==================== درخواست برداشت ====================
 router.post(

@@ -12,8 +12,12 @@
   },
   "type": "commonjs",
   "main": "index.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
-    "start": "node src/server.js",
+    "start": "prisma migrate deploy && prisma generate && node src/server.js",
+    "dev": "node src/server.js",
     "arena:test": "node prisma/arena-flow-test.js",
     "smoke:production": "node scripts/production-smoke-test.js"
   },

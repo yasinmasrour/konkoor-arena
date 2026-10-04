@@ -12,6 +12,7 @@ import {
   Shield,
   Sparkles,
   Star,
+  Tag,
   TrendingUp,
   X,
   Zap,
@@ -27,7 +28,7 @@ import {
 
 // ==================== تنظیمات ====================
 const formatPrice = (price: number) =>
-  new Intl.NumberFormat("fa-IR").format(price);
+  new Intl.NumberFormat("fa-IR").format(Math.floor(price / 10));
 
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("fa-IR", {
@@ -439,57 +440,113 @@ const SubscriptionPanel = () => {
           </div>
 
           <div className="p-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className="group relative rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/[0.02] hover:bg-[var(--griffin-gold)]/5 dark:hover:bg-white/[0.05] hover:border-[var(--griffin-gold)]/40 p-4 transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            {plans.map((plan) => {
+              const hasDiscount = plan.hasDiscount;
 
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                      Plan
-                    </p>
-                    <h3 className="font-heading text-sm font-black text-gray-900 dark:text-white mt-0.5">
-                      {plan.title}
-                    </h3>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
-                    <Crown size={16} />
-                  </div>
-                </div>
-
-                <div className="flex items-baseline gap-1 mb-3">
-                  <p className="font-heading text-2xl font-black text-[var(--griffin-gold)] tabular-nums">
-                    {formatPrice(plan.price)}
-                  </p>
-                  <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                    تومان
-                  </span>
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-500/10 dark:bg-white/5 text-[10px] font-black text-gray-600 dark:text-gray-400 mb-3">
-                  <Clock3 size={10} />
-                  {plan.durationDays.toLocaleString("fa-IR")} روز اعتبار
-                </div>
-
-                {plan.description && (
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-5 mb-3 line-clamp-2">
-                    {plan.description}
-                  </p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => navigate("/subscriptions")}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 py-2.5 text-[11px] font-black text-white shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg hover:shadow-[var(--griffin-gold)]/50 transition-all"
+              return (
+                <div
+                  key={plan.id}
+                  className={`
+                    group relative rounded-xl overflow-hidden
+                    bg-white/50 dark:bg-white/[0.02]
+                    p-4 transition-all duration-300 hover:-translate-y-1
+                    ${
+                      hasDiscount
+                        ? "border border-rose-500/30 hover:border-rose-500/50"
+                        : "border border-gray-200 dark:border-white/10 hover:bg-[var(--griffin-gold)]/5 dark:hover:bg-white/[0.05] hover:border-[var(--griffin-gold)]/40"
+                    }
+                  `}
                 >
-                  <Zap size={12} />
-                  خرید این پلن
-                </button>
-              </div>
-            ))}
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                        Plan
+                      </p>
+                      <h3 className="font-heading text-sm font-black text-gray-900 dark:text-white mt-0.5">
+                        {plan.title}
+                      </h3>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
+                      <Crown size={16} />
+                    </div>
+                  </div>
+
+                  {/* 🆕 قیمت با تخفیف */}
+                  <div className="mb-3">
+                    {hasDiscount ? (
+                      <>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-bold text-gray-400 dark:text-gray-500 line-through tabular-nums">
+                            {formatPrice(plan.originalPrice)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gradient-to-l from-rose-500 to-rose-700 text-white text-[9px] font-black shadow-md shadow-rose-500/30">
+                            <Tag size={9} />
+                            {plan.discountPercent.toLocaleString("fa-IR")}٪ تخفیف
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <p className="font-heading text-2xl font-black text-[var(--griffin-gold)] tabular-nums">
+                            {formatPrice(plan.finalPrice)}
+                          </p>
+                          <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                            تومان
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
+                        <p className="font-heading text-2xl font-black text-[var(--griffin-gold)] tabular-nums">
+                          {formatPrice(plan.price)}
+                        </p>
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                          تومان
+                        </span>
+                      </div>
+                    )}
+
+                    {/* 🆕 تایمر تخفیف */}
+                    {hasDiscount && plan.remainingDays !== null && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-black">
+                        <Clock3 size={10} />
+                        فقط {plan.remainingDays.toLocaleString("fa-IR")} روز تا
+                        پایان تخفیف
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-500/10 dark:bg-white/5 text-[10px] font-black text-gray-600 dark:text-gray-400 mb-3">
+                    <Clock3 size={10} />
+                    {plan.durationDays.toLocaleString("fa-IR")} روز اعتبار
+                  </div>
+
+                  {plan.description && (
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-5 mb-3 line-clamp-2">
+                      {plan.description}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/subscriptions")}
+                    className={`
+                      w-full inline-flex items-center justify-center gap-2
+                      rounded-lg py-2.5 text-[11px] font-black text-white
+                      transition-all
+                      ${
+                        hasDiscount
+                          ? "bg-gradient-to-l from-rose-500 to-rose-600 shadow-md shadow-rose-500/30 hover:shadow-lg hover:shadow-rose-500/50"
+                          : "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg hover:shadow-[var(--griffin-gold)]/50"
+                      }
+                    `}
+                  >
+                    <Zap size={12} />
+                    {hasDiscount ? "خرید با تخفیف" : "خرید این پلن"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

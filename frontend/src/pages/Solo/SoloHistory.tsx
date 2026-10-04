@@ -11,7 +11,6 @@ import {
   Heart,
   History,
   LoaderCircle,
-  RotateCcw,
   Swords,
   Target,
   Trophy,
@@ -69,6 +68,7 @@ const SoloHistory = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, levelFilter]);

@@ -8,16 +8,15 @@ const PAYMENT_STATUS = Object.freeze({
 
 const PAYMENT_GATEWAY = Object.freeze({
   PENDING: "pending",
-  WALLET: "wallet", // 🔹 پرداخت از کیف پول
-  ZARINPAL: "zarinpal", // 🔹 برای بعداً
-  MOCK: "mock", // 🔹 درگاه ساختگی برای تست
+  WALLET: "wallet",
+  ZARINPAL: "zarinpal",
 });
 
-// 🔹 نوع پرداخت
 const PAYMENT_TYPE = Object.freeze({
-  SUBSCRIPTION: "subscription", // خرید اشتراک
-  WALLET_CHARGE: "wallet_charge", // شارژ کیف پول
-  EXAM: "exam", // خرید آزمون (اختیاری)
+  SUBSCRIPTION: "subscription",
+  WALLET_CHARGE: "wallet_charge",
+  EXAM: "exam",
+  EXAM_PURCHASE: "exam_purchase",
 });
 
 module.exports = { PAYMENT_STATUS, PAYMENT_GATEWAY, PAYMENT_TYPE };

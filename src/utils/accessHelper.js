@@ -1,9 +1,14 @@
 const prisma = require("../config/prisma");
 const { SUBSCRIPTION_STATUS } = require("../constants/subscription");
 const { FEATURES } = require("../constants/features");
+const { EXAM_ACCESS_TYPE } = require("../constants/examAccess");
+
+// ============================================================
+// FEATURE ACCESS
+// ============================================================
 
 /**
- * چک میکنه کاربر به یه feature خاص دسترسی داره یا نه
+ * چک می‌کنه کاربر به یه feature خاص دسترسی داره یا نه
  * @param {string} userId
  * @param {string} featureName
  * @param {string} [userRole]
@@ -33,11 +38,19 @@ async function hasFeatureAccess(userId, featureName, userRole = null) {
   return features.includes(featureName);
 }
 
+// ============================================================
+// 🆕 EXAM ACCESS
+// ============================================================
+
 /**
- * چک میکنه کاربر به یه آزمون خاص دسترسی داره یا نه
- * - ADMIN → بله
- * - اشتراک فعال با feature "exams" → بله
- * - خرید تکی آزمون → بله
+ * چک می‌کنه کاربر به یه آزمون خاص دسترسی داره یا نه
+ *
+ * بر اساس accessType آزمون تصمیم می‌گیره:
+ * - FREE                     → همه دسترسی دارن
+ * - PURCHASE                 → فقط اگه خرید کرده
+ * - SUBSCRIPTION             → فقط اگه اشتراک فعال داره (feature: exams)
+ * - SUBSCRIPTION_OR_PURCHASE → اشتراک فعال یا خرید تکی
+ *
  * @param {string} userId
  * @param {string} examId
  * @param {string} [userRole]
@@ -48,26 +61,56 @@ async function hasExamAccess(userId, examId, userRole = null) {
 
   if (userRole === "ADMIN") return true;
 
-  // 🔹 چک اشتراک
-  const hasSubscription = await hasFeatureAccess(
-    userId,
-    FEATURES.EXAMS,
-    userRole,
-  );
-  if (hasSubscription) return true;
-
-  // 🔹 چک خرید تکی
-  const purchase = await prisma.examPurchase.findFirst({
-    where: {
-      userId,
-      examId,
-      status: "paid",
-    },
-    select: { id: true },
+  // 🔹 آزمون رو بگیر
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: { accessType: true, status: true },
   });
 
-  return !!purchase;
+  if (!exam) return false;
+
+  // 🆕 FREE → همه دسترسی دارن
+  if (exam.accessType === EXAM_ACCESS_TYPE.FREE) {
+    return true;
+  }
+
+  // 🔹 چک اشتراک (فقط برای SUBSCRIPTION و SUBSCRIPTION_OR_PURCHASE)
+  const needsSubscription =
+    exam.accessType === EXAM_ACCESS_TYPE.SUBSCRIPTION ||
+    exam.accessType === EXAM_ACCESS_TYPE.SUBSCRIPTION_OR_PURCHASE;
+
+  if (needsSubscription) {
+    const hasSubscription = await hasFeatureAccess(
+      userId,
+      FEATURES.EXAMS,
+      userRole,
+    );
+    if (hasSubscription) return true;
+  }
+
+  // 🔹 چک خرید تکی (فقط برای PURCHASE و SUBSCRIPTION_OR_PURCHASE)
+  const needsPurchase =
+    exam.accessType === EXAM_ACCESS_TYPE.PURCHASE ||
+    exam.accessType === EXAM_ACCESS_TYPE.SUBSCRIPTION_OR_PURCHASE;
+
+  if (needsPurchase) {
+    const purchase = await prisma.examPurchase.findFirst({
+      where: {
+        userId,
+        examId,
+        status: "paid",
+      },
+      select: { id: true },
+    });
+    if (purchase) return true;
+  }
+
+  return false;
 }
+
+// ============================================================
+// USER FEATURES
+// ============================================================
 
 /**
  * لیست featureهای کاربر
@@ -99,6 +142,10 @@ async function getUserFeatures(userId, userRole = null) {
     ? subscription.plan.features
     : [];
 }
+
+// ============================================================
+// EXAM PURCHASES
+// ============================================================
 
 /**
  * لیست آزمون‌های خریداری‌شده کاربر

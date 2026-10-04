@@ -7,6 +7,7 @@ export interface ArenaLeague {
   status: string;
   startDate: string;
   endDate: string;
+  participantsCount?: number; // 🆕
 }
 
 export interface ArenaProfileLeague {

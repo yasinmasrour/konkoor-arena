@@ -143,3 +143,5 @@ dist
 .claude/
 .windsurf/
 skills-lock.json
+
+uploads/

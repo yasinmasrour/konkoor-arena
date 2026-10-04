@@ -1,6 +1,18 @@
 import { ArrowLeft, Rocket, Sparkles, Star } from "lucide-react";
 import RevealOnScroll from "../common/RevealOnScroll";
 
+// 🆕 ذرات ثابت
+const PARTICLES = [
+  { top: 10, left: 12, delay: 0, duration: 3.5 },
+  { top: 25, left: 88, delay: 0.8, duration: 4.2 },
+  { top: 45, left: 5, delay: 1.5, duration: 3.8 },
+  { top: 60, left: 95, delay: 0.4, duration: 4.5 },
+  { top: 80, left: 20, delay: 1.2, duration: 3.2 },
+  { top: 15, left: 70, delay: 2, duration: 4 },
+  { top: 90, left: 75, delay: 0.6, duration: 3.6 },
+  { top: 50, left: 50, delay: 1.8, duration: 4.3 },
+];
+
 const FinalCTA = () => {
   return (
     <section className="px-6 py-24">
@@ -22,68 +34,39 @@ const FinalCTA = () => {
             border-white/5
           "
         >
-          {/* 🔹 گرادیان‌های پس‌زمینه */}
+          {/* 🔹 گرادیان پس‌زمینه */}
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/15 via-transparent to-purple-600/15 pointer-events-none" />
 
-          {/* 🔹 شعاع نورانی چرخان */}
-          <div
-            className="
-              absolute -top-1/2 left-1/2 -translate-x-1/2
-              w-[800px] h-[800px]
-              opacity-30
-              animate-[spin_20s_linear_infinite]
-              pointer-events-none
-            "
-            style={{
-              background:
-                "conic-gradient(from 0deg, transparent 0deg, rgba(197,139,42,0.5) 90deg, transparent 180deg, rgba(139,92,246,0.3) 270deg, transparent 360deg)",
-              filter: "blur(80px)",
-            }}
-          />
+          {/* 🆕 هاله‌ها (blur سبک‌تر، بدون pulse) */}
+          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/20 blur-[70px] pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-purple-600/15 blur-[70px] pointer-events-none" />
 
-          {/* 🔹 ذرات نورانی ثابت */}
-          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/25 blur-[120px] pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-purple-600/20 blur-[120px] pointer-events-none" />
-
-          {/* 🔹 ذرات شناور طلایی */}
-          {Array.from({ length: 25 }).map((_, i) => (
+          {/* 🆕 ذرات ثابت (۸ تا) */}
+          {PARTICLES.map((p, i) => (
             <div
               key={i}
               className="absolute w-1 h-1 rounded-full bg-[var(--griffin-gold)] pointer-events-none"
               style={{
-                // eslint-disable-next-line react-hooks/purity
-                top: `${Math.random() * 100}%`,
-                // eslint-disable-next-line react-hooks/purity
-                left: `${Math.random() * 100}%`,
-                // eslint-disable-next-line react-hooks/purity
-                animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-                // eslint-disable-next-line react-hooks/purity
-                animationDelay: `${Math.random() * 3}s`,
-                // eslint-disable-next-line react-hooks/purity
-                opacity: 0.3 + Math.random() * 0.5,
+                top: `${p.top}%`,
+                left: `${p.left}%`,
+                animation: `float ${p.duration}s ease-in-out infinite`,
+                animationDelay: `${p.delay}s`,
+                opacity: 0.5,
               }}
             />
           ))}
 
-          {/* 🔹 الگوی نقطه‌ای */}
-          <div
-            className="absolute inset-0 opacity-[0.06] pointer-events-none"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, white 1px, transparent 1px)",
-              backgroundSize: "28px 28px",
-            }}
-          />
+          {/* 🆕 الگوی نقطه‌ای حذف شد */}
 
           {/* 🔹 محتوای اصلی */}
           <div className="relative z-10 space-y-8">
             {/* برچسب بالا */}
             <RevealOnScroll delay={100}>
               <div className="flex justify-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30 backdrop-blur-sm">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30">
                   <Sparkles
                     size={14}
-                    className="text-[var(--griffin-gold)] animate-pulse"
+                    className="text-[var(--griffin-gold)]"
                   />
                   <span className="text-xs font-bold text-[var(--griffin-gold)] tracking-wide">
                     همین حالا شروع کن
@@ -114,7 +97,7 @@ const FinalCTA = () => {
               </p>
             </RevealOnScroll>
 
-            {/* آمار کوچک */}
+            {/* آمار کوچک (بدون backdrop-blur) */}
             <RevealOnScroll delay={400}>
               <div className="flex flex-wrap gap-4 justify-center pt-2">
                 {[
@@ -124,7 +107,7 @@ const FinalCTA = () => {
                 ].map((item, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm text-xs text-gray-200"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-200"
                   >
                     <item.icon
                       size={14}
@@ -139,7 +122,7 @@ const FinalCTA = () => {
             {/* دکمه‌ها */}
             <RevealOnScroll delay={500}>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                {/* دکمه اصلی */}
+                {/* دکمه اصلی (بدون هاله blur) */}
                 <button
                   className="
                     group
@@ -161,9 +144,6 @@ const FinalCTA = () => {
                     overflow-hidden
                   "
                 >
-                  {/* هاله زیر دکمه */}
-                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-0 group-hover:opacity-70 transition-opacity duration-300 -z-10" />
-
                   <span className="relative z-10 flex items-center justify-center gap-3">
                     <Rocket size={20} />
                     شروع مسیر
@@ -177,14 +157,13 @@ const FinalCTA = () => {
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                 </button>
 
-                {/* دکمه ثانویه */}
+                {/* دکمه ثانویه (بدون backdrop-blur) */}
                 <button
                   className="
                     rounded-2xl
                     border
                     border-white/20
                     bg-white/5
-                    backdrop-blur-sm
                     px-10
                     py-4
                     font-bold
@@ -192,7 +171,7 @@ const FinalCTA = () => {
                     text-lg
                     hover:bg-white/10
                     hover:border-white/40
-                    transition
+                    transition-colors
                   "
                 >
                   مشاهده امکانات

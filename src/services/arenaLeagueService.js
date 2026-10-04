@@ -185,9 +185,26 @@ const getActiveLeagues = async (userId) => {
       OR: majorConditions,
     },
     orderBy: { startDate: "desc" },
+    // 🆕 تعداد شرکت‌کننده‌ها (بر اساس ArenaRating)
+    include: {
+      _count: {
+        select: { ratings: true },
+      },
+    },
   });
 
-  return { leagues };
+  // 🆕 map کردن به فرمت فرانت
+  return {
+    leagues: leagues.map((league) => ({
+      id: league.id,
+      title: league.title,
+      lesson: league.lesson,
+      status: league.status,
+      startDate: league.startDate,
+      endDate: league.endDate,
+      participantsCount: league._count.ratings,
+    })),
+  };
 };
 
 const getUpcomingLeagues = async () => {

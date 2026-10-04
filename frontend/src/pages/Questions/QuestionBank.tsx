@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  AlertCircle,
   Archive,
   CheckSquare,
   Eye,
@@ -17,6 +18,7 @@ import {
   Sparkles,
   Square,
   Swords,
+  Trash2,
   Upload,
   Wand2,
   X,
@@ -30,12 +32,14 @@ import {
   submitQuestionForReview,
   duplicateQuestion,
   bulkSetQuestionStatus,
-  updateQuestion,
   exportQuestions,
   type Question,
   type QuestionDifficulty,
   type QuestionStatus,
 } from "../../api/questionApi";
+import MathText from "../../components/questions/MathText";
+import QuickEditModal from "./components/QuickEditModal";
+import DeleteConfirmModal from "./components/DeleteConfirmModal";
 
 // ==================== ثابت‌ها ====================
 const statusLabels: Record<QuestionStatus, string> = {
@@ -102,6 +106,10 @@ const difficultyStyles: Record<
 
 type ArenaFilter = "all" | "arena" | "normal";
 
+// 🆕 استایل مشترک برای select ها (رفع مشکل نمایش متن در دارک)
+const selectClassName =
+  "rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all";
+
 // ==================== کامپوننت ====================
 const QuestionBank = () => {
   const navigate = useNavigate();
@@ -155,21 +163,13 @@ const QuestionBank = () => {
   const [error, setError] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // 🆕 Modalها
   const [quickEditQuestion, setQuickEditQuestion] = useState<Question | null>(
     null,
   );
-  const [quickEditSaving, setQuickEditSaving] = useState(false);
-  const [quickEditForm, setQuickEditForm] = useState({
-    lesson: "",
-    grade: "12",
-    major: "math",
-    chapter: "",
-    topic: "",
-    difficulty: "medium" as QuestionDifficulty,
-    year: "",
-    tags: "",
-    isArena: false,
-  });
+  const [deleteTarget, setDeleteTarget] = useState<Question | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const isAdmin = user?.role?.name === "ADMIN";
 
@@ -261,6 +261,13 @@ const QuestionBank = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 🆕 auto-hide پیام موفقیت
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(""), 3000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
   // ==================== Actions ====================
   const handleSubmitReview = async (question: Question) => {
     try {
@@ -315,68 +322,6 @@ const QuestionBank = () => {
     }
   };
 
-  const openQuickEdit = (question: Question) => {
-    setError("");
-    setQuickEditQuestion(question);
-    setQuickEditForm({
-      lesson: question.lesson,
-      grade: question.grade,
-      major: question.major,
-      chapter: question.chapter,
-      topic: question.topic ?? "",
-      difficulty: question.difficulty,
-      year: question.year ? String(question.year) : "",
-      tags: (question.tags ?? []).join(", "),
-      isArena: question.isArena ?? false,
-    });
-  };
-
-  const handleQuickEdit = async () => {
-    if (!quickEditQuestion || quickEditSaving) return;
-    if (!quickEditForm.lesson.trim() || !quickEditForm.chapter.trim()) {
-      setError("درس و فصل باید تکمیل شوند.");
-      return;
-    }
-    const yearValue = quickEditForm.year.trim()
-      ? Number(quickEditForm.year)
-      : undefined;
-    if (
-      yearValue !== undefined &&
-      (!Number.isInteger(yearValue) || yearValue < 1300 || yearValue > 2100)
-    ) {
-      setError("سال واردشده معتبر نیست.");
-      return;
-    }
-    setQuickEditSaving(true);
-    setError("");
-    try {
-      const updated = await updateQuestion(quickEditQuestion.id, {
-        lesson: quickEditForm.lesson.trim(),
-        grade: quickEditForm.grade,
-        major: quickEditForm.major,
-        chapter: quickEditForm.chapter.trim(),
-        topic: quickEditForm.topic.trim(),
-        difficulty: quickEditForm.difficulty,
-        year: yearValue,
-        tags: quickEditForm.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        isArena: quickEditForm.isArena,
-      });
-      setQuestions((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
-      setQuickEditQuestion(null);
-    } catch {
-      setError(
-        "ویرایش سریع سؤال انجام نشد. وضعیت و سطح دسترسی سؤال را بررسی کنید.",
-      );
-    } finally {
-      setQuickEditSaving(false);
-    }
-  };
-
   const handleDuplicate = async (question: Question) => {
     try {
       const duplicated = await duplicateQuestion(question.id);
@@ -405,6 +350,13 @@ const QuestionBank = () => {
     } catch {
       setError("خروجی گرفتن از سؤال‌ها انجام نشد.");
     }
+  };
+
+  // 🆕 باز کردن modal تأیید حذف
+  const openDeleteConfirm = (question: Question) => {
+    setError("");
+    setSuccessMessage("");
+    setDeleteTarget(question);
   };
 
   // ==================== JSX ====================
@@ -560,10 +512,11 @@ const QuestionBank = () => {
                 className="rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
               />
 
+              {/* 🆕 select سختی با استایل دارک اصلاح‌شده */}
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
-                className="rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all dark:bg-[#0a0d14]"
+                className={selectClassName}
               >
                 <option value="">همه سختی‌ها</option>
                 {Object.entries(difficultyLabels).map(([key, label]) => (
@@ -573,10 +526,11 @@ const QuestionBank = () => {
                 ))}
               </select>
 
+              {/* 🆕 select وضعیت با استایل دارک اصلاح‌شده */}
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all dark:bg-[#0a0d14]"
+                className={selectClassName}
               >
                 <option value="">همه وضعیت‌ها</option>
                 {Object.entries(statusLabels).map(([key, label]) => (
@@ -588,7 +542,9 @@ const QuestionBank = () => {
 
               <select
                 value={isArenaFilter}
-                onChange={(e) => setIsArenaFilter(e.target.value as ArenaFilter)}
+                onChange={(e) =>
+                  setIsArenaFilter(e.target.value as ArenaFilter)
+                }
                 className="rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-3 text-sm font-bold text-purple-600 dark:text-purple-400 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all dark:bg-[#0a0d14]"
               >
                 <option value="all">همه سؤال‌ها</option>
@@ -790,12 +746,34 @@ const QuestionBank = () => {
           </section>
         )}
 
+        {/* ==================== SUCCESS ==================== */}
+        {successMessage && (
+          <div className="relative rounded-2xl overflow-hidden border border-emerald-500/30 bg-gradient-to-l from-emerald-500/10 to-transparent backdrop-blur-sm p-4 animate-[fadeInUp_0.3s_ease-out]">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <CheckSquare
+                  size={16}
+                  className="text-emerald-500"
+                  strokeWidth={2.5}
+                />
+              </div>
+              <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                {successMessage}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ==================== ERROR ==================== */}
         {error && (
           <div className="relative rounded-2xl overflow-hidden border border-rose-500/30 bg-gradient-to-l from-rose-500/10 to-transparent backdrop-blur-sm p-4 animate-[fadeInUp_0.3s_ease-out]">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
-                <X size={16} className="text-rose-500" strokeWidth={2.5} />
+                <AlertCircle
+                  size={16}
+                  className="text-rose-500"
+                  strokeWidth={2.5}
+                />
               </div>
               <p className="text-sm font-bold text-rose-600 dark:text-rose-400">
                 {error}
@@ -907,10 +885,11 @@ const QuestionBank = () => {
                         </span>
                       </td>
 
+                      {/* 🆕 متن سؤال با MathText */}
                       <td className="max-w-[320px] px-4 py-4">
-                        <p className="truncate font-bold text-gray-900 dark:text-white">
-                          {question.questionText}
-                        </p>
+                        <div className="line-clamp-2 text-sm font-bold text-gray-900 dark:text-white">
+                          <MathText content={question.questionText} />
+                        </div>
                         <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                           {question.createdBy
                             ? `${question.createdBy.firstName} ${question.createdBy.lastName}`
@@ -980,7 +959,7 @@ const QuestionBank = () => {
                             {
                               title: "ویرایش سریع",
                               icon: SlidersHorizontal,
-                              onClick: () => openQuickEdit(question),
+                              onClick: () => setQuickEditQuestion(question),
                               show: question.status !== "published" || isAdmin,
                             },
                             {
@@ -1018,27 +997,46 @@ const QuestionBank = () => {
                                 void handleStatus(question, "archived"),
                               show: isAdmin && question.status === "published",
                             },
+                            {
+                              title:
+                                question.usageCount > 0
+                                  ? "این سؤال در آزمون‌ها استفاده شده؛ به‌جای حذف، آن را آرشیو کنید"
+                                  : "حذف",
+                              icon: Trash2,
+                              onClick: () => openDeleteConfirm(question),
+                              show: isAdmin,
+                              disabled: question.usageCount > 0,
+                              danger: true,
+                            },
                           ]
                             .filter((action) => action.show)
                             .map((action, i) => {
                               const Icon = action.icon;
+                              const isDisabled =
+                                "disabled" in action &&
+                                action.disabled === true;
+                              const isDanger =
+                                "danger" in action && action.danger === true;
+
                               return (
                                 <button
                                   key={i}
                                   title={action.title}
                                   onClick={action.onClick}
-                                  className="
+                                  disabled={isDisabled}
+                                  className={`
                                     w-8 h-8 rounded-lg
                                     flex items-center justify-center
-                                    border border-gray-200 dark:border-white/10
-                                    bg-white dark:bg-white/[0.03]
-                                    text-gray-500 dark:text-gray-400
-                                    hover:border-[var(--griffin-gold)]/40
-                                    hover:bg-[var(--griffin-gold)]/5
-                                    hover:text-[var(--griffin-gold)]
-                                    hover:-translate-y-0.5
+                                    border bg-white dark:bg-white/[0.03]
                                     transition-all duration-200
-                                  "
+                                    ${
+                                      isDisabled
+                                        ? "border-gray-200 dark:border-white/10 text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-50"
+                                        : isDanger
+                                          ? "border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-500 hover:-translate-y-0.5"
+                                          : "border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:border-[var(--griffin-gold)]/40 hover:bg-[var(--griffin-gold)]/5 hover:text-[var(--griffin-gold)] hover:-translate-y-0.5"
+                                    }
+                                  `}
                                 >
                                   <Icon size={14} />
                                 </button>
@@ -1128,281 +1126,28 @@ const QuestionBank = () => {
         </section>
       </div>
 
-      {/* ==================== QUICK EDIT MODAL ==================== */}
-      {quickEditQuestion && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]"
-          onClick={() => !quickEditSaving && setQuickEditQuestion(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-2xl max-h-[92vh] overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-2xl animate-[fadeInUp_0.3s_ease-out]"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+      {/* 🆕 MODALها */}
+      <QuickEditModal
+        question={quickEditQuestion}
+        onClose={() => setQuickEditQuestion(null)}
+        onSaved={(updated) => {
+          setQuestions((current) =>
+            current.map((item) => (item.id === updated.id ? updated : item)),
+          );
+          setSuccessMessage("ویرایش سریع با موفقیت ذخیره شد.");
+        }}
+        onError={setError}
+      />
 
-            <div className="relative flex flex-col max-h-[92vh]">
-              <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-200/70 dark:border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-60" />
-                    <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg rotate-3">
-                      <Pencil size={20} />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
-                      Quick Edit
-                    </p>
-                    <h2 className="font-heading text-lg font-black text-gray-900 dark:text-white">
-                      ویرایش سریع
-                    </h2>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                      {quickEditQuestion.code}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  disabled={quickEditSaving}
-                  onClick={() => setQuickEditQuestion(null)}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-rose-500 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      درس *
-                    </span>
-                    <input
-                      value={quickEditForm.lesson}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          lesson: e.target.value,
-                        }))
-                      }
-                      placeholder="مثلاً ریاضی"
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      فصل *
-                    </span>
-                    <input
-                      value={quickEditForm.chapter}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          chapter: e.target.value,
-                        }))
-                      }
-                      placeholder="مثلاً مشتق"
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      مبحث
-                    </span>
-                    <input
-                      value={quickEditForm.topic}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          topic: e.target.value,
-                        }))
-                      }
-                      placeholder="مثلاً قواعد مشتق"
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      سال
-                    </span>
-                    <input
-                      value={quickEditForm.year}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          year: e.target.value,
-                        }))
-                      }
-                      placeholder="۱۴۰۳"
-                      inputMode="numeric"
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      پایه
-                    </span>
-                    <select
-                      value={quickEditForm.grade}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          grade: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
-                    >
-                      <option value="10">دهم</option>
-                      <option value="11">یازدهم</option>
-                      <option value="12">دوازدهم</option>
-                    </select>
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      رشته
-                    </span>
-                    <select
-                      value={quickEditForm.major}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          major: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
-                    >
-                      <option value="math">ریاضی</option>
-                      <option value="experimental">تجربی</option>
-                      <option value="humanities">انسانی</option>
-                    </select>
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      سختی
-                    </span>
-                    <select
-                      value={quickEditForm.difficulty}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          difficulty: e.target.value as QuestionDifficulty,
-                        }))
-                      }
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-[#0a0d14] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
-                    >
-                      {Object.entries(difficultyLabels).map(([key, label]) => (
-                        <option key={key} value={key}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="block sm:col-span-2">
-                    <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                      تگ‌ها (با کاما جدا کن)
-                    </span>
-                    <input
-                      value={quickEditForm.tags}
-                      onChange={(e) =>
-                        setQuickEditForm((f) => ({
-                          ...f,
-                          tags: e.target.value,
-                        }))
-                      }
-                      placeholder="مثلاً مشتق، قاعده زنجیره‌ای، ترکیبی"
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
-                    />
-                  </label>
-
-                  {/* 🆕 مناسب آرنا */}
-                  <label className="block sm:col-span-2">
-                    <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4">
-                      <div className="flex items-start gap-3 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={quickEditForm.isArena}
-                          onChange={(e) =>
-                            setQuickEditForm((f) => ({
-                              ...f,
-                              isArena: e.target.checked,
-                            }))
-                          }
-                          className="sr-only"
-                        />
-                        <div
-                          className={`
-                            shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all mt-0.5
-                            ${
-                              quickEditForm.isArena
-                                ? "border-purple-500 bg-purple-500 shadow-lg shadow-purple-500/40"
-                                : "border-gray-300 dark:border-white/20 group-hover:border-purple-500/50"
-                            }
-                          `}
-                        >
-                          {quickEditForm.isArena && (
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="white"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="flex items-center gap-1.5 text-sm font-bold text-gray-900 dark:text-white">
-                            <Swords
-                              size={13}
-                              className="text-purple-600 dark:text-purple-400"
-                            />
-                            مناسب آرنا
-                          </p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-5">
-                            این سؤال برای استفاده در نبردهای آرنا علامت‌گذاری
-                            می‌شود.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-200/70 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.01]">
-                <button
-                  disabled={quickEditSaving}
-                  onClick={() => setQuickEditQuestion(null)}
-                  className="rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-5 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.06] disabled:opacity-50 transition-colors"
-                >
-                  انصراف
-                </button>
-                <button
-                  disabled={quickEditSaving}
-                  onClick={() => void handleQuickEdit()}
-                  className="group relative inline-flex items-center gap-2 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 disabled:opacity-50 transition-all overflow-hidden"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    <Save size={15} />
-                    {quickEditSaving ? "در حال ذخیره..." : "ذخیره تغییرات"}
-                  </span>
-                  <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmModal
+        question={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onSuccess={(msg) => {
+          setSuccessMessage(msg);
+          void load();
+        }}
+        onError={setError}
+      />
     </main>
   );
 };

@@ -110,6 +110,15 @@ model User {
   personalExams         PersonalExam[] @relation("PersonalExamStudent")
 
   examPurchases ExamPurchase[]
+
+  securityQuestion       String?
+  securityAnswerHash     String?
+  recoveryCodeHash       String?
+  recoverySetupDone      Boolean   @default(false)
+  recoverySetupAt        DateTime?
+  
+  passwordResetAttempts  Int       @default(0)
+  passwordResetLockedUntil DateTime?
 }
 
 model Notification {
@@ -168,6 +177,10 @@ model SubscriptionPlan {
   isActive Boolean @default(true)
   order    Int     @default(0)
   badge    String?
+
+  discountPercent Int?
+  discountEndsAt  DateTime?
+
 
   subscriptions Subscription[]
   payments      Payment[]
@@ -553,6 +566,9 @@ model Exam {
   price     Int            @default(3000000)
 
   purchases ExamPurchase[]
+
+  accessType String @default("SUBSCRIPTION")
+  // FREE | PURCHASE | SUBSCRIPTION | SUBSCRIPTION_OR_PURCHASE
 
   createdById String
 
@@ -1361,4 +1377,27 @@ model PersonalExamQuestion {
   @@unique([personalExamId, questionId])
   @@unique([personalExamId, order])
   @@index([personalExamId])
+}
+
+model SiteInfo {
+  id String @id @default("singleton")
+
+  phoneFixed      String? @default("")
+  phoneMobile     String? @default("")
+  emailMain       String? @default("")
+  emailSupport    String? @default("")
+  address         String? @default("")
+
+  instagramUrl    String? @default("")
+  telegramUrl     String? @default("")
+  aparatUrl       String? @default("")
+
+  workingHours    String? @default("")
+  aboutShort      String? @default("")
+
+  enamadEnabled   Boolean @default(false)
+  enamadHtml      String? @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

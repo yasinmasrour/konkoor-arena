@@ -25,7 +25,6 @@ import {
   getSoloStatus,
   LEVEL_LABELS,
   type SoloInfo,
-  type SoloStatus,
 } from "../../api/soloApi";
 
 const SoloResult = () => {
@@ -113,13 +112,11 @@ const SoloResult = () => {
     league,
   } = solo;
 
-  const totalWrong = wrongAnswers + timeouts;
   const score = correctAnswers;
   const maxScore = totalQuestions;
   const scorePercent = Math.round((score / maxScore) * 100);
 
   const isWon = status === "won";
-  const isLost = status === "lost";
   const isAbandoned = status === "abandoned";
 
   const formatTime = (ms: number | null) => {

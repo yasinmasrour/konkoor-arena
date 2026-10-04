@@ -2,11 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import { Swords, Timer, Trophy, Zap, Crown } from "lucide-react";
 import RevealOnScroll from "../common/RevealOnScroll";
 
+// 🆕 ذرات ثابت
+const PARTICLES = [
+  { top: 12, left: 8, delay: 0, duration: 3 },
+  { top: 28, left: 22, delay: 0.8, duration: 4 },
+  { top: 45, left: 15, delay: 1.5, duration: 3.5 },
+  { top: 62, left: 78, delay: 0.4, duration: 4.2 },
+  { top: 18, left: 85, delay: 1.2, duration: 3.2 },
+  { top: 75, left: 35, delay: 2, duration: 4.5 },
+  { top: 88, left: 60, delay: 1.8, duration: 3.8 },
+  { top: 38, left: 92, delay: 0.6, duration: 4.1 },
+];
+
 const ArenaPreview = () => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
   const [seconds, setSeconds] = useState(30);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -15,14 +28,29 @@ const ArenaPreview = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // 🆕 throttle با requestAnimationFrame
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const x = ((e.clientY - rect.top) / rect.height - 0.5) * -8;
-    const y = ((e.clientX - rect.left) / rect.width - 0.5) * 8;
-    setTilt({ x, y });
-    setMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+
+    if (rafRef.current) return;
+
+    rafRef.current = requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      const x = ((e.clientY - rect.top) / rect.height - 0.5) * -6;
+      const y = ((e.clientX - rect.left) / rect.width - 0.5) * 6;
+      setTilt({ x, y });
+      setMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      rafRef.current = null;
+    });
+  };
+
+  const handleMouseLeave = () => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    setTilt({ x: 0, y: 0 });
   };
 
   const timeStr = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
@@ -40,40 +68,29 @@ const ArenaPreview = () => {
           border border-white/5
         "
       >
-        {/* گرادیان‌های پس‌زمینه */}
+        {/* گرادیان پس‌زمینه */}
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 pointer-events-none" />
 
-        {/* ذرات نورانی */}
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/20 blur-[120px] pointer-events-none" />
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-purple-600/15 blur-[120px] pointer-events-none" />
+        {/* 🆕 هاله‌ها (blur سبک‌تر) */}
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/20 blur-[70px] pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-purple-600/15 blur-[70px] pointer-events-none" />
 
-        {/* ذرات شناور */}
-        {Array.from({ length: 18 }).map((_, i) => (
+        {/* 🆕 ذرات ثابت (۸ تا، بدون pulse) */}
+        {PARTICLES.map((p, i) => (
           <div
             key={i}
-            className="absolute w-1 h-1 rounded-full bg-[var(--griffin-gold)]/60 animate-pulse pointer-events-none"
+            className="absolute w-1 h-1 rounded-full bg-[var(--griffin-gold)]/60 pointer-events-none"
             style={{
-              // eslint-disable-next-line react-hooks/purity
-              top: `${Math.random() * 100}%`,
-              // eslint-disable-next-line react-hooks/purity
-              left: `${Math.random() * 100}%`,
-              // eslint-disable-next-line react-hooks/purity
-              animationDelay: `${Math.random() * 3}s`,
-              // eslint-disable-next-line react-hooks/purity
-              animationDuration: `${2 + Math.random() * 3}s`,
+              top: `${p.top}%`,
+              left: `${p.left}%`,
+              animation: `float ${p.duration}s ease-in-out infinite`,
+              animationDelay: `${p.delay}s`,
+              opacity: 0.5,
             }}
           />
         ))}
 
-        {/* الگوی نقطه‌ای */}
-        <div
-          className="absolute inset-0 opacity-[0.07] pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, white 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
+        {/* 🆕 الگوی نقطه‌ای حذف شد */}
 
         <div className="relative grid md:grid-cols-2 gap-12 items-center">
           {/* ===== ستون متن ===== */}
@@ -81,7 +98,7 @@ const ArenaPreview = () => {
             <RevealOnScroll direction="right">
               <div className="flex items-center gap-3 justify-center md:justify-start">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-lg opacity-60 animate-pulse" />
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-md opacity-50" />
                   <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 flex items-center justify-center shadow-lg">
                     <Swords size={22} strokeWidth={2.4} />
                   </div>
@@ -113,6 +130,7 @@ const ArenaPreview = () => {
               </p>
             </RevealOnScroll>
 
+            {/* 🆕 بج‌ها (بدون backdrop-blur) */}
             <RevealOnScroll direction="right" delay={300}>
               <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                 {[
@@ -122,7 +140,7 @@ const ArenaPreview = () => {
                 ].map((item, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm text-xs text-gray-200"
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-200"
                   >
                     <item.icon
                       size={14}
@@ -155,7 +173,8 @@ const ArenaPreview = () => {
                   <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                 </button>
 
-                <button className="rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm px-8 py-3.5 font-semibold text-white hover:bg-white/10 transition">
+                {/* 🆕 دکمه ثانویه (بدون backdrop-blur) */}
+                <button className="rounded-xl border border-white/20 bg-white/5 px-8 py-3.5 font-semibold text-white hover:bg-white/10 transition-colors">
                   تماشای دمو
                 </button>
               </div>
@@ -165,14 +184,14 @@ const ArenaPreview = () => {
           {/* ===== ستون کارت Arena ===== */}
           <RevealOnScroll direction="left" delay={200}>
             <div className="relative group">
-              {/* هاله پشت کارت */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/30 to-purple-600/30 blur-2xl rounded-3xl" />
+              {/* 🆕 هاله پشت کارت (blur سبک‌تر) */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/20 to-purple-600/20 blur-xl rounded-3xl" />
 
               {/* کارت اصلی با tilt */}
               <div
                 ref={cardRef}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => setTilt({ x: 0, y: 0 })}
+                onMouseLeave={handleMouseLeave}
                 style={{
                   transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
                 }}
@@ -180,17 +199,16 @@ const ArenaPreview = () => {
                   relative rounded-3xl
                   border border-white/10
                   bg-gradient-to-b from-white/[0.08] to-white/[0.02]
-                  backdrop-blur-2xl
                   p-6 shadow-2xl
                   transition-transform duration-200 ease-out
                   overflow-hidden
                 "
               >
-                {/* درخشش دنبال موس */}
+                {/* 🆕 درخشش دنبال موس (ساده‌تر) */}
                 <div
                   className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{
-                    background: `radial-gradient(400px circle at ${mouse.x}px ${mouse.y}px, rgba(197,139,42,0.15), transparent 40%)`,
+                    background: `radial-gradient(300px circle at ${mouse.x}px ${mouse.y}px, rgba(197,139,42,0.12), transparent 45%)`,
                   }}
                 />
 
@@ -211,13 +229,15 @@ const ArenaPreview = () => {
                   {/* رقیب ۱ */}
                   <div className="text-center space-y-3">
                     <div className="relative mx-auto w-16 h-16">
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 blur-md opacity-60" />
+                      {/* 🆕 blur سبک‌تر */}
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 blur-sm opacity-50" />
                       <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center font-black text-xl border-2 border-white/20">
                         ع
                       </div>
+                      {/* 🆕 بدون drop-shadow */}
                       <Crown
                         size={16}
-                        className="absolute -top-1 -right-1 text-yellow-400 drop-shadow"
+                        className="absolute -top-1 -right-1 text-yellow-400"
                       />
                     </div>
                     <div>
@@ -234,10 +254,9 @@ const ArenaPreview = () => {
                     </p>
                   </div>
 
-                  {/* VS */}
+                  {/* 🆕 VS (بدون pulse و blur) */}
                   <div className="relative">
-                    <div className="absolute inset-0 bg-[var(--griffin-gold)]/40 blur-xl animate-pulse" />
-                    <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center font-black text-sm border-2 border-white/20 shadow-lg animate-pulse">
+                    <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center font-black text-sm border-2 border-white/20 shadow-lg">
                       VS
                     </div>
                   </div>
@@ -245,7 +264,8 @@ const ArenaPreview = () => {
                   {/* رقیب ۲ */}
                   <div className="text-center space-y-3">
                     <div className="relative mx-auto w-16 h-16">
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 blur-md opacity-60" />
+                      {/* 🆕 blur سبک‌تر */}
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 blur-sm opacity-50" />
                       <div className="relative w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-purple-800 flex items-center justify-center font-black text-xl border-2 border-white/20">
                         س
                       </div>

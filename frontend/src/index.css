@@ -38,7 +38,6 @@
   font-family: "Morabba";
   src: url("./assets/fonts/Morabba/Morabba-Light.woff2") format("woff2");
   font-weight: 300;
-  font-style: normal;
   font-display: swap;
 }
 
@@ -46,7 +45,6 @@
   font-family: "Morabba";
   src: url("./assets/fonts/Morabba/Morabba-Regular.woff2") format("woff2");
   font-weight: 400;
-  font-style: normal;
   font-display: swap;
 }
 
@@ -54,15 +52,6 @@
   font-family: "Morabba";
   src: url("./assets/fonts/Morabba/Morabba-Medium.woff2") format("woff2");
   font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Morabba";
-  src: url("./assets/fonts/Morabba/Morabba-Bold.woff2") format("woff2");
-  font-weight: 800;
-  font-style: normal;
   font-display: swap;
 }
 
@@ -70,7 +59,13 @@
   font-family: "Morabba";
   src: url("./assets/fonts/Morabba/Morabba-SemiBold.woff2") format("woff2");
   font-weight: 700;
-  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Morabba";
+  src: url("./assets/fonts/Morabba/Morabba-Bold.woff2") format("woff2");
+  font-weight: 800;
   font-display: swap;
 }
 
@@ -78,12 +73,11 @@
   font-family: "Morabba";
   src: url("./assets/fonts/Morabba/Morabba-Black.woff2") format("woff2");
   font-weight: 900;
-  font-style: normal;
   font-display: swap;
 }
 
 /* ============================
-   KEYFRAMES
+   KEYFRAMES (فقط استفاده‌شده‌ها)
    ============================ */
 @keyframes float {
   0%,
@@ -92,6 +86,58 @@
   }
   50% {
     transform: translateY(-10px);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes bounce-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
   }
 }
 
@@ -104,32 +150,23 @@
   }
 }
 
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes gradient-shift {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -155,47 +192,36 @@
   }
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes slideUp {
   from {
-    transform: translateY(20px);
     opacity: 0;
+    transform: translateY(20px);
   }
   to {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
 @keyframes slideUpFromBottom {
   from {
-    transform: translateY(100%);
     opacity: 0;
+    transform: translateY(100%);
   }
   to {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
 @keyframes slideDownFromTop {
   from {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateY(0);
   }
   to {
-    transform: translateY(100%);
     opacity: 0;
+    transform: translateY(100%);
   }
 }
 
@@ -219,6 +245,9 @@
   }
 }
 
+/* ============================
+   ARENA KEYFRAMES
+   ============================ */
 @keyframes arena-question-enter {
   from {
     opacity: 0;
@@ -255,7 +284,7 @@
   }
 }
 
-@keyframes arenaStickerPop {
+@keyframes arena-sticker-pop {
   0% {
     opacity: 0;
     transform: translateY(14px) scale(0.65) rotate(-6deg);
@@ -276,45 +305,41 @@
   }
 }
 
-@keyframes arena-sticker-pop {
-  0% {
-    transform: scale(0.3) rotate(-20deg);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.15) rotate(5deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-}
-
-@keyframes arena-sticker-fade-out {
-  0% {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.7) translateY(-30px);
-    opacity: 0;
-  }
-}
-
 /* ============================
    UTILITY CLASSES
    ============================ */
 .animate-float {
   animation: float 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-slow {
+  animation: float-slow 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-wiggle {
+  animation: wiggle 3s ease-in-out infinite;
+  will-change: transform;
 }
 
 .animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-bounce-soft {
+  animation: bounce-soft 2.5s ease-in-out infinite;
+  will-change: transform;
 }
 
 .arena-search-progress {
   animation: arena-search-progress 1.8s ease-in-out infinite;
+  will-change: transform;
 }
 
 .arena-question-enter {
@@ -330,16 +355,13 @@
 }
 
 .arena-sticker-pop {
-  animation: arenaStickerPop 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: arena-sticker-pop 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  will-change: transform, opacity;
 }
 
 /* ============================
    BASE
    ============================ */
-html {
-  scroll-behavior: smooth;
-}
-
 :root {
   font-family: "Vazirmatn", sans-serif;
   --griffin-gold: #c58b2a;
@@ -359,7 +381,9 @@ body {
   direction: rtl;
   min-height: 100vh;
 
-  background:
+  /* 🆕 ساده‌تر و سبک‌تر */
+  background: #fafaf8;
+  background-image:
     radial-gradient(
       ellipse 80% 50% at 50% 0%,
       rgba(197, 139, 42, 0.07),
@@ -369,22 +393,15 @@ body {
       ellipse 60% 40% at 100% 100%,
       rgba(139, 92, 246, 0.04),
       transparent 60%
-    ),
-    radial-gradient(
-      ellipse 60% 40% at 0% 80%,
-      rgba(197, 139, 42, 0.03),
-      transparent 60%
-    ),
-    linear-gradient(180deg, #fafaf8 0%, #f4f3ee 100%);
-
-  background-attachment: fixed;
+    );
   background-repeat: no-repeat;
+  /* 🆕 background-attachment: fixed حذف شد */
 }
 
 .dark body {
   color: #f8fafc;
-
-  background:
+  background: #050608;
+  background-image:
     radial-gradient(
       ellipse 80% 50% at 50% 0%,
       rgba(197, 139, 42, 0.1),
@@ -394,16 +411,15 @@ body {
       ellipse 60% 40% at 100% 100%,
       rgba(139, 92, 246, 0.1),
       transparent 60%
-    ),
-    radial-gradient(
-      ellipse 60% 40% at 0% 80%,
-      rgba(197, 139, 42, 0.05),
-      transparent 60%
-    ),
-    linear-gradient(180deg, #050608 0%, #000000 100%);
-
-  background-attachment: fixed;
+    );
   background-repeat: no-repeat;
+}
+
+/* 🆕 حذف scroll-behavior: smooth از html → فقط جاهای لازم */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 h1,
@@ -446,21 +462,24 @@ h6 {
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 30px 100px rgba(15, 23, 42, 0.1);
-  backdrop-filter: blur(24px);
+  /* 🆕 کاهش از 24px به 12px */
+  backdrop-filter: blur(12px);
 }
 
 .dark .arena-panel {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.045);
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
 }
 
 .arena-orb {
   position: absolute;
   border-radius: 999px;
   pointer-events: none;
-  filter: blur(70px);
-  opacity: 0.22;
+  /* 🆕 کاهش از 70px به 50px */
+  filter: blur(50px);
+  opacity: 0.18;
 }
 
 .arena-orb-one {
@@ -482,68 +501,34 @@ h6 {
 /* ============================
    SCROLLBARS
    ============================ */
-.question-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(197, 139, 42, 0.3) transparent;
-}
-
-.question-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.question-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.question-scroll::-webkit-scrollbar-thumb {
-  background: rgba(197, 139, 42, 0.3);
-  border-radius: 4px;
-}
-
-.question-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(197, 139, 42, 0.5);
-}
-
-.dashboard-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(197, 139, 42, 0.3) transparent;
-}
-
-.dashboard-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.dashboard-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.dashboard-scroll::-webkit-scrollbar-thumb {
-  background: rgba(197, 139, 42, 0.3);
-  border-radius: 4px;
-}
-
-.dashboard-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(197, 139, 42, 0.5);
-}
-
+.question-scroll,
+.dashboard-scroll,
 .auth-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(197, 139, 42, 0.3) transparent;
 }
 
+.question-scroll::-webkit-scrollbar,
+.dashboard-scroll::-webkit-scrollbar,
 .auth-scroll::-webkit-scrollbar {
   width: 4px;
 }
 
+.question-scroll::-webkit-scrollbar-track,
+.dashboard-scroll::-webkit-scrollbar-track,
 .auth-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.question-scroll::-webkit-scrollbar-thumb,
+.dashboard-scroll::-webkit-scrollbar-thumb,
 .auth-scroll::-webkit-scrollbar-thumb {
   background: rgba(197, 139, 42, 0.3);
   border-radius: 4px;
 }
 
+.question-scroll::-webkit-scrollbar-thumb:hover,
+.dashboard-scroll::-webkit-scrollbar-thumb:hover,
 .auth-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(197, 139, 42, 0.5);
 }
@@ -595,7 +580,6 @@ h6 {
 .blog-content h3 {
   font-size: 1.25rem;
 }
-
 .blog-content h4 {
   font-size: 1.125rem;
 }
@@ -738,7 +722,6 @@ h6 {
   background: rgba(197, 139, 42, 0.05);
   border-radius: 0 0.75rem 0.75rem 0;
   color: #4b5563;
-  font-style: normal;
 }
 
 .dark .blog-content blockquote {
@@ -824,22 +807,16 @@ h6 {
   }
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
-}
-
-@keyframes wiggle {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
-}
-
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.03); }
-}
-
-@keyframes bounce-soft {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+/* ============================
+   REDUCED MOTION (دسترسی‌پذیری)
+   ============================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

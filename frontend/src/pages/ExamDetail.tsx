@@ -9,10 +9,12 @@ import {
   Clock,
   Crown,
   FileQuestion,
+  Gift,
   Layers,
   LoaderCircle,
   Lock,
   PlayCircle,
+  ShieldCheck,
   Sparkles,
   Target,
   Trophy,
@@ -89,6 +91,9 @@ const ExamDetail = () => {
 
   const isStudent = user?.role?.name === "STUDENT";
 
+  // 🆕 آزمون رایگان
+  const isFree = exam?.accessType === "FREE";
+
   // ==================== Fetch ====================
   useEffect(() => {
     if (!id) return;
@@ -160,8 +165,9 @@ const ExamDetail = () => {
   const handleStartAttempt = async () => {
     if (!exam || starting) return;
 
-    // 🆕 اگه دسترسی نداره → اجازه نده
-    if (!exam.isPurchased) return;
+    // 🆕 چک دسترسی: اگه رایگان باشه، نیازی به isPurchased نیست
+    const canAccess = isFree || exam.isPurchased;
+    if (!canAccess) return;
 
     if (myAttempt) {
       if (myAttempt.status === "submitted") {
@@ -193,23 +199,30 @@ const ExamDetail = () => {
   };
 
   // ==================== 🆕 Purchase ====================
-  const handlePurchaseExam = async () => {
+  const handlePurchaseExam = async (gateway: "wallet" | "zarinpal") => {
     if (!exam || purchasing) return;
 
     setPurchasing(true);
     setError("");
 
     try {
-      const result = await purchaseExam(exam.id, "wallet");
+      const result = await purchaseExam(exam.id, gateway);
 
-      if (result.purchase.status === "paid") {
-        // ✅ خرید موفق → refresh features + reload exam
+      // 🆕 اگه پرداخت مستقیم (کیف پول) موفق بود
+      if (result.purchase?.status === "paid") {
         await refreshFeatures();
         const data = await getExamById(exam.id);
         setExam(data.exam);
-      } else {
-        setError("پرداخت در انتظار تایید است. لطفاً بعداً بررسی کنید.");
+        return;
       }
+
+      // 🆕 اگه paymentUrl داشتیم (زرین‌پال) → ریدایرکت
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+        return;
+      }
+
+      setError("پرداخت ایجاد شد ولی لینک پرداخت موجود نیست.");
     } catch (err) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -324,6 +337,14 @@ const ExamDetail = () => {
                     {statusLabels[exam.status] ?? exam.status}
                   </span>
 
+                  {/* 🆕 Badge رایگان */}
+                  {isFree && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/40">
+                      <Gift size={11} />
+                      آزمون رایگان
+                    </span>
+                  )}
+
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     {formatDate(exam.examDate)}
                   </span>
@@ -334,19 +355,44 @@ const ExamDetail = () => {
             {/* دکمه اصلی */}
             {isStudent && (
               <div className="shrink-0 space-y-2 lg:max-w-xs">
-                {/* 🆕 اگه دسترسی نداره و شرکت نکرده → دکمه خرید */}
-                {!exam.isPurchased && !myAttempt ? (
-                  <>
+                {/* 🆕 آزمون رایگان یا دسترسی داره */}
+                {isFree && !myAttempt ? (
+                  <button
+                    onClick={handleStartAttempt}
+                    disabled={starting || exam.status !== "published"}
+                    className="group relative w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/60 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all overflow-hidden"
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      {starting ? (
+                        <>
+                          <LoaderCircle size={17} className="animate-spin" />
+                          در حال شروع...
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle size={17} />
+                          شروع آزمون رایگان
+                        </>
+                      )}
+                    </span>
+                    {!starting && (
+                      <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                    )}
+                  </button>
+                ) : !exam.isPurchased && !myAttempt ? (
+                  <div className="space-y-2">
+                    {/* دکمه خرید آزمون */}
                     <button
-                      onClick={handlePurchaseExam}
+                      type="button"
+                      onClick={() => void handlePurchaseExam("zarinpal")}
                       disabled={purchasing || exam.status !== "published"}
-                      className="group relative w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/60 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all overflow-hidden"
+                      className="group relative w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/60 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all overflow-hidden"
                     >
                       <span className="relative z-10 flex items-center gap-2">
                         {purchasing ? (
                           <>
                             <LoaderCircle size={17} className="animate-spin" />
-                            در حال خرید...
+                            در حال انتقال به درگاه...
                           </>
                         ) : (
                           <>
@@ -364,6 +410,12 @@ const ExamDetail = () => {
                       )}
                     </button>
 
+                    {/* توضیحات زیر دکمه */}
+                    <p className="text-[10px] text-center text-gray-500 dark:text-gray-400 leading-5">
+                      <ShieldCheck size={10} className="inline ml-1" />
+                      پرداخت امن از طریق زرین‌پال
+                    </p>
+
                     <p className="text-[10px] text-center text-gray-500 dark:text-gray-400 leading-5">
                       <Lock size={10} className="inline ml-1" />
                       یا با خرید{" "}
@@ -376,7 +428,7 @@ const ExamDetail = () => {
                       </button>
                       ، به همه آزمون‌ها دسترسی داشته باش
                     </p>
-                  </>
+                  </div>
                 ) : myAttempt?.status === "submitted" ? (
                   <button
                     onClick={handleStartAttempt}

@@ -15,7 +15,6 @@ import {
   Sparkles,
   Star,
   Trash2,
-  X,
   XCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";

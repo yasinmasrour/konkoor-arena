@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const { SUBSCRIPTION_STATUS } = require("../constants/subscription");
+const { getPlanPricing } = require("../utils/planHelper");
 
 const expireSubscriptions = async (tx = prisma) => {
   await tx.subscription.updateMany({
@@ -16,12 +17,38 @@ const expireSubscriptions = async (tx = prisma) => {
   });
 };
 
+/**
+ * محاسبه‌ی قیمت نهایی یه پلن
+ * @param {string} planId
+ * @returns {Promise<{plan, pricing}>}
+ */
+const getPlanPricingById = async (planId) => {
+  const plan = await prisma.subscriptionPlan.findUnique({
+    where: { id: planId },
+  });
+
+  if (!plan) {
+    throw new AppError("Subscription plan not found", 404);
+  }
+
+  const pricing = getPlanPricing(plan);
+  return { plan, pricing };
+};
+
 const getSubscriptionPlans = async () => {
-  return prisma.subscriptionPlan.findMany({
+  const plans = await prisma.subscriptionPlan.findMany({
     where: {
       isActive: true,
     },
     orderBy: [{ order: "asc" }, { price: "asc" }],
+  });
+
+  return plans.map((plan) => {
+    const pricing = getPlanPricing(plan);
+    return {
+      ...plan,
+      ...pricing,
+    };
   });
 };
 
@@ -34,7 +61,11 @@ const getSubscriptionPlanById = async (id) => {
     throw new AppError("Subscription plan not found", 404);
   }
 
-  return plan;
+  const pricing = getPlanPricing(plan);
+  return {
+    ...plan,
+    ...pricing,
+  };
 };
 
 const createSubscriptionPlan = async (data) => {
@@ -152,8 +183,16 @@ const createSubscription = async ({
 };
 
 const getAdminPlans = async () => {
-  return prisma.subscriptionPlan.findMany({
+  const plans = await prisma.subscriptionPlan.findMany({
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+  });
+
+  return plans.map((plan) => {
+    const pricing = getPlanPricing(plan);
+    return {
+      ...plan,
+      ...pricing,
+    };
   });
 };
 
@@ -286,4 +325,5 @@ module.exports = {
   expireSubscriptions,
   getAdminPlans,
   refundOldSubscription,
+  getPlanPricingById,
 };

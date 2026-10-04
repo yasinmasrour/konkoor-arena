@@ -210,9 +210,12 @@ export const formatPrice = (amountInRial: number): string => {
   return new Intl.NumberFormat("fa-IR").format(toToman(amountInRial));
 };
 
-// 🆕 ایجاد پرداخت شارژ
+// 🆕 ایجاد پرداخت شارژ (فقط زرین‌پال)
 export const createWalletCharge = async (amount: number) => {
-  const response = await api.post("/wallet/charge", { amount });
+  const response = await api.post("/wallet/charge", {
+    amount,
+    gateway: "zarinpal",
+  });
   return response.data as {
     message: string;
     payment: {
@@ -220,17 +223,6 @@ export const createWalletCharge = async (amount: number) => {
       status: string;
       amount: number;
     };
+    paymentUrl?: string;
   };
-};
-
-// 🆕 تأیید شارژ
-export const verifyWalletCharge = async (
-  paymentId: string,
-  success = true,
-) => {
-  const response = await api.post("/wallet/charge/verify", {
-    paymentId,
-    success,
-  });
-  return response.data;
 };

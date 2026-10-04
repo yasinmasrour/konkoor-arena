@@ -14,6 +14,7 @@ const MainLayout = () => {
     "/solo",
     "/dashboard/personal-exams",
     "/attempts",
+    "/temp/schedule",
   ];
 
   const isFullscreen =

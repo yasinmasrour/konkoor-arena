@@ -4,20 +4,19 @@ import {
   CheckCircle2,
   CreditCard,
   LoaderCircle,
+  ShieldCheck,
   Sparkles,
   Wallet,
   X,
   Zap,
 } from "lucide-react";
-import api from "../../api/axios";
-import { toRial } from "../../api/walletApi";
+import { createWalletCharge, toRial } from "../../api/walletApi";
 
 interface ChargeWalletModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-// 🔹 مبالغ پیشنهادی (به تومان)
 const PRESET_AMOUNTS = [
   { amount: 50000, label: "۵۰ هزار" },
   { amount: 100000, label: "۱۰۰ هزار", popular: true },
@@ -34,7 +33,6 @@ const ChargeWalletModal = ({ onClose, onSuccess }: ChargeWalletModalProps) => {
   const [useCustom, setUseCustom] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   const finalAmount = useCustom ? Number(customAmount) || 0 : amount;
 
@@ -56,65 +54,26 @@ const ChargeWalletModal = ({ onClose, onSuccess }: ChargeWalletModalProps) => {
 
     setLoading(true);
     try {
-      // 🔹 ایجاد پرداخت
-      const response = await api.post("/payments/wallet-charge", {
-        amount: toRial(finalAmount),
-        gateway: "mock",
-      });
+      // 🆕 درخواست به بک‌اند، دریافت paymentUrl
+      const result = await createWalletCharge(toRial(finalAmount));
 
-      const payment = response.data.payment;
+      if (result.paymentUrl) {
+        // 🆕 ریدایرکت به زرین‌پال
+        window.location.href = result.paymentUrl;
+        return;
+      }
 
-      // 🔹 برای mock: مستقیم verify کن
-      await api.post(`/payments/${payment.id}/verify`, {
-        success: true,
-      });
-
-      setSuccess(true);
-      setTimeout(() => {
-        onSuccess();
-      }, 1500);
+      // اگه paymentUrl نبود (نباید اتفاق بیفته)، موفق درنظر بگیر
+      onSuccess();
     } catch (err) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message || "شارژ کیف پول انجام نشد";
       setError(message);
-    } finally {
       setLoading(false);
     }
   };
 
-  // ==================== حالت موفقیت ====================
-  if (success) {
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-[fadeIn_0.2s_ease-out]"
-        onClick={onClose}
-      >
-        <div
-          className="relative w-full max-w-sm rounded-3xl border border-emerald-500/30 bg-[#0a0d14] p-8 text-center shadow-2xl animate-[fadeInUp_0.3s_ease-out]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent rounded-t-3xl" />
-
-          <div className="relative inline-flex mb-4">
-            <div className="absolute inset-0 bg-emerald-500 blur-2xl opacity-60 animate-pulse" />
-            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white shadow-2xl">
-              <CheckCircle2 size={32} strokeWidth={2.3} />
-            </div>
-          </div>
-
-          <h3 className="font-heading text-xl font-black text-white">
-            شارژ موفق!
-          </h3>
-          <p className="mt-2 text-sm text-gray-400">
-            {finalAmount.toLocaleString("fa-IR")} تومان به کیف پولت اضافه شد
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ==================== فرم ====================
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-[fadeIn_0.2s_ease-out]"
@@ -269,6 +228,14 @@ const ChargeWalletModal = ({ onClose, onSuccess }: ChargeWalletModalProps) => {
             </div>
           </div>
 
+          {/* اطلاعات زرین‌پال */}
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 flex items-start gap-2.5">
+            <ShieldCheck size={14} className="text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-blue-600 dark:text-blue-400 leading-5">
+              پرداخت از طریق درگاه امن <strong>زرین‌پال</strong> انجام می‌شود.
+            </p>
+          </div>
+
           {/* خطا */}
           {error && (
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-2.5">
@@ -308,7 +275,7 @@ const ChargeWalletModal = ({ onClose, onSuccess }: ChargeWalletModalProps) => {
               {loading ? (
                 <>
                   <LoaderCircle size={16} className="animate-spin" />
-                  در حال پردازش...
+                  در حال انتقال به درگاه...
                 </>
               ) : (
                 <>

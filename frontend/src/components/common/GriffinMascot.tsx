@@ -36,12 +36,24 @@ const ANIMATION_CLASSES: Record<Animation, string> = {
 
 const GLOW_CLASSES: Record<GlowColor, string> = {
   none: "",
-  gold: "bg-[var(--griffin-gold)]/30",
-  purple: "bg-purple-500/30",
-  emerald: "bg-emerald-500/30",
-  amber: "bg-amber-500/30",
-  rose: "bg-rose-500/30",
+  gold: "bg-[var(--griffin-gold)]/25",
+  purple: "bg-purple-500/25",
+  emerald: "bg-emerald-500/25",
+  amber: "bg-amber-500/25",
+  rose: "bg-rose-500/25",
 };
+
+// 🆕 ذرات ثابت (نه محاسبه‌ی runtime)
+const PARTICLE_POSITIONS = [
+  { top: 5, left: 50, delay: 0 },
+  { top: 25, left: 92, delay: 0.5 },
+  { top: 50, left: 98, delay: 1 },
+  { top: 75, left: 92, delay: 1.5 },
+  { top: 95, left: 50, delay: 2 },
+  { top: 75, left: 8, delay: 2.5 },
+  { top: 50, left: 2, delay: 3 },
+  { top: 25, left: 8, delay: 3.5 },
+];
 
 const GriffinMascot = ({
   variant,
@@ -62,64 +74,44 @@ const GriffinMascot = ({
     <div
       className={`relative flex items-center justify-center ${sizeClass} ${className}`}
     >
-      {/* هاله درخشان پشت */}
+      {/* 🆕 هاله درخشان پشت (بدون animate-pulse، blur سبک‌تر) */}
       {glowColor !== "none" && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div
-            className={`w-[70%] h-[70%] rounded-full ${glowClass} blur-[60px] animate-pulse`}
+            className={`w-[65%] h-[65%] rounded-full ${glowClass} blur-[40px]`}
           />
         </div>
       )}
 
-      {/* حلقه‌های چرخان */}
+      {/* 🆕 حلقه‌ی چرخان (فقط یکی، به جای دو تا) */}
       {halo && (
-        <>
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div
-              className="w-[90%] h-[90%] rounded-full border border-dashed border-[var(--griffin-gold)]/20 animate-spin"
-              style={{ animationDuration: "30s" }}
-            />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div
-              className="w-[75%] h-[75%] rounded-full border border-[var(--griffin-gold)]/10 animate-spin"
-              style={{
-                animationDuration: "20s",
-                animationDirection: "reverse",
-              }}
-            />
-          </div>
-        </>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-[90%] h-[90%] rounded-full border border-dashed border-[var(--griffin-gold)]/20 animate-[spin_40s_linear_infinite]" />
+        </div>
       )}
 
-      {/* ذرات نورانی */}
+      {/* 🆕 ذرات نورانی (ثابت، بدون shadow) */}
       {particles &&
-        Array.from({ length: 8 }).map((_, i) => {
-          const angle = (i / 8) * 360;
-          const radius = 48;
-          const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
-          const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
-          return (
-            <div
-              key={i}
-              className="absolute w-1.5 h-1.5 rounded-full bg-[var(--griffin-gold)] shadow-[0_0_8px_var(--griffin-gold)] pointer-events-none"
-              style={{
-                top: `${y}%`,
-                left: `${x}%`,
-                transform: "translate(-50%, -50%)",
-                animation: `float ${3 + (i % 3)}s ease-in-out infinite`,
-                animationDelay: `${i * 0.25}s`,
-                opacity: 0.7,
-              }}
-            />
-          );
-        })}
+        PARTICLE_POSITIONS.map((p, i) => (
+          <div
+            key={i}
+            className="absolute w-1.5 h-1.5 rounded-full bg-[var(--griffin-gold)] pointer-events-none"
+            style={{
+              top: `${p.top}%`,
+              left: `${p.left}%`,
+              transform: "translate(-50%, -50%)",
+              animation: `float ${3 + (i % 3)}s ease-in-out infinite`,
+              animationDelay: `${p.delay}s`,
+              opacity: 0.6,
+            }}
+          />
+        ))}
 
-      {/* تصویر اصلی */}
+      {/* 🆕 تصویر اصلی (بدون drop-shadow سنگین) */}
       <img
         src={imageSrc}
         alt={alt}
-        className={`relative w-full h-auto object-contain drop-shadow-[0_20px_50px_rgba(197,139,42,0.35)] ${animationClass}`}
+        className={`relative w-full h-auto object-contain ${animationClass}`}
         draggable={false}
         loading="lazy"
       />

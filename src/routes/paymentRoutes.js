@@ -12,9 +12,6 @@ router.post("/subscription", paymentController.createSubscriptionPayment);
 // 🔹 شارژ کیف پول
 router.post("/wallet-charge", paymentController.createWalletChargePayment);
 
-// 🔹 تایید پرداخت (بعد از بازگشت از درگاه)
-router.post("/:id/verify", paymentController.verifyPayment);
-
 // 🔹 لیست پرداخت‌ها
 router.get("/my", paymentController.getMyPayments);
 router.get("/:id", paymentController.getMyPaymentById);

@@ -21,7 +21,6 @@ import {
   deleteTask,
   getPlanById,
   updatePlan,
-  PRIORITY_LABELS,
   type StudyTaskPriority,
 } from "../../api/studyPlanApi";
 import api from "../../api/axios";

@@ -9,9 +9,7 @@ import {
   Clock,
   Crown,
   FileQuestion,
-  Flame,
-  Layers,
-  LoaderCircle,
+  Gift,
   Lock,
   Medal,
   Quote,
@@ -21,8 +19,6 @@ import {
   Swords,
   Target,
   TrendingUp,
-  Trophy,
-  Users,
   Zap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -32,6 +28,18 @@ import type { Exam } from "../types/exam";
 import RevealOnScroll from "../components/common/RevealOnScroll";
 import GriffinMascot from "../components/common/GriffinMascot";
 import { useAuth } from "../context/AuthContext";
+
+// 🆕 ذرات ثابت
+const PARTICLES = [
+  { top: 12, left: 8, delay: 0, duration: 3.5 },
+  { top: 28, left: 22, delay: 0.8, duration: 4.2 },
+  { top: 45, left: 15, delay: 1.5, duration: 3.8 },
+  { top: 62, left: 78, delay: 0.4, duration: 4.5 },
+  { top: 18, left: 85, delay: 1.2, duration: 3.2 },
+  { top: 75, left: 35, delay: 2, duration: 4 },
+  { top: 38, left: 92, delay: 0.6, duration: 3.6 },
+  { top: 88, left: 60, delay: 1.8, duration: 4.3 },
+];
 
 // ==================== کامپوننت ====================
 const Tests = () => {
@@ -73,7 +81,7 @@ const Tests = () => {
     };
   }, [exams]);
 
-  // ==================== آخرین آزمون‌ها (فقط ۴ تا) ====================
+  // ==================== آخرین آزمون‌ها ====================
   const recentExams = useMemo(() => {
     return [...exams]
       .filter((e) => e.status === "published")
@@ -133,17 +141,17 @@ const Tests = () => {
   const steps = [
     {
       number: 1,
+      icon: Gift,
+      title: "آزمون رایگان بده",
+      description:
+        "اولین آزمونت رو رایگان تجربه کن و کیفیت سیستم گریفین رو ببین.",
+    },
+    {
+      number: 2,
       icon: Crown,
       title: "اشتراکت رو فعال کن",
       description:
         "با یه پلن مناسب، به همه آزمون‌ها و امکانات ویژه دسترسی پیدا کن.",
-    },
-    {
-      number: 2,
-      icon: BookOpen,
-      title: "توی آزمون شرکت کن",
-      description:
-        "آزمون‌ها رو از داشبوردت انتخاب کن و با تمرکز به سوالات جواب بده.",
     },
     {
       number: 3,
@@ -182,47 +190,30 @@ const Tests = () => {
       <RevealOnScroll>
         <section className="relative overflow-hidden bg-[#080B12] text-white px-4 py-16 sm:px-6 sm:py-24">
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/20 via-transparent to-purple-600/15 pointer-events-none" />
-          <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/25 blur-[120px] pointer-events-none animate-pulse" />
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-purple-600/20 blur-[120px] pointer-events-none animate-pulse" />
 
-          <div
-            className="absolute inset-0 opacity-[0.06] pointer-events-none"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, white 1px, transparent 1px)",
-              backgroundSize: "32px 32px",
-            }}
-          />
+          <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-[var(--griffin-gold)]/20 blur-[70px] pointer-events-none" />
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-purple-600/15 blur-[70px] pointer-events-none" />
 
-          {Array.from({ length: 20 }).map((_, i) => (
+          {PARTICLES.map((p, i) => (
             <div
               key={i}
               className="absolute w-1 h-1 rounded-full bg-[var(--griffin-gold)] pointer-events-none"
               style={{
-                // eslint-disable-next-line react-hooks/purity
-                top: `${Math.random() * 100}%`,
-                // eslint-disable-next-line react-hooks/purity
-                left: `${Math.random() * 100}%`,
-                // eslint-disable-next-line react-hooks/purity
-                animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-                // eslint-disable-next-line react-hooks/purity
-                animationDelay: `${Math.random() * 3}s`,
-                // eslint-disable-next-line react-hooks/purity
-                opacity: 0.3 + Math.random() * 0.5,
+                top: `${p.top}%`,
+                left: `${p.left}%`,
+                animation: `float ${p.duration}s ease-in-out infinite`,
+                animationDelay: `${p.delay}s`,
+                opacity: 0.5,
               }}
             />
           ))}
 
           <div className="relative max-w-6xl mx-auto">
-            {/* ==================== grid دو ستونه: متن + mascot ==================== */}
             <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
               {/* ===== متن ===== */}
               <div className="text-center lg:text-right space-y-6 order-2 lg:order-1">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30 backdrop-blur-sm">
-                  <Sparkles
-                    size={14}
-                    className="text-[var(--griffin-gold)] animate-pulse"
-                  />
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/15 border border-[var(--griffin-gold)]/30">
+                  <Sparkles size={14} className="text-[var(--griffin-gold)]" />
                   <span className="text-xs font-black tracking-widest text-[var(--griffin-gold)] uppercase">
                     Griffins Test Center
                   </span>
@@ -250,7 +241,7 @@ const Tests = () => {
                         ? navigate("/subscriptions")
                         : navigate("/register")
                     }
-                    className="group relative inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-8 py-4 font-heading font-black text-white shadow-2xl shadow-[var(--griffin-gold)]/50 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/80 hover:-translate-y-1 transition-all overflow-hidden"
+                    className="group relative inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-8 py-4 font-heading font-black text-white shadow-2xl shadow-[var(--griffin-gold)]/50 transition-transform duration-300 hover:-translate-y-1 overflow-hidden"
                   >
                     <span className="relative z-10 flex items-center gap-2">
                       <Rocket size={20} />
@@ -265,7 +256,7 @@ const Tests = () => {
                         .getElementById("features")
                         ?.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 backdrop-blur-sm px-8 py-4 font-bold text-white hover:bg-white/10 hover:border-white/30 transition-all"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-8 py-4 font-bold text-white hover:bg-white/10 hover:border-white/30 transition-colors"
                   >
                     <Sparkles size={18} />
                     بیشتر بدون
@@ -305,9 +296,8 @@ const Tests = () => {
                   />
                 </div>
 
-                {/* برچسب شناور */}
                 <div className="absolute top-2 right-2 lg:top-6 lg:right-4 animate-[float_3s_ease-in-out_infinite]">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-xl border border-[var(--griffin-gold)]/30 shadow-2xl">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 dark:bg-[#0a0d14]/95 border border-[var(--griffin-gold)]/30 shadow-xl">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
                       <FileQuestion size={15} />
                     </div>
@@ -357,15 +347,14 @@ const Tests = () => {
                     className="
                       group relative rounded-2xl overflow-hidden
                       border border-gray-200 dark:border-white/10
-                      bg-white/70 dark:bg-white/[0.04]
-                      backdrop-blur-sm p-6
-                      transition-all duration-300
-                      hover:-translate-y-2
-                      hover:shadow-2xl hover:shadow-[var(--griffin-gold)]/10
+                      bg-white dark:bg-white/[0.03]
+                      p-6
+                      transition-transform duration-300
+                      hover:-translate-y-1
                       hover:border-[var(--griffin-gold)]/40
                     "
                   >
-                    <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-[var(--griffin-gold)]/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-16 -right-16 w-32 h-32 rounded-full bg-[var(--griffin-gold)]/8 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                     <div className="relative">
                       <div
@@ -375,7 +364,7 @@ const Tests = () => {
                           flex items-center justify-center text-white
                           shadow-lg mb-4
                           transition-transform duration-300
-                          group-hover:scale-110 group-hover:rotate-3
+                          group-hover:scale-110
                         `}
                       >
                         <Icon size={24} strokeWidth={2.3} />
@@ -416,8 +405,7 @@ const Tests = () => {
                   جدیدترین آزمون‌ها
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-sm sm:text-base leading-7">
-                  چند تا از آزمون‌های اخیر رو ببین. برای شرکت، کافیه اشتراک
-                  داشته باشی.
+                  چند تا از آزمون‌های اخیر رو ببین. اولین آزمونت رایگانه!
                 </p>
                 <div className="w-16 h-1 bg-[var(--griffin-gold)] mx-auto mt-4 rounded-full" />
               </div>
@@ -435,7 +423,9 @@ const Tests = () => {
                       0,
                     ) ?? 0;
 
+                  const isFree = exam.accessType === "FREE"; // 🆕
                   const hasAccess = isLoggedIn && hasExamAccess(exam.id);
+                  const canJoin = hasAccess || isFree; // 🆕
 
                   return (
                     <div
@@ -443,20 +433,31 @@ const Tests = () => {
                       className="
                         group relative rounded-2xl overflow-hidden
                         border border-gray-200 dark:border-white/10
-                        bg-white/70 dark:bg-white/[0.04]
-                        backdrop-blur-sm p-5
-                        transition-all duration-300
-                        hover:-translate-y-1 hover:shadow-lg
+                        bg-white dark:bg-white/[0.03]
+                        p-5
+                        transition-transform duration-300
+                        hover:-translate-y-1
                         hover:border-[var(--griffin-gold)]/40
                       "
                     >
                       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/50 to-transparent" />
 
                       <div className="flex items-center justify-between mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
-                          <BookOpen size={18} />
+                        <div
+                          className={`
+                            w-10 h-10 rounded-xl
+                            flex items-center justify-center
+                            text-white shadow-lg
+                            ${
+                              isFree
+                                ? "bg-gradient-to-br from-emerald-500 to-emerald-700"
+                                : "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700"
+                            }
+                          `}
+                        >
+                          {isFree ? <Gift size={18} /> : <BookOpen size={18} />}
                         </div>
-                        {hasAccess ? (
+                        {canJoin ? (
                           <CheckCircle2
                             size={14}
                             className="text-emerald-500"
@@ -465,6 +466,14 @@ const Tests = () => {
                           <Lock size={14} className="text-gray-400" />
                         )}
                       </div>
+
+                      {/* 🆕 Badge رایگان */}
+                      {isFree && (
+                        <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gradient-to-l from-emerald-500 to-emerald-700 text-white text-[9px] font-black shadow-md shadow-emerald-500/30">
+                          <Gift size={9} />
+                          رایگان
+                        </div>
+                      )}
 
                       <h3 className="font-heading text-sm font-black text-gray-900 dark:text-white line-clamp-2 leading-5 mb-3">
                         {exam.title}
@@ -501,7 +510,7 @@ const Tests = () => {
                         <button
                           onClick={() =>
                             navigate(
-                              hasAccess
+                              canJoin
                                 ? `/tests/${exam.id}`
                                 : isLoggedIn
                                   ? "/subscriptions"
@@ -509,18 +518,24 @@ const Tests = () => {
                             )
                           }
                           className={`
-                            w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-black transition-all
+                            w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-black transition-colors
                             ${
-                              hasAccess
-                                ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg"
+                              canJoin
+                                ? isFree
+                                  ? "bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-md shadow-emerald-500/30"
+                                  : "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-md shadow-[var(--griffin-gold)]/30"
                                 : "bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/30 text-[var(--griffin-gold)] hover:bg-[var(--griffin-gold)]/20"
                             }
                           `}
                         >
-                          {hasAccess ? (
+                          {canJoin ? (
                             <>
-                              <Rocket size={11} />
-                              شرکت در آزمون
+                              {isFree ? (
+                                <Gift size={11} />
+                              ) : (
+                                <Rocket size={11} />
+                              )}
+                              {isFree ? "شروع رایگان" : "شرکت در آزمون"}
                             </>
                           ) : (
                             <>
@@ -635,9 +650,9 @@ const Tests = () => {
                   className="
                     relative rounded-2xl overflow-hidden
                     border border-gray-200 dark:border-white/10
-                    bg-white/70 dark:bg-white/[0.04]
-                    backdrop-blur-sm p-6
-                    transition-all duration-300
+                    bg-white dark:bg-white/[0.03]
+                    p-6
+                    transition-transform duration-300
                     hover:-translate-y-1
                   "
                 >
@@ -687,14 +702,15 @@ const Tests = () => {
       <RevealOnScroll>
         <section className="px-4 py-16 sm:px-6 sm:py-24">
           <div className="max-w-4xl mx-auto">
-            <div className="relative rounded-[2.5rem] overflow-hidden bg-[#080B12] text-white p-8 sm:p-12 text-center border border-white/10 shadow-2xl">
+            <div className="relative rounded-[2.5rem] overflow-hidden bg-[#080B12] text-white p-8 sm:p-12 text-center border border-white/10 shadow-xl">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/20 via-transparent to-purple-600/20 pointer-events-none" />
-              <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-[var(--griffin-gold)]/25 blur-[100px]" />
-              <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-purple-600/20 blur-[100px]" />
+
+              <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-[var(--griffin-gold)]/20 blur-[70px]" />
+              <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-purple-600/15 blur-[70px]" />
 
               <div className="relative space-y-6">
                 <div className="relative inline-flex">
-                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-3xl opacity-60 animate-pulse" />
+                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-50" />
                   <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center shadow-2xl rotate-3">
                     <Crown size={36} strokeWidth={2.3} />
                   </div>
@@ -716,7 +732,7 @@ const Tests = () => {
                         ? navigate("/subscriptions")
                         : navigate("/register")
                     }
-                    className="group relative inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-8 py-4 font-heading font-black text-white shadow-2xl shadow-[var(--griffin-gold)]/50 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/80 hover:-translate-y-1 transition-all overflow-hidden"
+                    className="group relative inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-8 py-4 font-heading font-black text-white shadow-2xl shadow-[var(--griffin-gold)]/50 transition-transform duration-300 hover:-translate-y-1 overflow-hidden"
                   >
                     <span className="relative z-10 flex items-center gap-2">
                       <Rocket size={20} />
@@ -728,7 +744,7 @@ const Tests = () => {
                   {!isLoggedIn && (
                     <button
                       onClick={() => navigate("/login")}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 backdrop-blur-sm px-8 py-4 font-bold text-white hover:bg-white/10 transition-all"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-8 py-4 font-bold text-white hover:bg-white/10 transition-colors"
                     >
                       ورود به حساب
                     </button>

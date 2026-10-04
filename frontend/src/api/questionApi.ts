@@ -146,3 +146,9 @@ export const exportQuestions = async (
     count: Number(response.headers["x-exported-count"] || 0),
   };
 };
+
+// 🆕 حذف سؤال
+export const deleteQuestion = async (id: string) => {
+  const response = await api.delete<{ message: string }>(`/questions/${id}`);
+  return response.data;
+};

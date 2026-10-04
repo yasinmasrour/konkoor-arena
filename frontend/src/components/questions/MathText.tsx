@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, memo } from "react";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 
@@ -9,7 +9,50 @@ type MathTextProps = {
 
 type Token =
   | { type: "text"; value: string }
-  | { type: "math"; value: string; display: boolean; raw: string };
+  | { type: "math"; value: string; display: boolean; html: string };
+
+// ==================== 🆕 Global Cache ====================
+// کلید: `${display}:${value}` → مقدار: HTML رندرشده
+// این کش تا آخر عمر صفحه میمونه، پس هر فرمول فقط یک بار KaTeX میخوره
+const KATEX_CACHE = new Map<string, string>();
+const MAX_CACHE_SIZE = 500;
+
+const renderMath = (value: string, display: boolean): string => {
+  const cacheKey = `${display ? "D" : "I"}:${value}`;
+
+  // چک کش
+  const cached = KATEX_CACHE.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  let html: string;
+  try {
+    html = katex.renderToString(value, {
+      displayMode: display,
+      throwOnError: false,
+      strict: "warn",
+      output: "html",
+      trust: false,
+      macros: {
+        "\\RR": "\\mathbb{R}",
+        "\\NN": "\\mathbb{N}",
+        "\\ZZ": "\\mathbb{Z}",
+        "\\QQ": "\\mathbb{Q}",
+        "\\CC": "\\mathbb{C}",
+      },
+    });
+  } catch {
+    html = `<span class="text-rose-500 font-english">${value}</span>`;
+  }
+
+  // محدودیت کش (اگه خیلی بزرگ شد، قدیمی‌ترین رو پاک کن)
+  if (KATEX_CACHE.size >= MAX_CACHE_SIZE) {
+    const firstKey = KATEX_CACHE.keys().next().value;
+    if (firstKey !== undefined) KATEX_CACHE.delete(firstKey);
+  }
+  KATEX_CACHE.set(cacheKey, html);
+
+  return html;
+};
 
 // ==================== Tokenizer ====================
 const tokenizeMathText = (content: string): Token[] => {
@@ -58,7 +101,7 @@ const tokenizeMathText = (content: string): Token[] => {
         type: "math",
         value,
         display,
-        raw: content.slice(start, end + delimiterLength),
+        html: renderMath(value, display),
       });
     }
 
@@ -68,41 +111,20 @@ const tokenizeMathText = (content: string): Token[] => {
   return tokens;
 };
 
-// ==================== Renderer ====================
-const renderMath = (value: string, display: boolean): string => {
-  try {
-    return katex.renderToString(value, {
-      displayMode: display,
-      throwOnError: false,
-      strict: "warn",
-      output: "html",
-      trust: false,
-      macros: {
-        "\\RR": "\\mathbb{R}",
-        "\\NN": "\\mathbb{N}",
-        "\\ZZ": "\\mathbb{Z}",
-        "\\QQ": "\\mathbb{Q}",
-        "\\CC": "\\mathbb{C}",
-      },
-    });
-  } catch {
-    return `<span class="text-rose-500 font-english">${value}</span>`;
-  }
-};
-
 // ==================== Component ====================
 const MathText = ({ content, className = "" }: MathTextProps) => {
   const tokens = useMemo(() => tokenizeMathText(content), [content]);
 
   return (
-    <span className={`math-text ${className}`} dir="auto">
+    <span
+      className={`math-text whitespace-pre-wrap break-words ${className}`}
+      dir="auto"
+    >
       {tokens.map((token, index) => {
-        // متن عادی
         if (token.type === "text") {
           return <Fragment key={index}>{token.value}</Fragment>;
         }
 
-        // فرمول درون‌خطی
         if (!token.display) {
           return (
             <span
@@ -115,19 +137,13 @@ const MathText = ({ content, className = "" }: MathTextProps) => {
                 rounded-md
                 bg-[var(--griffin-gold)]/5
                 border border-[var(--griffin-gold)]/15
-                transition-colors duration-200
-                hover:bg-[var(--griffin-gold)]/10
-                hover:border-[var(--griffin-gold)]/30
               "
               dir="ltr"
-              dangerouslySetInnerHTML={{
-                __html: renderMath(token.value, false),
-              }}
+              dangerouslySetInnerHTML={{ __html: token.html }}
             />
           );
         }
 
-        // فرمول بلوکی (display)
         return (
           <span
             key={index}
@@ -144,20 +160,11 @@ const MathText = ({ content, className = "" }: MathTextProps) => {
             "
             dir="ltr"
           >
-            {/* خط طلایی بالا */}
             <span className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/40 to-transparent" />
-
-            {/* هاله تزئینی */}
-            <span className="absolute -top-16 -right-16 w-32 h-32 rounded-full bg-[var(--griffin-gold)]/10 blur-3xl pointer-events-none" />
-
             <span
               className="relative"
-              dangerouslySetInnerHTML={{
-                __html: renderMath(token.value, true),
-              }}
+              dangerouslySetInnerHTML={{ __html: token.html }}
             />
-
-            {/* خط طلایی پایین */}
             <span className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/40 to-transparent" />
           </span>
         );
@@ -166,4 +173,6 @@ const MathText = ({ content, className = "" }: MathTextProps) => {
   );
 };
 
-export default MathText;
+export default memo(MathText, (prev, next) => {
+  return prev.content === next.content && prev.className === next.className;
+});

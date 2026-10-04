@@ -36,6 +36,11 @@ const studyPlanRoutes = require("./studyPlanRoutes");
 const personalExamRoutes = require("./personalExamRoutes");
 const featureRoutes = require("./featureRoutes");
 const examPurchaseRoutes = require("./examPurchaseRoutes");
+const dashboardRoutes = require("./dashboardRoutes");
+const publicStatsRoutes = require("./publicStatsRoutes");
+const publicSiteInfoRoutes = require("./publicSiteInfoRoutes");
+const adminSiteInfoRoutes = require("./adminSiteInfoRoutes");
+const zarinpalRoutes = require("./zarinpalRoutes");
 
 const router = express.Router();
 
@@ -48,6 +53,8 @@ router.get("/", (req, res) => {
 // USER
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
+router.use("/dashboard", dashboardRoutes);
+router.use("/public/stats", publicStatsRoutes);
 
 // TESTS
 router.use("/questions", questionRoutes);
@@ -78,6 +85,7 @@ router.use("/subscriptions", subscriptionUserRoutes);
 router.use("/strategy-plans", strategyRoutes);
 
 // FINANCIAL
+router.use("/payments/zarinpal", zarinpalRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/wallet", walletRoutes);
 
@@ -88,6 +96,10 @@ router.use("/admin/blog", adminBlogRoutes);
 // STUDY PLANS
 router.use("/study-plans", studyPlanRoutes);
 router.use("/personal-exams", personalExamRoutes);
+
+// SITE INFO
+router.use("/public/site-info", publicSiteInfoRoutes);
+router.use("/admin/site-info", adminSiteInfoRoutes);
 
 // ADMIN & OTHER ROLES
 router.use("/admin/strategy-plans", adminStrategyRoutes);
