@@ -17,6 +17,17 @@ const createPostSchema = z.object({
     .trim()
     .min(BLOG_LIMITS.MIN_TITLE)
     .max(BLOG_LIMITS.MAX_TITLE),
+
+  slug: z
+    .string()
+    .trim()
+    .max(BLOG_LIMITS.MAX_SLUG)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+      message: "slug باید فقط حروف کوچک انگلیسی، اعداد و - باشد",
+    })
+    .optional()
+    .or(z.literal("")),
+
   excerpt: z
     .string()
     .trim()
@@ -24,10 +35,12 @@ const createPostSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("")),
+
   content: z
     .string()
     .min(1, "متن مقاله الزامی است")
     .max(BLOG_LIMITS.MAX_CONTENT),
+
   coverImage: z
     .string()
     .trim()
@@ -35,9 +48,36 @@ const createPostSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("")),
+
+  // 🆕 SEO fields
+  seoTitle: z
+    .string()
+    .trim()
+    .max(BLOG_LIMITS.MAX_SEO_TITLE)
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+
+  seoDescription: z
+    .string()
+    .trim()
+    .max(BLOG_LIMITS.MAX_SEO_DESCRIPTION)
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+
+  coverImageAlt: z
+    .string()
+    .trim()
+    .max(BLOG_LIMITS.MAX_COVER_ALT)
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+
   category: z.enum(VALID_CATEGORIES, {
     errorMap: () => ({ message: "دسته‌بندی نامعتبر است" }),
   }),
+
   tags: z
     .array(z.string().trim().min(1).max(BLOG_LIMITS.MAX_TAG_LENGTH))
     .max(BLOG_LIMITS.MAX_TAGS)

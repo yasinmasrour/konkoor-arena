@@ -1,18 +1,23 @@
+# ============================================
 # robots.txt — Griffin Academy
 # https://griffinedu.ir
+# ============================================
 
-
+# ==================== همه ربات‌ها ====================
 User-agent: *
 Allow: /
 
-
-Disallow: /dashboard
+# صفحات خصوصی و داشبورد
 Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /profile/
+
+# احراز هویت
 Disallow: /login
 Disallow: /register
 Disallow: /forgot-password
-Disallow: /admin
-Disallow: /admin/
+
+# فرایندهای ادمین و طراح سوال
 Disallow: /question-review
 Disallow: /question-bank
 Disallow: /question-designer
@@ -20,65 +25,53 @@ Disallow: /question-analytics
 Disallow: /question-import
 Disallow: /booklet-builder
 Disallow: /exam-builder
-Disallow: /counselor
-Disallow: /dashboard/counselor/
+Disallow: /counselor/
+
+# آزمون‌های در حال انجام
 Disallow: /attempts/
+
+# آرنا - فقط لیست و رنکینگ قابل ایندکسه
 Disallow: /arena/match/
 Disallow: /arena/queue/
 Disallow: /arena/leagues/
+
+# سولو
 Disallow: /solo/
+
+# مالی
 Disallow: /wallet
-Disallow: /payments
+Disallow: /payments/
 Disallow: /payment/
+
+# اعلان‌ها و رفرال
 Disallow: /notifications
 Disallow: /referral
-Disallow: /profile
-Disallow: /dashboard/blog/new
-Disallow: /dashboard/blog/
-Disallow: /dashboard/my-blog-posts
+
+# API
 Disallow: /api/
+
+# فایل‌های حساس
 Disallow: /*.json$
-Disallow: /*?*
+Disallow: /*.env$
 
-Allow: /
-Allow: /tests
-Allow: /tests/
-Allow: /arena
-Allow: /subscriptions
-Allow: /blog
-Allow: /blog/
-Allow: /about
-Allow: /contact
-Allow: /terms
-Allow: /privacy
-Allow: /faq
-Allow: /strategy
-Allow: /assets/
-Allow: /images/
-Allow: /*.css$
-Allow: /*.js$
-Allow: /*.webp$
-Allow: /*.png$
-Allow: /*.jpg$
-Allow: /*.svg$
-Allow: /*.woff2$
-
-
+# ==================== Google ====================
 User-agent: Googlebot
 Allow: /
-Disallow: /dashboard
-Disallow: /admin
+Disallow: /dashboard/
+Disallow: /admin/
 Disallow: /api/
 
 User-agent: Googlebot-Image
 Allow: /
 
+# ==================== Bing ====================
 User-agent: Bingbot
 Allow: /
-Disallow: /dashboard
-Disallow: /admin
+Disallow: /dashboard/
+Disallow: /admin/
 Disallow: /api/
 
+# ==================== ربات‌های اسکرپر (مسدود) ====================
 User-agent: AhrefsBot
 Disallow: /
 
@@ -94,4 +87,5 @@ Disallow: /
 User-agent: PETALBOT
 Disallow: /
 
+# ==================== Sitemap ====================
 Sitemap: https://griffinedu.ir/sitemap.xml

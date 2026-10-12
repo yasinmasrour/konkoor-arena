@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import ScrollToTop from "../components/common/ScrollToTop";
+import AnnouncementCardProvider from "../components/announcements/AnnouncementCardProvider";
 
 const MainLayout = () => {
   const location = useLocation();
@@ -39,6 +40,8 @@ const MainLayout = () => {
           <Outlet />
         </main>
         <Footer />
+        {/* 🆕 کارت اعلان گوشه پایین */}
+        <AnnouncementCardProvider />
       </div>
     </>
   );

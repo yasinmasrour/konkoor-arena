@@ -41,22 +41,36 @@ const publicStatsRoutes = require("./publicStatsRoutes");
 const publicSiteInfoRoutes = require("./publicSiteInfoRoutes");
 const adminSiteInfoRoutes = require("./adminSiteInfoRoutes");
 const zarinpalRoutes = require("./zarinpalRoutes");
+const contactRoutes = require("./contactRoutes");
+const adminContactRoutes = require("./adminContactRoutes");
+const uploadRoutes = require("./uploadRoutes");
+const sitemapRoutes = require("./sitemapRoutes");
+const announcementRoutes = require("./announcementRoutes");
+const adminAnnouncementRoutes = require("./adminAnnouncementRoutes");
 
 const router = express.Router();
 
+// ==================== SITEMAP ====================
+router.use("/", sitemapRoutes);
+
+// ==================== WELCOME ====================
 router.get("/", (req, res) => {
   res.json({
     message: "Welcome to Konkoor Arena Backend",
   });
 });
 
-// USER
+// ==================== ANNOUNCEMENTS ====================
+router.use("/public/announcements", announcementRoutes);
+router.use("/admin/announcements", adminAnnouncementRoutes);
+
+// ==================== USER ====================
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/public/stats", publicStatsRoutes);
 
-// TESTS
+// ==================== TESTS ====================
 router.use("/questions", questionRoutes);
 router.use("/booklets", bookletRoutes);
 router.use("/exams", examRoutes);
@@ -64,7 +78,7 @@ router.use("/exams", examPurchaseRoutes);
 router.use("/attempts", attemptRoutes);
 router.use("/attempts", aiAnalysisRoutes);
 
-// ARENA
+// ==================== ARENA ====================
 router.use("/arena", arenaMatchHistoryRoutes);
 router.use("/arena", arenaRankingRoutes);
 router.use("/arena", arenaProfileRoutes);
@@ -74,52 +88,61 @@ router.use("/arena/standings", arenaStandingRoutes);
 router.use("/arena/invites", arenaInviteRoutes);
 router.use("/arena/queue", arenaQueueRoutes);
 
-// SOLO
+// ==================== SOLO ====================
 router.use("/solo", soloRoutes);
 
-// SUBSCRIPTION
+// ==================== SUBSCRIPTION ====================
 router.use("/subscription-plans", subscriptionRoutes);
 router.use("/subscriptions", subscriptionUserRoutes);
 
-// STRATEGY
+// ==================== STRATEGY ====================
 router.use("/strategy-plans", strategyRoutes);
 
-// FINANCIAL
+// ==================== FINANCIAL ====================
 router.use("/payments/zarinpal", zarinpalRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/wallet", walletRoutes);
 
-// BLOG
+// ==================== BLOG ====================
 router.use("/blog", blogRoutes);
 router.use("/admin/blog", adminBlogRoutes);
 
-// STUDY PLANS
+// ==================== STUDY PLANS ====================
 router.use("/study-plans", studyPlanRoutes);
 router.use("/personal-exams", personalExamRoutes);
 
-// SITE INFO
+// ==================== SITE INFO ====================
 router.use("/public/site-info", publicSiteInfoRoutes);
 router.use("/admin/site-info", adminSiteInfoRoutes);
 
-// ADMIN & OTHER ROLES
+// ==================== ADMIN & OTHER ROLES ====================
 router.use("/admin/strategy-plans", adminStrategyRoutes);
 router.use("/admin/comments", adminCommentRoutes);
 router.use("/admin/arena", adminArenaRoutes);
+router.use("/admin/contact-messages", adminContactRoutes);
 router.use("/admin", adminRoutes);
+
+// ==================== OTHER ROLES ====================
 router.use("/designer", designerRoutes);
 router.use("/counselor/plans", counselorPlanRoutes);
 router.use("/counselor", counselorRoutes);
 
-// NOTIFICATION
+// ==================== NOTIFICATION ====================
 router.use("/notifications", notificationRoutes);
 
-// REFERRAL
+// ==================== REFERRAL ====================
 router.use("/referrals", referralRoutes);
 
-// FEATURES
+// ==================== FEATURES ====================
 router.use("/features", featureRoutes);
 
-// COMMENTS
+// ==================== CONTACT ====================
+router.use("/contact", contactRoutes);
+
+// ==================== UPLOAD ====================
+router.use("/upload", uploadRoutes);
+
+// ==================== COMMENTS ====================
 router.use("/", commentRoutes);
 
 module.exports = router;

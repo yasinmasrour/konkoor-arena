@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
+const optionalAuth = require("../middleware/optionalAuthMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
 const ROLES = require("../constants/roles");
@@ -15,6 +16,8 @@ const {
   updateExamSchema,
 } = require("../validations/examValidation");
 
+// ==================== 🔴 Admin/Counselor Only ====================
+
 router.post(
   "/",
   authMiddleware,
@@ -22,8 +25,6 @@ router.post(
   validate(createExamSchema),
   controller.createExam,
 );
-
-router.get("/", authMiddleware, controller.getExams);
 
 router.post(
   "/:id/booklets",
@@ -45,8 +46,6 @@ router.patch(
   roleMiddleware(ROLES.ADMIN, ROLES.COUNSELOR),
   controller.updateBookletOrder,
 );
-
-router.get("/:id", authMiddleware, controller.getExamById);
 
 router.post(
   "/:id/duplicate",
@@ -76,5 +75,11 @@ router.delete(
   roleMiddleware(ROLES.ADMIN),
   controller.deleteExam,
 );
+
+// ==================== 🟢 Public (با optionalAuth) ====================
+
+// 🟢 عمومی
+router.get("/", optionalAuth, controller.getExams);
+router.get("/:id", optionalAuth, controller.getExamById);
 
 module.exports = router;

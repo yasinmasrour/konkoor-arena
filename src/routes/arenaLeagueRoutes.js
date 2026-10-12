@@ -6,15 +6,13 @@ const {
   getFinishedLeagues,
 } = require("../controllers/arenaLeagueController");
 
-const authMiddleware = require("../middleware/authMiddleware");
+const optionalAuth = require("../middleware/optionalAuthMiddleware");
 
 const router = express.Router();
 
-router.get("/leagues/active", authMiddleware, getActiveLeagues);
-
-router.get("/leagues/upcoming", authMiddleware, getUpcomingLeagues);
-
-router.get("/leagues/finished", authMiddleware, getFinishedLeagues);
-
+// 🆕 همه با optionalAuth — کاربر مهمان هم می‌تونه لیگ‌ها رو ببینه
+router.get("/leagues/active", optionalAuth, getActiveLeagues);
+router.get("/leagues/upcoming", optionalAuth, getUpcomingLeagues);
+router.get("/leagues/finished", optionalAuth, getFinishedLeagues);
 
 module.exports = router;

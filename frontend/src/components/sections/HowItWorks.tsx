@@ -14,7 +14,7 @@ const steps = [
     number: "۰۱",
     title: "ثبت‌نام کن",
     description:
-      "با شماره موبایل، در کمتر از ۱ دقیقه حساب کاربری بساز. نیازی به کارت بانکی برای شروع نیست.",
+      "در کمتر از ۱ دقیقه حساب کاربری بساز. نیازی به کارت بانکی برای شروع نیست.",
     icon: UserPlus,
     gradient: "from-emerald-500 to-emerald-700",
     glowColor: "bg-emerald-500/20",

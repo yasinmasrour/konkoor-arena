@@ -12,50 +12,10 @@ const {
 
 const router = express.Router();
 
-/**
- * @swagger
- * /subscription-plans:
- *   get:
- *     summary: Get available subscription plans
- *     tags:
- *       - Subscriptions
- *     responses:
- *       200:
- *         description: Subscription plans retrieved successfully
- */
 router.get("/", subscriptionController.getPlans);
 
-/**
- * @swagger
- * /subscription-plans/{id}:
- *   get:
- *     summary: Get a subscription plan by ID
- *     tags:
- *       - Subscriptions
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Subscription plan retrieved successfully
- *       404:
- *         description: Subscription plan not found
- */
 router.get("/:id", subscriptionController.getPlanById);
 
-/**
- * @swagger
- * /subscription-plans:
- *   post:
- *     summary: Create a subscription plan
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- */
 router.post(
   "/",
   authMiddleware,
@@ -64,16 +24,6 @@ router.post(
   subscriptionController.createPlan,
 );
 
-/**
- * @swagger
- * /subscription-plans/{id}:
- *   put:
- *     summary: Update a subscription plan
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- */
 router.put(
   "/:id",
   authMiddleware,
@@ -82,16 +32,6 @@ router.put(
   subscriptionController.updatePlan,
 );
 
-/**
- * @swagger
- * /subscription-plans/{id}:
- *   delete:
- *     summary: Delete a subscription plan without subscription history
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- */
 router.delete(
   "/:id",
   authMiddleware,

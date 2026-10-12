@@ -31,7 +31,7 @@ const BLOG_LIMITS = Object.freeze({
   MIN_TITLE: 3,
   MAX_TITLE: 200,
   MAX_EXCERPT: 500,
-  MAX_CONTENT: 100000,    // ۱۰۰ هزار کاراکتر
+  MAX_CONTENT: 100000,
   MAX_TAGS: 10,
   MAX_TAG_LENGTH: 30,
   MAX_COVER_URL: 500,
@@ -41,6 +41,15 @@ const BLOG_LIMITS = Object.freeze({
   MIN_COMMENT: 2,
   DEFAULT_PAGE_SIZE: 12,
   MAX_PAGE_SIZE: 50,
+
+  // 🆕 SEO
+  MAX_SEO_TITLE: 70,
+  MAX_SEO_DESCRIPTION: 160,
+  MAX_COVER_ALT: 200,
+
+  // 🆕
+  WORDS_PER_MINUTE_FA: 150,
+  WORDS_PER_MINUTE_EN: 200,
 });
 
 module.exports = {

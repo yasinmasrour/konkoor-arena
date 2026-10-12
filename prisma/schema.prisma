@@ -104,6 +104,7 @@ model User {
   blogPostReactions    BlogPostReaction[]
   blogComments         BlogComment[]      @relation("BlogCommentAuthor")
   reviewedBlogComments BlogComment[]      @relation("BlogCommentReviewer")
+  blogPostViews BlogPostView[]
 
   studyPlansAsStudent   StudyPlan[]    @relation("StudyPlanStudent")
   studyPlansAsCounselor StudyPlan[]    @relation("StudyPlanCounselor")
@@ -119,6 +120,8 @@ model User {
   
   passwordResetAttempts  Int       @default(0)
   passwordResetLockedUntil DateTime?
+
+  contactMessages ContactMessage[]
 }
 
 model Notification {
@@ -1168,6 +1171,10 @@ model BlogPost {
 
   coverImage String @default("")
 
+  seoTitle       String? @db.VarChar(70)
+  seoDescription String? @db.VarChar(160)
+  coverImageAlt  String? @db.VarChar(200)
+  
   authorId String
   author   User   @relation("BlogPostAuthor", fields: [authorId], references: [id])
 
@@ -1180,6 +1187,10 @@ model BlogPost {
   // draft | pending | published | rejected | archived
 
   isFeatured Boolean @default(false)
+
+  readingTime Int @default(0)
+
+  views BlogPostView[]
 
   reviewedById String?
   reviewedBy   User?     @relation("BlogPostReviewer", fields: [reviewedById], references: [id])
@@ -1201,6 +1212,26 @@ model BlogPost {
   @@index([category, status])
   @@index([authorId, createdAt])
   @@index([isFeatured, status])
+}
+
+model BlogPostView {
+  id String @id @default(cuid())
+
+  postId String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  ip        String?
+  userAgent String?
+
+  viewedAt DateTime @default(now())
+  viewDate String   // 🆕 "2026-10-06" برای unique روزانه
+
+  @@unique([postId, ip, viewDate])
+  @@index([postId, viewedAt])
+  @@index([userId, viewedAt])
 }
 
 model BlogPostReaction {
@@ -1400,4 +1431,67 @@ model SiteInfo {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ContactMessage {
+  id String @id @default(cuid())
+
+  name    String
+  email   String
+  phone   String?
+  subject String
+  message String @db.Text
+
+  status String @default("NEW")
+  // NEW | READ | REPLIED | ARCHIVED
+
+  adminNote String?
+  repliedAt DateTime?
+
+  ip        String?
+  userAgent String?
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([email])
+}
+
+model Announcement {
+  id String @id @default(cuid())
+
+  title       String
+  message     String?
+  ctaText     String?
+  ctaLink     String?
+  variant     String    @default("gold")
+  // gold | red | green | blue | purple | dark
+
+  icon        String?
+
+  displayType String    @default("banner")
+  // banner | card | both
+
+  isActive    Boolean   @default(true)
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+
+  dismissible Boolean   @default(true)
+
+  priority    Int       @default(0)
+
+  viewsCount     Int @default(0)
+  clicksCount    Int @default(0)
+  dismissesCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, displayType, priority])
+  @@index([startsAt, endsAt])
 }

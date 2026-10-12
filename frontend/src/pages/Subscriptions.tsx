@@ -56,7 +56,8 @@ const getRemainingDays = (endDate: string) => {
 // ==================== کامپوننت ====================
 const Subscriptions = () => {
   const navigate = useNavigate();
-  const { refreshFeatures } = useAuth();
+  // 🆕 user رو از useAuth بگیر
+  const { user, refreshFeatures } = useAuth();
 
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -82,20 +83,28 @@ const Subscriptions = () => {
   const [validatingReferral, setValidatingReferral] = useState(false);
   const [referralError, setReferralError] = useState("");
 
+  // 🆕 load — برای مهمان فقط پلن‌ها، برای لاگین همه چیز
   const load = async () => {
     setLoading(true);
     setError("");
 
     try {
-      const [plansData, currentData, historyData] = await Promise.all([
-        getSubscriptionPlans(),
-        getMySubscription(),
-        getMySubscriptionHistory(),
-      ]);
-
+      // همیشه پلن‌ها رو بگیر (عمومی)
+      const plansData = await getSubscriptionPlans();
       setPlans(plansData.plans);
-      setSubscription(currentData.subscription);
-      setHistory(historyData.subscriptions);
+
+      // 🆕 فقط برای کاربر لاگین‌شده، اشتراک فعلی و تاریخچه
+      if (user) {
+        const [currentData, historyData] = await Promise.all([
+          getMySubscription(),
+          getMySubscriptionHistory(),
+        ]);
+        setSubscription(currentData.subscription);
+        setHistory(historyData.subscriptions);
+      } else {
+        setSubscription(null);
+        setHistory([]);
+      }
     } catch {
       setError(
         "دریافت اطلاعات اشتراک با مشکل مواجه شد. لطفاً دوباره تلاش کنید.",
@@ -108,7 +117,8 @@ const Subscriptions = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // 🆕 وقتی user عوض شد دوباره لود کن
 
   const remainingDays = useMemo(
     () => (subscription ? getRemainingDays(subscription.endDate) : 0),
@@ -130,24 +140,27 @@ const Subscriptions = () => {
     return Math.floor(plans.length / 2);
   }, [plans]);
 
-  // 🆕 محاسبه‌ی قیمت نهایی با تخفیف Referral
   const calculateFinalPrice = (plan: SubscriptionPlan) => {
-    const planPrice = plan.finalPrice; // قیمت با تخفیف پلن
+    const planPrice = plan.finalPrice;
     const referralDiscount = appliedReferral?.discount || 0;
     return Math.max(0, planPrice - referralDiscount);
   };
 
+  // 🆕 چک user قبل از باز کردن modal خرید
   const handlePurchaseClick = (plan: SubscriptionPlan) => {
+    if (!user) {
+      navigate(`/login?returnTo=${encodeURIComponent("/subscriptions")}`);
+      return;
+    }
+
     setSelectedPlan(plan);
     setShowGatewayModal(true);
     setPurchaseError("");
-    // ریست کردن کد دعوت برای پلن جدید
     setReferralCode("");
     setAppliedReferral(null);
     setReferralError("");
   };
 
-  // 🆕 اعتبارسنجی کد دعوت
   const handleApplyReferral = async () => {
     if (!referralCode.trim()) {
       setReferralError("کد دعوت رو وارد کن");
@@ -171,7 +184,6 @@ const Subscriptions = () => {
     }
   };
 
-  // 🆕 حذف کد دعوت
   const handleRemoveReferral = () => {
     setReferralCode("");
     setAppliedReferral(null);
@@ -191,7 +203,6 @@ const Subscriptions = () => {
         appliedReferral ? referralCode.trim() : undefined,
       );
 
-      // 🆕 اگه پرداخت مستقیم (کیف پول) موفق بود
       if (result.payment.status === "paid") {
         await refreshFeatures();
         await load();
@@ -208,13 +219,11 @@ const Subscriptions = () => {
         return;
       }
 
-      // 🆕 اگه paymentUrl داشتیم (زرین‌پال) → ریدایرکت
       if (result.paymentUrl) {
         window.location.href = result.paymentUrl;
         return;
       }
 
-      // اگه هیچکدوم نبود (نباید اتفاق بیفته)
       setPurchaseError("پرداخت ایجاد شد ولی لینک پرداخت موجود نیست.");
     } catch (err) {
       const message =
@@ -436,7 +445,6 @@ const Subscriptions = () => {
                             }`}
                           />
 
-                          {/* 🆕 Badge تخفیف */}
                           {hasDiscount && (
                             <div className="absolute top-5 left-5 z-10">
                               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-rose-500 to-rose-700 text-white text-[10px] font-black shadow-lg shadow-rose-500/40">
@@ -447,7 +455,6 @@ const Subscriptions = () => {
                             </div>
                           )}
 
-                          {/* برچسب پیشنهادی */}
                           {isRecommended && !hasDiscount && (
                             <div className="absolute top-5 left-5 z-10">
                               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-[var(--griffin-gold)] to-amber-600 text-white text-[10px] font-black shadow-lg">
@@ -485,7 +492,6 @@ const Subscriptions = () => {
                               {plan.title}
                             </h3>
 
-                            {/* قیمت */}
                             <div className="mt-5">
                               {hasDiscount ? (
                                 <>
@@ -527,7 +533,6 @@ const Subscriptions = () => {
                               )}
                             </div>
 
-                            {/* تایمر تخفیف */}
                             {hasDiscount && plan.remainingDays !== null && (
                               <div className="mt-3 inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-black">
                                 <Clock3 size={11} />
@@ -589,11 +594,13 @@ const Subscriptions = () => {
                               `}
                             >
                               <Crown size={16} />
-                              {subscription
-                                ? "تغییر به این پلن"
-                                : hasDiscount
-                                  ? "خرید با تخفیف"
-                                  : "خرید این پلن"}
+                              {!user
+                                ? "ورود برای خرید"
+                                : subscription
+                                  ? "تغییر به این پلن"
+                                  : hasDiscount
+                                    ? "خرید با تخفیف"
+                                    : "خرید این پلن"}
                             </button>
                           </div>
                         </article>
@@ -605,108 +612,110 @@ const Subscriptions = () => {
             </section>
 
             {/* ===== تاریخچه ===== */}
-            <RevealOnScroll>
-              <section className="rounded-[2rem] border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] p-6 sm:p-8">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-white dark:to-gray-200 flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
-                    <History size={22} />
-                  </div>
-                  <div>
-                    <h2 className="font-heading text-xl font-black text-gray-900 dark:text-white">
-                      تاریخچه اشتراک
-                    </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      سوابق اشتراک‌های فعال و گذشته شما
-                    </p>
-                  </div>
-                </div>
-
-                {history.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
-                      <History
-                        size={24}
-                        className="text-gray-400 dark:text-gray-500"
-                      />
+            {user && (
+              <RevealOnScroll>
+                <section className="rounded-[2rem] border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] p-6 sm:p-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-white dark:to-gray-200 flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
+                      <History size={22} />
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      هنوز سابقه‌ای برای اشتراک شما ثبت نشده است.
-                    </p>
+                    <div>
+                      <h2 className="font-heading text-xl font-black text-gray-900 dark:text-white">
+                        تاریخچه اشتراک
+                      </h2>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        سوابق اشتراک‌های فعال و گذشته شما
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="overflow-x-auto -mx-2">
-                    <table className="w-full min-w-[620px] text-right text-sm">
-                      <thead>
-                        <tr className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                          <th className="px-3 pb-4">پلن</th>
-                          <th className="px-3 pb-4">شروع</th>
-                          <th className="px-3 pb-4">پایان</th>
-                          <th className="px-3 pb-4">وضعیت</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {history.map((item) => (
-                          <tr
-                            key={item.id}
-                            className="border-t border-gray-100 dark:border-white/5 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors"
-                          >
-                            <td className="px-3 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-[var(--griffin-gold)]/10 flex items-center justify-center text-[var(--griffin-gold)]">
-                                  <Crown size={14} />
-                                </div>
-                                <span className="font-bold text-gray-900 dark:text-white">
-                                  {item.plan.title}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-4 text-gray-500 dark:text-gray-400 text-xs">
-                              {formatDate(item.startDate)}
-                            </td>
-                            <td className="px-3 py-4 text-gray-500 dark:text-gray-400 text-xs">
-                              {formatDate(item.endDate)}
-                            </td>
-                            <td className="px-3 py-4">
-                              <span
-                                className={`
-                                  inline-flex items-center gap-1.5
-                                  px-3 py-1.5 rounded-full
-                                  text-[10px] font-black
-                                  ${
-                                    item.status === "active"
-                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                      : item.status === "expired"
-                                        ? "bg-gray-500/10 text-gray-500 dark:text-gray-400"
-                                        : "bg-rose-500/10 text-rose-500 dark:text-rose-400"
-                                  }
-                                `}
-                              >
-                                {item.status === "active" ? (
-                                  <>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    فعال
-                                  </>
-                                ) : item.status === "expired" ? (
-                                  <>
-                                    <X size={10} />
-                                    منقضی
-                                  </>
-                                ) : (
-                                  <>
-                                    <X size={10} />
-                                    لغوشده
-                                  </>
-                                )}
-                              </span>
-                            </td>
+
+                  {history.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                        <History
+                          size={24}
+                          className="text-gray-400 dark:text-gray-500"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        هنوز سابقه‌ای برای اشتراک شما ثبت نشده است.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto -mx-2">
+                      <table className="w-full min-w-[620px] text-right text-sm">
+                        <thead>
+                          <tr className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                            <th className="px-3 pb-4">پلن</th>
+                            <th className="px-3 pb-4">شروع</th>
+                            <th className="px-3 pb-4">پایان</th>
+                            <th className="px-3 pb-4">وضعیت</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-            </RevealOnScroll>
+                        </thead>
+                        <tbody>
+                          {history.map((item) => (
+                            <tr
+                              key={item.id}
+                              className="border-t border-gray-100 dark:border-white/5 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors"
+                            >
+                              <td className="px-3 py-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-[var(--griffin-gold)]/10 flex items-center justify-center text-[var(--griffin-gold)]">
+                                    <Crown size={14} />
+                                  </div>
+                                  <span className="font-bold text-gray-900 dark:text-white">
+                                    {item.plan.title}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-4 text-gray-500 dark:text-gray-400 text-xs">
+                                {formatDate(item.startDate)}
+                              </td>
+                              <td className="px-3 py-4 text-gray-500 dark:text-gray-400 text-xs">
+                                {formatDate(item.endDate)}
+                              </td>
+                              <td className="px-3 py-4">
+                                <span
+                                  className={`
+                                    inline-flex items-center gap-1.5
+                                    px-3 py-1.5 rounded-full
+                                    text-[10px] font-black
+                                    ${
+                                      item.status === "active"
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                        : item.status === "expired"
+                                          ? "bg-gray-500/10 text-gray-500 dark:text-gray-400"
+                                          : "bg-rose-500/10 text-rose-500 dark:text-rose-400"
+                                    }
+                                  `}
+                                >
+                                  {item.status === "active" ? (
+                                    <>
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                      فعال
+                                    </>
+                                  ) : item.status === "expired" ? (
+                                    <>
+                                      <X size={10} />
+                                      منقضی
+                                    </>
+                                  ) : (
+                                    <>
+                                      <X size={10} />
+                                      لغوشده
+                                    </>
+                                  )}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              </RevealOnScroll>
+            )}
 
             {/* ===== CTA ===== */}
             <RevealOnScroll>
@@ -765,7 +774,6 @@ const Subscriptions = () => {
               </div>
             </div>
 
-            {/* 🆕 کد دعوت */}
             <div className="p-5 bg-gradient-to-br from-purple-500/5 to-transparent border-b border-gray-100 dark:border-white/5">
               <div className="flex items-center gap-2 mb-3">
                 <Gift size={14} className="text-purple-500" />
@@ -873,7 +881,6 @@ const Subscriptions = () => {
               )}
             </div>
 
-            {/* مبلغ قابل پرداخت */}
             <div className="p-6 bg-[var(--griffin-gold)]/5 border-b border-[var(--griffin-gold)]/20">
               <div className="space-y-2">
                 {selectedPlan.hasDiscount && (

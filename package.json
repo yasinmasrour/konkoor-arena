@@ -22,6 +22,7 @@
     "smoke:production": "node scripts/production-smoke-test.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1147.0",
     "@prisma/client": "^6.19.3",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -32,7 +33,7 @@
     "jalaali-js": "^2.0.1",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
-    "multer": "^2.0.2",
+    "multer": "^2.4.0",
     "node-cron": "^4.6.0",
     "openai": "^7.9.0",
     "pg": "^8.22.0",

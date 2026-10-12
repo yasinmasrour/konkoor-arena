@@ -34,6 +34,10 @@ export interface BlogPost {
   excerpt: string;
   content: string;
   coverImage: string;
+  // 🆕 SEO
+  seoTitle: string | null;
+  seoDescription: string | null;
+  coverImageAlt: string | null;
   category: BlogCategory;
   tags: string[];
   status: BlogStatus;
@@ -41,6 +45,7 @@ export interface BlogPost {
   viewsCount: number;
   likesCount: number;
   dislikesCount: number;
+  readingTime?: number;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -53,7 +58,6 @@ export interface BlogPost {
 }
 
 export interface BlogComment {
-  user: any;
   id: string;
   content: string;
   status: BlogCommentStatus;
@@ -92,6 +96,54 @@ export interface ReactionResponse {
   myReaction: BlogReactionType | null;
 }
 
+// 🆕 Sidebar
+export interface BlogSidebarData {
+  categories: Array<{ key: BlogCategory; label: string; count: number }>;
+  popularTags: Array<{ tag: string; count: number }>;
+  popularPosts: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    coverImage: string;
+    viewsCount: number;
+    likesCount?: number;
+    publishedAt: string | null;
+    category: BlogCategory;
+  }>;
+  recentPosts: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    coverImage: string;
+    viewsCount: number;
+    publishedAt: string | null;
+    category: BlogCategory;
+  }>;
+  totalPosts: number;
+}
+
+// 🆕 TOC
+export interface TocHeading {
+  level: number;
+  text: string;
+  id: string;
+}
+
+export interface PostTocResponse {
+  headings: TocHeading[];
+}
+
+// 🆕 Related
+export interface RelatedPostsResponse {
+  relatedPosts: BlogPost[];
+}
+
+// 🆕 Neighbors
+export interface PostNeighborsResponse {
+  prevPost: { title: string; slug: string; coverImage: string } | null;
+  nextPost: { title: string; slug: string; coverImage: string } | null;
+}
+
 // ==================== API Functions ====================
 
 // 🔹 لیست منتشرشده‌ها (عمومی)
@@ -126,6 +178,37 @@ export const getCategories = async (): Promise<{
 // 🔹 تگ‌ها
 export const getTags = async (): Promise<{ tags: string[] }> => {
   const response = await api.get("/blog/tags");
+  return response.data;
+};
+
+// 🆕 Sidebar
+export const getBlogSidebar = async (): Promise<BlogSidebarData> => {
+  const response = await api.get("/blog/sidebar");
+  return response.data;
+};
+
+// 🆕 TOC
+export const getPostToc = async (slug: string): Promise<PostTocResponse> => {
+  const response = await api.get(`/blog/posts/${slug}/toc`);
+  return response.data;
+};
+
+// 🆕 Related
+export const getRelatedPosts = async (
+  slug: string,
+  limit = 4,
+): Promise<RelatedPostsResponse> => {
+  const response = await api.get(`/blog/posts/${slug}/related`, {
+    params: { limit },
+  });
+  return response.data;
+};
+
+// 🆕 Neighbors
+export const getPostNeighbors = async (
+  slug: string,
+): Promise<PostNeighborsResponse> => {
+  const response = await api.get(`/blog/posts/${slug}/neighbors`);
   return response.data;
 };
 
@@ -204,9 +287,13 @@ export const getMyPosts = async (params?: {
 
 export const createPost = async (data: {
   title: string;
+  slug?: string;
   excerpt?: string;
   content: string;
   coverImage?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  coverImageAlt?: string;
   category: BlogCategory;
   tags?: string[];
 }): Promise<{ message: string; post: BlogPost }> => {
@@ -218,9 +305,13 @@ export const updatePost = async (
   postId: string,
   data: Partial<{
     title: string;
+    slug: string;
     excerpt: string;
     content: string;
     coverImage: string;
+    seoTitle: string;
+    seoDescription: string;
+    coverImageAlt: string;
     category: BlogCategory;
     tags: string[];
   }>,
@@ -259,9 +350,13 @@ export const adminListPosts = async (params?: {
 
 export const adminCreatePost = async (data: {
   title: string;
+  slug?: string;
   excerpt?: string;
   content: string;
   coverImage?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  coverImageAlt?: string;
   category: BlogCategory;
   tags?: string[];
 }): Promise<{ message: string; post: BlogPost }> => {
@@ -273,9 +368,13 @@ export const adminUpdatePost = async (
   postId: string,
   data: Partial<{
     title: string;
+    slug: string;
     excerpt: string;
     content: string;
     coverImage: string;
+    seoTitle: string;
+    seoDescription: string;
+    coverImageAlt: string;
     category: BlogCategory;
     tags: string[];
   }>,
@@ -407,4 +506,9 @@ export const formatBlogDate = (date: string): string => {
     month: "long",
     day: "numeric",
   }).format(target);
+};
+
+export const formatReadingTime = (minutes?: number): string => {
+  if (!minutes || minutes < 1) return "۱ دقیقه مطالعه";
+  return `${minutes.toLocaleString("fa-IR")} دقیقه مطالعه`;
 };

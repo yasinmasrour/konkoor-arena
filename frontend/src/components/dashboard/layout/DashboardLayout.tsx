@@ -48,6 +48,8 @@ const VALID_SECTIONS: DashboardSection[] = [
   "study-plans",
   "counselor-students",
   "admin-site-info",
+  "contact-messages",
+  "announcements",
 ];
 
 const isValidSection = (value: string | null): value is DashboardSection => {
@@ -169,6 +171,15 @@ export default function DashboardLayout() {
 
     if (section === "counselor-students") {
       navigate("/dashboard/counselor/students");
+      return;
+    }
+
+    if (section === "contact-messages") {
+      navigate("/admin/contact-messages");
+      return;
+    }
+    if (section === "announcements") {
+      navigate("/admin/announcements");
       return;
     }
 

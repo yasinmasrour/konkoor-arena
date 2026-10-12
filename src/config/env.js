@@ -79,4 +79,10 @@ module.exports = {
   zarinpalSandbox,
   zarinpalFrontendUrl, // 🆕
   zarinpalCallbackUrl, // 🆕
+    s3Endpoint: process.env.S3_ENDPOINT,
+  s3Region: process.env.S3_REGION,
+  s3Bucket: process.env.S3_BUCKET,
+  s3AccessKey: process.env.S3_ACCESS_KEY,
+  s3SecretKey: process.env.S3_SECRET_KEY,
+  s3PublicUrl: process.env.S3_PUBLIC_URL,
 };

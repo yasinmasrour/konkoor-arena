@@ -2,7 +2,10 @@ const arenaLeagueService = require("../services/arenaLeagueService");
 const asyncHandler = require("../utils/asyncHandler");
 
 const getActiveLeagues = asyncHandler(async (req, res) => {
-  const result = await arenaLeagueService.getActiveLeagues(req.user.id);
+  // 🆕 کاربر مهمان: userId = null
+  const result = await arenaLeagueService.getActiveLeagues(
+    req.user?.id || null,
+  );
 
   res.status(200).json(result);
 });

@@ -19,6 +19,10 @@ const getPostBySlug = asyncHandler(async (req, res) => {
   const result = await blogService.getPublishedPostBySlug(
     req.params.slug,
     req.user?.id || null,
+    {
+      ip: req.ip || req.headers["x-forwarded-for"] || null,
+      userAgent: req.headers["user-agent"] || null,
+    },
   );
   res.status(200).json(result);
 });
@@ -31,6 +35,35 @@ const getCategories = asyncHandler(async (req, res) => {
 const getTags = asyncHandler(async (req, res) => {
   const tags = await blogService.getTags();
   res.status(200).json({ tags });
+});
+
+// ==================== 🆕 Sidebar ====================
+
+const getBlogSidebar = asyncHandler(async (req, res) => {
+  const result = await blogService.getBlogSidebar();
+  res.status(200).json(result);
+});
+
+// ==================== 🆕 TOC ====================
+
+const getPostToc = asyncHandler(async (req, res) => {
+  const result = await blogService.getPostToc(req.params.slug);
+  res.status(200).json(result);
+});
+
+// ==================== 🆕 Related ====================
+
+const getRelatedPosts = asyncHandler(async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 4, 10);
+  const result = await blogService.getRelatedPosts(req.params.slug, limit);
+  res.status(200).json(result);
+});
+
+// ==================== 🆕 Neighbors ====================
+
+const getPostNeighbors = asyncHandler(async (req, res) => {
+  const result = await blogService.getPostNeighbors(req.params.slug);
+  res.status(200).json(result);
 });
 
 // ==================== 🔹 واکنش ====================
@@ -147,10 +180,7 @@ const updatePost = asyncHandler(async (req, res) => {
     data: req.body,
     isAdmin: false,
   });
-  res.status(200).json({
-    message: "مقاله ویرایش شد",
-    post,
-  });
+  res.status(200).json({ message: "مقاله ویرایش شد", post });
 });
 
 const submitForReview = asyncHandler(async (req, res) => {
@@ -158,10 +188,7 @@ const submitForReview = asyncHandler(async (req, res) => {
     postId: req.params.id,
     userId: req.user.id,
   });
-  res.status(200).json({
-    message: "مقاله برای تایید ارسال شد",
-    post,
-  });
+  res.status(200).json({ message: "مقاله برای تایید ارسال شد", post });
 });
 
 const deleteMyPost = asyncHandler(async (req, res) => {
@@ -189,4 +216,10 @@ module.exports = {
   updatePost,
   submitForReview,
   deleteMyPost,
+
+  // 🆕
+  getBlogSidebar,
+  getPostToc,
+  getRelatedPosts,
+  getPostNeighbors,
 };

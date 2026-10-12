@@ -1,5 +1,8 @@
 {
-  "app": "griffinedu-frontend",
   "platform": "static",
-  "port": 80
+  "app": "griffinedu-frontend",
+  "port": 80,
+  "build": {
+    "location": "dist"
+  }
 }

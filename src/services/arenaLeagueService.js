@@ -151,7 +151,39 @@ const processLeagueStatuses = async () => {
   });
 };
 
-const getActiveLeagues = async (userId) => {
+const getActiveLeagues = async (userId = null) => {
+  const now = new Date();
+
+  // 🆕 کاربر مهمان: لیگ‌های عمومی رو نشون بده
+  if (!userId) {
+    const leagues = await prisma.arenaLeague.findMany({
+      where: {
+        status: "active",
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+      orderBy: { startDate: "desc" },
+      include: {
+        _count: {
+          select: { ratings: true },
+        },
+      },
+    });
+
+    return {
+      leagues: leagues.map((league) => ({
+        id: league.id,
+        title: league.title,
+        lesson: league.lesson,
+        status: league.status,
+        startDate: league.startDate,
+        endDate: league.endDate,
+        participantsCount: league._count.ratings,
+      })),
+    };
+  }
+
+  // 🔹 کاربر لاگین‌شده: فیلتر بر اساس پایه و رشته
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { grade: true, major: true },
@@ -166,8 +198,6 @@ const getActiveLeagues = async (userId) => {
       400,
     );
   }
-
-  const now = new Date();
 
   // 🆕 major رو فقط اگه وجود داره اضافه کن
   const majorConditions = [{ compatibleMajors: { isEmpty: true } }];
@@ -185,7 +215,6 @@ const getActiveLeagues = async (userId) => {
       OR: majorConditions,
     },
     orderBy: { startDate: "desc" },
-    // 🆕 تعداد شرکت‌کننده‌ها (بر اساس ArenaRating)
     include: {
       _count: {
         select: { ratings: true },
@@ -193,7 +222,6 @@ const getActiveLeagues = async (userId) => {
     },
   });
 
-  // 🆕 map کردن به فرمت فرانت
   return {
     leagues: leagues.map((league) => ({
       id: league.id,

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import RevealOnScroll from "../components/common/RevealOnScroll";
+import Seo from "../components/common/Seo";
 
 // ==================== Types ====================
 interface FAQ {
@@ -244,301 +245,321 @@ const FAQ = () => {
   };
 
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-6 sm:py-14">
-      <div className="max-w-4xl mx-auto">
-        {/* Back */}
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="group inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-[var(--griffin-gold)] transition-colors mb-6"
-        >
-          <ArrowLeft
-            size={13}
-            className="transition-transform group-hover:-translate-x-1"
-          />
-          بازگشت
-        </button>
+    <>
+      <Seo
+        title="سوالات متداول"
+        description="پاسخ سوالات پرتکرار درباره اشتراک، آزمون‌ها، آرنا، برنامه مطالعاتی و..."
+        url="https://griffinedu.ir/faq"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQS.map((f) => ({
+            "@type": "Question",
+            name: f.question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: f.answer,
+            },
+          })),
+        }}
+      />
 
-        {/* هدر */}
-        <RevealOnScroll>
-          <header className="text-center space-y-5 mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/30">
-              <HelpCircle size={14} className="text-[var(--griffin-gold)]" />
-              <span className="text-xs font-bold text-[var(--griffin-gold)] tracking-wider">
-                FREQUENTLY ASKED
-              </span>
-            </div>
-
-            <h1 className="font-heading text-4xl md:text-6xl font-black leading-tight text-gray-900 dark:text-white">
-              سوالات{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-l from-[var(--griffin-gold)] to-amber-300">
-                متداول
-              </span>
-            </h1>
-
-            <div className="w-20 h-1 bg-[var(--griffin-gold)] mx-auto rounded-full" />
-
-            <p className="max-w-2xl mx-auto text-gray-600 dark:text-gray-300 leading-8 text-sm md:text-base">
-              هر سوالی داری، احتمالاً جوابش اینجاست. اگه نبود، پشتیبانی در
-              دسترسه.
-            </p>
-          </header>
-        </RevealOnScroll>
-
-        {/* ==================== جستجو ==================== */}
-        <RevealOnScroll>
-          <div className="relative mb-5">
-            <Search
-              size={18}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      <main className="min-h-screen px-4 py-10 sm:px-6 sm:py-14">
+        <div className="max-w-4xl mx-auto">
+          {/* Back */}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="group inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-[var(--griffin-gold)] transition-colors mb-6"
+          >
+            <ArrowLeft
+              size={13}
+              className="transition-transform group-hover:-translate-x-1"
             />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو در سوالات..."
-              className="
-                w-full rounded-2xl
-                border border-gray-200 dark:border-white/10
-                bg-white dark:bg-white/[0.03]
-                py-4 pr-12 pl-4
-                text-sm text-gray-900 dark:text-white
-                placeholder:text-gray-400 dark:placeholder:text-gray-500
-                outline-none
-                focus:border-[var(--griffin-gold)]
-                focus:ring-2 focus:ring-[var(--griffin-gold)]/20
-                transition-colors
-              "
-            />
-          </div>
-        </RevealOnScroll>
+            بازگشت
+          </button>
 
-        {/* ==================== دسته‌بندی ==================== */}
-        <RevealOnScroll>
-          <div className="flex flex-wrap gap-2 mb-8">
-            {CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
-              const isActive = activeCategory === cat.key;
-              return (
-                <button
-                  key={cat.key}
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory(cat.key);
-                    setOpenId(null);
-                  }}
-                  className={`
-                    inline-flex items-center gap-2
-                    rounded-xl px-3.5 py-2
-                    text-xs font-black
-                    transition-colors duration-200
-                    ${
-                      isActive
-                        ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/30"
-                        : "border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] text-gray-600 dark:text-gray-400 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)]"
-                    }
-                  `}
-                >
-                  <Icon size={13} />
-                  {cat.label}
-                </button>
-              );
-            })}
-          </div>
-        </RevealOnScroll>
-
-        {/* ==================== لیست ==================== */}
-        <RevealOnScroll>
-          {filtered.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-gray-300 dark:border-white/10 p-12 text-center">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
-                <Search
-                  size={26}
-                  className="text-gray-400 dark:text-gray-500"
-                />
+          {/* هدر */}
+          <RevealOnScroll>
+            <header className="text-center space-y-5 mb-10">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/30">
+                <HelpCircle size={14} className="text-[var(--griffin-gold)]" />
+                <span className="text-xs font-bold text-[var(--griffin-gold)] tracking-wider">
+                  FREQUENTLY ASKED
+                </span>
               </div>
-              <p className="font-heading text-base font-black text-gray-500 dark:text-gray-400">
-                سوالی با این عنوان پیدا نشد
-              </p>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                با کلمات دیگه‌ای جستجو کن یا با پشتیبانی تماس بگیر
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filtered.map((faq) => {
-                const isOpen = openId === faq.id;
-                const categoryLabel =
-                  CATEGORIES.find((c) => c.key === faq.category)?.label ||
-                  faq.category;
 
+              <h1 className="font-heading text-4xl md:text-6xl font-black leading-tight text-gray-900 dark:text-white">
+                سوالات{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-l from-[var(--griffin-gold)] to-amber-300">
+                  متداول
+                </span>
+              </h1>
+
+              <div className="w-20 h-1 bg-[var(--griffin-gold)] mx-auto rounded-full" />
+
+              <p className="max-w-2xl mx-auto text-gray-600 dark:text-gray-300 leading-8 text-sm md:text-base">
+                هر سوالی داری، احتمالاً جوابش اینجاست. اگه نبود، پشتیبانی در
+                دسترسه.
+              </p>
+            </header>
+          </RevealOnScroll>
+
+          {/* ==================== جستجو ==================== */}
+          <RevealOnScroll>
+            <div className="relative mb-5">
+              <Search
+                size={18}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="جستجو در سوالات..."
+                className="
+                  w-full rounded-2xl
+                  border border-gray-200 dark:border-white/10
+                  bg-white dark:bg-white/[0.03]
+                  py-4 pr-12 pl-4
+                  text-sm text-gray-900 dark:text-white
+                  placeholder:text-gray-400 dark:placeholder:text-gray-500
+                  outline-none
+                  focus:border-[var(--griffin-gold)]
+                  focus:ring-2 focus:ring-[var(--griffin-gold)]/20
+                  transition-colors
+                "
+              />
+            </div>
+          </RevealOnScroll>
+
+          {/* ==================== دسته‌بندی ==================== */}
+          <RevealOnScroll>
+            <div className="flex flex-wrap gap-2 mb-8">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                const isActive = activeCategory === cat.key;
                 return (
-                  <div
-                    key={faq.id}
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(cat.key);
+                      setOpenId(null);
+                    }}
                     className={`
-                      group relative rounded-2xl overflow-hidden
-                      border transition-colors duration-300
+                      inline-flex items-center gap-2
+                      rounded-xl px-3.5 py-2
+                      text-xs font-black
+                      transition-colors duration-200
                       ${
-                        isOpen
-                          ? "border-[var(--griffin-gold)]/40 bg-[var(--griffin-gold)]/5"
-                          : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-[var(--griffin-gold)]/30"
+                        isActive
+                          ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/30"
+                          : "border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] text-gray-600 dark:text-gray-400 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)]"
                       }
                     `}
                   >
-                    {isOpen && (
-                      <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/40 to-transparent" />
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => toggle(faq.id)}
-                      aria-expanded={isOpen}
-                      className="w-full flex items-center gap-4 p-5 text-right"
-                    >
-                      <div
-                        className={`
-                          shrink-0 w-9 h-9 rounded-xl flex items-center justify-center
-                          transition-colors duration-300
-                          ${
-                            isOpen
-                              ? "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 text-white"
-                              : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400"
-                          }
-                        `}
-                      >
-                        <HelpCircle size={16} strokeWidth={2.3} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                            {categoryLabel}
-                          </span>
-                        </div>
-                        <h3 className="font-heading text-sm md:text-base font-black text-gray-900 dark:text-white leading-6">
-                          {faq.question}
-                        </h3>
-                      </div>
-
-                      <div
-                        className={`
-                          shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
-                          transition-all duration-300
-                          ${
-                            isOpen
-                              ? "bg-[var(--griffin-gold)]/15 text-[var(--griffin-gold)] rotate-180"
-                              : "bg-gray-100 dark:bg-white/5 text-gray-400"
-                          }
-                        `}
-                      >
-                        <ChevronDown size={16} strokeWidth={2.5} />
-                      </div>
-                    </button>
-
-                    <div
-                      className={`
-                        grid transition-all duration-300 ease-out
-                        ${
-                          isOpen
-                            ? "grid-rows-[1fr] opacity-100"
-                            : "grid-rows-[0fr] opacity-0"
-                        }
-                      `}
-                    >
-                      <div className="overflow-hidden">
-                        <div className="px-5 pb-5 pr-[68px]">
-                          <p className="text-sm leading-7 text-gray-600 dark:text-gray-300">
-                            {faq.answer}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    <Icon size={13} />
+                    {cat.label}
+                  </button>
                 );
               })}
             </div>
-          )}
-        </RevealOnScroll>
+          </RevealOnScroll>
 
-        {/* ==================== CTA پشتیبانی ==================== */}
-        <RevealOnScroll delay={300}>
-          <div className="mt-12">
-            <div className="relative rounded-3xl overflow-hidden border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 p-8 text-center">
-              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/15 blur-[60px] pointer-events-none" />
-
-              <div className="relative">
-                <div className="relative inline-flex mb-5">
-                  <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-40" />
-                  <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
-                    <MessageCircle size={24} strokeWidth={2.2} />
-                  </div>
+          {/* ==================== لیست ==================== */}
+          <RevealOnScroll>
+            {filtered.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-gray-300 dark:border-white/10 p-12 text-center">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                  <Search
+                    size={26}
+                    className="text-gray-400 dark:text-gray-500"
+                  />
                 </div>
-
-                <h3 className="font-heading text-xl md:text-2xl font-black text-gray-900 dark:text-white mb-3">
-                  جوابت رو پیدا نکردی؟
-                </h3>
-
-                <p className="text-sm text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-7 mb-6">
-                  تیم پشتیبانی گریفین ۲۴/۷ آماده‌ست تا کمکت کنه.
+                <p className="font-heading text-base font-black text-gray-500 dark:text-gray-400">
+                  سوالی با این عنوان پیدا نشد
                 </p>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  با کلمات دیگه‌ای جستجو کن یا با پشتیبانی تماس بگیر
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map((faq) => {
+                  const isOpen = openId === faq.id;
+                  const categoryLabel =
+                    CATEGORIES.find((c) => c.key === faq.category)?.label ||
+                    faq.category;
 
+                  return (
+                    <div
+                      key={faq.id}
+                      className={`
+                        group relative rounded-2xl overflow-hidden
+                        border transition-colors duration-300
+                        ${
+                          isOpen
+                            ? "border-[var(--griffin-gold)]/40 bg-[var(--griffin-gold)]/5"
+                            : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-[var(--griffin-gold)]/30"
+                        }
+                      `}
+                    >
+                      {isOpen && (
+                        <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/40 to-transparent" />
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => toggle(faq.id)}
+                        aria-expanded={isOpen}
+                        className="w-full flex items-center gap-4 p-5 text-right"
+                      >
+                        <div
+                          className={`
+                            shrink-0 w-9 h-9 rounded-xl flex items-center justify-center
+                            transition-colors duration-300
+                            ${
+                              isOpen
+                                ? "bg-gradient-to-br from-[var(--griffin-gold)] to-amber-600 text-white"
+                                : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400"
+                            }
+                          `}
+                        >
+                          <HelpCircle size={16} strokeWidth={2.3} />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                              {categoryLabel}
+                            </span>
+                          </div>
+                          <h3 className="font-heading text-sm md:text-base font-black text-gray-900 dark:text-white leading-6">
+                            {faq.question}
+                          </h3>
+                        </div>
+
+                        <div
+                          className={`
+                            shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+                            transition-all duration-300
+                            ${
+                              isOpen
+                                ? "bg-[var(--griffin-gold)]/15 text-[var(--griffin-gold)] rotate-180"
+                                : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                            }
+                          `}
+                        >
+                          <ChevronDown size={16} strokeWidth={2.5} />
+                        </div>
+                      </button>
+
+                      <div
+                        className={`
+                          grid transition-all duration-300 ease-out
+                          ${
+                            isOpen
+                              ? "grid-rows-[1fr] opacity-100"
+                              : "grid-rows-[0fr] opacity-0"
+                          }
+                        `}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="px-5 pb-5 pr-[68px]">
+                            <p className="text-sm leading-7 text-gray-600 dark:text-gray-300">
+                              {faq.answer}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </RevealOnScroll>
+
+          {/* ==================== CTA پشتیبانی ==================== */}
+          <RevealOnScroll delay={300}>
+            <div className="mt-12">
+              <div className="relative rounded-3xl overflow-hidden border border-[var(--griffin-gold)]/30 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-transparent to-purple-600/10 p-8 text-center">
+                <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[var(--griffin-gold)]/15 blur-[60px] pointer-events-none" />
+
+                <div className="relative">
+                  <div className="relative inline-flex mb-5">
+                    <div className="absolute inset-0 bg-[var(--griffin-gold)] blur-2xl opacity-40" />
+                    <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--griffin-gold)] to-amber-700 flex items-center justify-center text-white shadow-lg">
+                      <MessageCircle size={24} strokeWidth={2.2} />
+                    </div>
+                  </div>
+
+                  <h3 className="font-heading text-xl md:text-2xl font-black text-gray-900 dark:text-white mb-3">
+                    جوابت رو پیدا نکردی؟
+                  </h3>
+
+                  <p className="text-sm text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-7 mb-6">
+                    تیم پشتیبانی گریفین ۲۴/۷ آماده‌ست تا کمکت کنه.
+                  </p>
+
+                  <Link
+                    to="/contact"
+                    className="
+                      group relative inline-flex items-center justify-center gap-2
+                      rounded-xl
+                      bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500
+                      px-6 py-3.5
+                      font-heading font-black text-white text-sm
+                      shadow-lg shadow-[var(--griffin-gold)]/40
+                      transition-transform duration-300
+                      hover:-translate-y-0.5
+                      overflow-hidden
+                    "
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      <MessageCircle size={16} />
+                      تماس با پشتیبانی
+                    </span>
+                    <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </RevealOnScroll>
+
+          {/* 🆕 لینک به صفحات حقوقی */}
+          <RevealOnScroll delay={400}>
+            <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/5 text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                همچنین ببین:
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <Link
+                  to="/terms"
+                  className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--griffin-gold)] hover:underline underline-offset-4"
+                >
+                  قوانین و مقررات
+                </Link>
+                <span className="text-gray-400">·</span>
+                <Link
+                  to="/privacy"
+                  className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--griffin-gold)] hover:underline underline-offset-4"
+                >
+                  حریم خصوصی
+                </Link>
+                <span className="text-gray-400">·</span>
                 <Link
                   to="/contact"
-                  className="
-                    group relative inline-flex items-center justify-center gap-2
-                    rounded-xl
-                    bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500
-                    px-6 py-3.5
-                    font-heading font-black text-white text-sm
-                    shadow-lg shadow-[var(--griffin-gold)]/40
-                    transition-transform duration-300
-                    hover:-translate-y-0.5
-                    overflow-hidden
-                  "
+                  className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--griffin-gold)] hover:underline underline-offset-4"
                 >
-                  <span className="relative z-10 flex items-center gap-2">
-                    <MessageCircle size={16} />
-                    تماس با پشتیبانی
-                  </span>
-                  <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  تماس با ما
                 </Link>
               </div>
             </div>
-          </div>
-        </RevealOnScroll>
-
-        {/* 🆕 لینک به صفحات حقوقی */}
-        <RevealOnScroll delay={400}>
-          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/5 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              همچنین ببین:
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link
-                to="/terms"
-                className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--griffin-gold)] hover:underline underline-offset-4"
-              >
-                قوانین و مقررات
-              </Link>
-              <span className="text-gray-400">·</span>
-              <Link
-                to="/privacy"
-                className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--griffin-gold)] hover:underline underline-offset-4"
-              >
-                حریم خصوصی
-              </Link>
-              <span className="text-gray-400">·</span>
-              <Link
-                to="/contact"
-                className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--griffin-gold)] hover:underline underline-offset-4"
-              >
-                تماس با ما
-              </Link>
-            </div>
-          </div>
-        </RevealOnScroll>
-      </div>
-    </main>
+          </RevealOnScroll>
+        </div>
+      </main>
+    </>
   );
 };
 

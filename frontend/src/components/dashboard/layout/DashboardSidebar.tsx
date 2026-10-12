@@ -14,6 +14,7 @@ import {
   Layers,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   MessageSquare,
   PenTool,
   Settings,
@@ -26,6 +27,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { useAdminBadges } from "../../../hooks/useAdminBadges";
 
 export type DashboardSection =
   | "home"
@@ -56,12 +58,14 @@ export type DashboardSection =
   | "admin-blog"
   | "study-plans"
   | "counselor-students"
-  | "admin-site-info";
-
+  | "admin-site-info"
+  | "contact-messages"
+  | "announcements";
 interface MenuItem {
   id: DashboardSection;
   label: string;
   icon: typeof LayoutDashboard;
+  badgeKey?: "contactMessages";
 }
 
 interface MenuGroup {
@@ -131,6 +135,17 @@ const getMenuForRole = (role?: string): MenuGroup[] => {
             id: "admin-comments",
             label: "مدیریت نظرات",
             icon: MessageSquare,
+          },
+          {
+            id: "contact-messages",
+            label: "پیام‌های تماس",
+            icon: MessageSquare,
+            badgeKey: "contactMessages",
+          },
+          {
+            id: "announcements",
+            label: "اطلاعیه‌ها",
+            icon: Megaphone,
           },
         ],
       },
@@ -303,6 +318,7 @@ export default function DashboardSidebar({
   const { user, logout } = useAuth();
   const menuGroups = getMenuForRole(user?.role?.name);
   const roleLabel = getRoleLabel(user?.role?.name);
+  const badges = useAdminBadges();
 
   const handleLogout = () => {
     if (window.confirm("آیا از حساب کاربری خارج می‌شوی؟")) {
@@ -371,6 +387,8 @@ export default function DashboardSidebar({
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = active === item.id;
+                const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0; // 🆕
+                const showBadge = badgeCount > 0; // 🆕
 
                 return (
                   <button
@@ -409,6 +427,26 @@ export default function DashboardSidebar({
                     <span className="relative z-10 flex-1 truncate">
                       {item.label}
                     </span>
+
+                    {/* 🆕 Badge */}
+                    {showBadge && (
+                      <span
+                        className={`
+            shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full
+            flex items-center justify-center
+            text-[9px] font-black tabular-nums
+            ${
+              isActive
+                ? "bg-[var(--griffin-gold)] text-black"
+                : "bg-rose-500 text-white animate-pulse"
+            }
+          `}
+                      >
+                        {badgeCount > 99
+                          ? "99+"
+                          : badgeCount.toLocaleString("fa-IR")}
+                      </span>
+                    )}
                   </button>
                 );
               })}

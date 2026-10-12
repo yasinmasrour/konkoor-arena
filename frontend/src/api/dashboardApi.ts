@@ -21,10 +21,22 @@ export interface StudentHomeData {
   subscription: SubscriptionInfo;
 }
 
+export interface AdminBadges {
+  contactMessages: number;
+}
+
 /**
  * دریافت آمار صفحه اول داشبورد دانش‌آموز
  */
 export const getStudentHome = async (): Promise<StudentHomeData> => {
   const response = await api.get("/dashboard/student-home");
+  return response.data;
+};
+
+/**
+ * دریافت badgeهای ادمین
+ */
+export const getAdminBadges = async (): Promise<AdminBadges> => {
+  const response = await api.get("/dashboard/admin-badges");
   return response.data;
 };

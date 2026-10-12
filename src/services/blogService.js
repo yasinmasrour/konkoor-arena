@@ -2,6 +2,10 @@ const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const { slugify, generateUniqueSlug } = require("../utils/slugify");
 const {
+  calculateReadingTime,
+  extractHeadings,
+} = require("../utils/blogHelper");
+const {
   BLOG_STATUS,
   BLOG_COMMENT_STATUS,
   BLOG_REACTION_TYPE,
@@ -28,9 +32,6 @@ const reviewerSelect = {
   },
 };
 
-/**
- * چک میکنه یه slug وجود داره یا نه
- */
 async function slugExists(slug, excludeId = null) {
   const post = await prisma.blogPost.findUnique({
     where: { slug },
@@ -41,9 +42,6 @@ async function slugExists(slug, excludeId = null) {
   return true;
 }
 
-/**
- * خلاصه خودکار اگه نداده باشن
- */
 function buildExcerpt(content, excerpt) {
   if (excerpt && excerpt.trim()) return excerpt.trim();
   const plain = content
@@ -55,9 +53,6 @@ function buildExcerpt(content, excerpt) {
 
 // ==================== 🔹 عمومی ====================
 
-/**
- * لیست مقالات منتشرشده
- */
 async function getPublishedPosts({
   category,
   tag,
@@ -97,6 +92,7 @@ async function getPublishedPosts({
         viewsCount: true,
         likesCount: true,
         dislikesCount: true,
+        readingTime: true,
         publishedAt: true,
         createdAt: true,
         author: authorSelect,
@@ -116,10 +112,7 @@ async function getPublishedPosts({
   };
 }
 
-/**
- * جزئیات یه مقاله (با viewsCount++)
- */
-async function getPublishedPostBySlug(slug, userId = null) {
+async function getPublishedPostBySlug(slug, userId = null, meta = {}) {
   const post = await prisma.blogPost.findUnique({
     where: { slug },
     include: {
@@ -132,36 +125,32 @@ async function getPublishedPostBySlug(slug, userId = null) {
     throw new AppError("مقاله پیدا نشد", 404);
   }
 
-  // 🔹 آپدیت viewsCount
-  await prisma.blogPost.update({
-    where: { id: post.id },
-    data: { viewsCount: { increment: 1 } },
-  });
+  // ثبت بازدید ضد تقلب
+  if (meta.ip) {
+    await trackView({
+      postId: post.id,
+      userId,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+  }
 
-  // 🔹 reaction کاربر
   let myReaction = null;
   if (userId) {
     const reaction = await prisma.blogPostReaction.findUnique({
-      where: {
-        userId_postId: { userId, postId: post.id },
-      },
+      where: { userId_postId: { userId, postId: post.id } },
       select: { type: true },
     });
     myReaction = reaction?.type ?? null;
   }
 
+  const readingTime = post.readingTime || calculateReadingTime(post.content);
+
   return {
-    post: {
-      ...post,
-      viewsCount: post.viewsCount + 1,
-      myReaction,
-    },
+    post: { ...post, readingTime, myReaction },
   };
 }
 
-/**
- * لیست دسته‌بندی‌ها
- */
 function getCategories() {
   return Object.entries(BLOG_CATEGORIES).map(([key, label]) => ({
     key,
@@ -169,9 +158,6 @@ function getCategories() {
   }));
 }
 
-/**
- * لیست همه تگ‌ها (یکتا)
- */
 async function getTags() {
   const posts = await prisma.blogPost.findMany({
     where: { status: BLOG_STATUS.PUBLISHED },
@@ -180,12 +166,235 @@ async function getTags() {
 
   const tagSet = new Set();
   for (const post of posts) {
-    for (const tag of post.tags) {
-      tagSet.add(tag);
-    }
+    for (const tag of post.tags) tagSet.add(tag);
   }
 
   return Array.from(tagSet).sort();
+}
+
+// ==================== 🆕 Sidebar ====================
+
+async function getBlogSidebar({
+  popularLimit = 5,
+  recentLimit = 5,
+  tagsLimit = 15,
+} = {}) {
+  const [categoriesGrouped, allTags, popularPosts, recentPosts, totalPosts] =
+    await Promise.all([
+      prisma.blogPost.groupBy({
+        by: ["category"],
+        where: { status: BLOG_STATUS.PUBLISHED },
+        _count: { _all: true },
+      }),
+
+      prisma.blogPost.findMany({
+        where: { status: BLOG_STATUS.PUBLISHED },
+        select: { tags: true },
+      }),
+
+      prisma.blogPost.findMany({
+        where: { status: BLOG_STATUS.PUBLISHED },
+        orderBy: { viewsCount: "desc" },
+        take: popularLimit,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          coverImage: true,
+          viewsCount: true,
+          likesCount: true,
+          publishedAt: true,
+          category: true,
+        },
+      }),
+
+      prisma.blogPost.findMany({
+        where: { status: BLOG_STATUS.PUBLISHED },
+        orderBy: { publishedAt: "desc" },
+        take: recentLimit,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          coverImage: true,
+          viewsCount: true,
+          publishedAt: true,
+          category: true,
+        },
+      }),
+
+      prisma.blogPost.count({ where: { status: BLOG_STATUS.PUBLISHED } }),
+    ]);
+
+  const tagCount = {};
+  for (const post of allTags) {
+    for (const tag of post.tags) {
+      tagCount[tag] = (tagCount[tag] || 0) + 1;
+    }
+  }
+  const popularTags = Object.entries(tagCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, tagsLimit)
+    .map(([tag, count]) => ({ tag, count }));
+
+  return {
+    categories: categoriesGrouped.map((c) => ({
+      key: c.category,
+      label: BLOG_CATEGORIES[c.category] || c.category,
+      count: c._count._all,
+    })),
+    popularTags,
+    popularPosts,
+    recentPosts,
+    totalPosts,
+  };
+}
+
+// ==================== 🆕 TOC ====================
+
+async function getPostToc(slug) {
+  const post = await prisma.blogPost.findUnique({
+    where: { slug },
+    select: { id: true, content: true, status: true },
+  });
+
+  if (!post || post.status !== BLOG_STATUS.PUBLISHED) {
+    throw new AppError("مقاله پیدا نشد", 404);
+  }
+
+  return { headings: extractHeadings(post.content) };
+}
+
+// ==================== 🆕 Related ====================
+
+async function getRelatedPosts(slug, limit = 4) {
+  const post = await prisma.blogPost.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      category: true,
+      tags: true,
+      viewsCount: true,
+      status: true,
+    },
+  });
+
+  if (!post || post.status !== BLOG_STATUS.PUBLISHED) {
+    throw new AppError("مقاله پیدا نشد", 404);
+  }
+
+  const candidates = await prisma.blogPost.findMany({
+    where: {
+      status: BLOG_STATUS.PUBLISHED,
+      id: { not: post.id },
+      OR: [
+        { category: post.category },
+        {
+          tags: {
+            hasSome: post.tags.length > 0 ? post.tags : ["__none__"],
+          },
+        },
+      ],
+    },
+    take: 50,
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      coverImage: true,
+      category: true,
+      tags: true,
+      viewsCount: true,
+      likesCount: true,
+      readingTime: true,
+      publishedAt: true,
+      author: authorSelect,
+    },
+  });
+
+  const scored = candidates.map((c) => {
+    let score = 0;
+    const commonTags = c.tags.filter((t) => post.tags.includes(t));
+    score += commonTags.length * 3;
+    if (c.category === post.category) score += 2;
+    score += Math.min(c.viewsCount / 100, 3);
+    score += Math.min(c.likesCount / 20, 2);
+    return { ...c, _score: score };
+  });
+
+  scored.sort((a, b) => b._score - a._score);
+
+  return { relatedPosts: scored.slice(0, limit) };
+}
+
+// ==================== 🆕 Neighbors ====================
+
+async function getPostNeighbors(slug) {
+  const post = await prisma.blogPost.findUnique({
+    where: { slug },
+    select: { id: true, publishedAt: true, status: true },
+  });
+
+  if (!post || post.status !== BLOG_STATUS.PUBLISHED) {
+    throw new AppError("مقاله پیدا نشد", 404);
+  }
+
+  const [prev, next] = await Promise.all([
+    prisma.blogPost.findFirst({
+      where: {
+        status: BLOG_STATUS.PUBLISHED,
+        publishedAt: { lt: post.publishedAt },
+      },
+      orderBy: { publishedAt: "desc" },
+      select: { title: true, slug: true, coverImage: true },
+    }),
+    prisma.blogPost.findFirst({
+      where: {
+        status: BLOG_STATUS.PUBLISHED,
+        publishedAt: { gt: post.publishedAt },
+      },
+      orderBy: { publishedAt: "asc" },
+      select: { title: true, slug: true, coverImage: true },
+    }),
+  ]);
+
+  return { prevPost: prev, nextPost: next };
+}
+
+// ==================== 🆕 Views Tracking ====================
+
+async function trackView({ postId, userId = null, ip, userAgent }) {
+  const today = new Date().toISOString().split("T")[0];
+
+  const existing = await prisma.blogPostView.findFirst({
+    where: { postId, ip: ip || null, viewDate: today },
+  });
+
+  if (existing) {
+    await prisma.blogPostView.update({
+      where: { id: existing.id },
+      data: { viewedAt: new Date() },
+    });
+    return { counted: false };
+  }
+
+  await prisma.blogPostView.create({
+    data: {
+      postId,
+      userId,
+      ip: ip || null,
+      userAgent: userAgent || null,
+      viewDate: today,
+    },
+  });
+
+  await prisma.blogPost.update({
+    where: { id: postId },
+    data: { viewsCount: { increment: 1 } },
+  });
+
+  return { counted: true };
 }
 
 // ==================== 🔹 واکنش ====================
@@ -205,71 +414,50 @@ async function reactToPost({ postId, userId, type }) {
   });
 
   return prisma.$transaction(async (tx) => {
-    let likesCount = 0;
-    let dislikesCount = 0;
-
     if (existing) {
       if (existing.type === type) {
-        // برداشتن
         await tx.blogPostReaction.delete({ where: { id: existing.id } });
-        if (type === BLOG_REACTION_TYPE.LIKE) {
-          await tx.blogPost.update({
-            where: { id: postId },
-            data: { likesCount: { decrement: 1 } },
-          });
-        } else {
-          await tx.blogPost.update({
-            where: { id: postId },
-            data: { dislikesCount: { decrement: 1 } },
-          });
-        }
+        await tx.blogPost.update({
+          where: { id: postId },
+          data:
+            type === BLOG_REACTION_TYPE.LIKE
+              ? { likesCount: { decrement: 1 } }
+              : { dislikesCount: { decrement: 1 } },
+        });
       } else {
-        // تغییر
         await tx.blogPostReaction.update({
           where: { id: existing.id },
           data: { type },
         });
-        if (type === BLOG_REACTION_TYPE.LIKE) {
-          await tx.blogPost.update({
-            where: { id: postId },
-            data: {
-              likesCount: { increment: 1 },
-              dislikesCount: { decrement: 1 },
-            },
-          });
-        } else {
-          await tx.blogPost.update({
-            where: { id: postId },
-            data: {
-              dislikesCount: { increment: 1 },
-              likesCount: { decrement: 1 },
-            },
-          });
-        }
+        await tx.blogPost.update({
+          where: { id: postId },
+          data:
+            type === BLOG_REACTION_TYPE.LIKE
+              ? {
+                  likesCount: { increment: 1 },
+                  dislikesCount: { decrement: 1 },
+                }
+              : {
+                  dislikesCount: { increment: 1 },
+                  likesCount: { decrement: 1 },
+                },
+        });
       }
     } else {
-      // ایجاد
-      await tx.blogPostReaction.create({
-        data: { userId, postId, type },
+      await tx.blogPostReaction.create({ data: { userId, postId, type } });
+      await tx.blogPost.update({
+        where: { id: postId },
+        data:
+          type === BLOG_REACTION_TYPE.LIKE
+            ? { likesCount: { increment: 1 } }
+            : { dislikesCount: { increment: 1 } },
       });
-      if (type === BLOG_REACTION_TYPE.LIKE) {
-        await tx.blogPost.update({
-          where: { id: postId },
-          data: { likesCount: { increment: 1 } },
-        });
-      } else {
-        await tx.blogPost.update({
-          where: { id: postId },
-          data: { dislikesCount: { increment: 1 } },
-        });
-      }
     }
 
     const updated = await tx.blogPost.findUnique({
       where: { id: postId },
       select: { likesCount: true, dislikesCount: true },
     });
-
     const finalReaction = await tx.blogPostReaction.findUnique({
       where: { userId_postId: { userId, postId } },
       select: { type: true },
@@ -316,9 +504,7 @@ async function getPostComments({
         user: authorSelect,
         _count: {
           select: {
-            replies: {
-              where: { status: BLOG_COMMENT_STATUS.APPROVED },
-            },
+            replies: { where: { status: BLOG_COMMENT_STATUS.APPROVED } },
           },
         },
       },
@@ -355,13 +541,9 @@ async function getCommentReplies({
     where: { id: commentId },
     select: { id: true },
   });
-
   if (!parent) throw new AppError("کامنت پیدا نشد", 404);
 
-  const where = {
-    parentId: commentId,
-    status: BLOG_COMMENT_STATUS.APPROVED,
-  };
+  const where = { parentId: commentId, status: BLOG_COMMENT_STATUS.APPROVED };
 
   const [replies, total] = await Promise.all([
     prisma.blogComment.findMany({
@@ -383,12 +565,7 @@ async function getCommentReplies({
       author: c.user,
       isOwner: c.userId === userId,
     })),
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 }
 
@@ -402,7 +579,6 @@ async function createComment({ postId, userId, content }) {
     throw new AppError("مقاله پیدا نشد", 404);
   }
 
-  // 🔹 اگه نویسنده ADMIN بود، فوری approved
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: { select: { name: true } } },
@@ -524,10 +700,7 @@ async function deleteComment({ commentId, userId }) {
 
   await prisma.blogComment.update({
     where: { id: commentId },
-    data: {
-      status: BLOG_COMMENT_STATUS.DELETED,
-      content: "",
-    },
+    data: { status: BLOG_COMMENT_STATUS.DELETED, content: "" },
   });
 
   return { success: true };
@@ -536,10 +709,7 @@ async function deleteComment({ commentId, userId }) {
 // ==================== 🔹 نویسنده ====================
 
 async function getMyPosts({ userId, status, page = 1, limit = 20 }) {
-  const where = {
-    authorId: userId,
-    ...(status && { status }),
-  };
+  const where = { authorId: userId, ...(status && { status }) };
 
   const [posts, total] = await Promise.all([
     prisma.blogPost.findMany({
@@ -559,6 +729,7 @@ async function getMyPosts({ userId, status, page = 1, limit = 20 }) {
         viewsCount: true,
         likesCount: true,
         dislikesCount: true,
+        readingTime: true,
         publishedAt: true,
         createdAt: true,
         updatedAt: true,
@@ -569,50 +740,62 @@ async function getMyPosts({ userId, status, page = 1, limit = 20 }) {
 
   return {
     posts,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 }
 
 async function createPost({ userId, data }) {
-  const slug = await generateUniqueSlug(data.title, (s) => slugExists(s));
+  let slug;
+  if (data.slug && data.slug.trim()) {
+    const manualSlug = data.slug.trim().toLowerCase();
+    if (await slugExists(manualSlug)) {
+      throw new AppError("این slug قبلاً استفاده شده", 409);
+    }
+    slug = manualSlug;
+  } else {
+    slug = await generateUniqueSlug(data.title, (s) => slugExists(s), "en");
+  }
 
-  // 🔹 اگه ADMIN بود، فوری published
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: { select: { name: true } } },
   });
   const isAdmin = user?.role?.name === "ADMIN";
 
-  const post = await prisma.blogPost.create({
+  const readingTime = calculateReadingTime(data.content);
+
+  return prisma.blogPost.create({
     data: {
       title: data.title.trim(),
       slug,
       excerpt: buildExcerpt(data.content, data.excerpt),
       content: data.content,
       coverImage: data.coverImage || "",
+      // 🆕 SEO fields
+      seoTitle: data.seoTitle?.trim() || null,
+      seoDescription: data.seoDescription?.trim() || null,
+      coverImageAlt: data.coverImageAlt?.trim() || null,
       category: data.category,
       tags: data.tags || [],
+      readingTime,
       authorId: userId,
       status: isAdmin ? BLOG_STATUS.PUBLISHED : BLOG_STATUS.DRAFT,
       publishedAt: isAdmin ? new Date() : null,
     },
-    include: {
-      author: authorSelect,
-    },
+    include: { author: authorSelect },
   });
-
-  return post;
 }
 
 async function updatePost({ postId, userId, data, isAdmin = false }) {
   const post = await prisma.blogPost.findUnique({
     where: { id: postId },
-    select: { id: true, authorId: true, status: true, slug: true, title: true },
+    select: {
+      id: true,
+      authorId: true,
+      status: true,
+      slug: true,
+      title: true,
+    },
   });
 
   if (!post) throw new AppError("مقاله پیدا نشد", 404);
@@ -627,12 +810,21 @@ async function updatePost({ postId, userId, data, isAdmin = false }) {
 
   if (data.title !== undefined) {
     updateData.title = data.title.trim();
-    // 🔹 اگه عنوان عوض شد، slug جدید
-    if (data.title.trim() !== post.title) {
-      updateData.slug = await generateUniqueSlug(data.title, (s) =>
-        slugExists(s, postId),
+    if (data.title.trim() !== post.title && !data.slug) {
+      updateData.slug = await generateUniqueSlug(
+        data.title,
+        (s) => slugExists(s, postId),
+        "en",
       );
     }
+  }
+
+  if (data.slug !== undefined && data.slug.trim()) {
+    const manualSlug = data.slug.trim().toLowerCase();
+    if (manualSlug !== post.slug && (await slugExists(manualSlug, postId))) {
+      throw new AppError("این slug قبلاً استفاده شده", 409);
+    }
+    updateData.slug = manualSlug;
   }
 
   if (data.excerpt !== undefined) {
@@ -641,24 +833,28 @@ async function updatePost({ postId, userId, data, isAdmin = false }) {
 
   if (data.content !== undefined) {
     updateData.content = data.content;
+    updateData.readingTime = calculateReadingTime(data.content);
     if (data.excerpt === undefined) {
       updateData.excerpt = buildExcerpt(data.content, null);
     }
   }
 
-  if (data.coverImage !== undefined) {
+  if (data.coverImage !== undefined)
     updateData.coverImage = data.coverImage || "";
+  if (data.category !== undefined) updateData.category = data.category;
+  if (data.tags !== undefined) updateData.tags = data.tags;
+
+  // 🆕 SEO fields
+  if (data.seoTitle !== undefined) {
+    updateData.seoTitle = data.seoTitle?.trim() || null;
+  }
+  if (data.seoDescription !== undefined) {
+    updateData.seoDescription = data.seoDescription?.trim() || null;
+  }
+  if (data.coverImageAlt !== undefined) {
+    updateData.coverImageAlt = data.coverImageAlt?.trim() || null;
   }
 
-  if (data.category !== undefined) {
-    updateData.category = data.category;
-  }
-
-  if (data.tags !== undefined) {
-    updateData.tags = data.tags;
-  }
-
-  // 🔹 اگه نویسنده تغییر داد، برگرده به draft
   if (!isAdmin && Object.keys(updateData).length > 0) {
     updateData.status = BLOG_STATUS.DRAFT;
   }
@@ -680,7 +876,6 @@ async function submitPostForReview({ postId, userId }) {
   if (post.authorId !== userId) {
     throw new AppError("دسترسی مجاز نیست", 403);
   }
-
   if (
     post.status !== BLOG_STATUS.DRAFT &&
     post.status !== BLOG_STATUS.REJECTED
@@ -748,16 +943,8 @@ async function adminListPosts({
   ]);
 
   return {
-    posts: posts.map((p) => ({
-      ...p,
-      commentsCount: p._count.comments,
-    })),
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
+    posts: posts.map((p) => ({ ...p, commentsCount: p._count.comments })),
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 }
 
@@ -851,9 +1038,7 @@ async function adminListComments({ status, postId, page = 1, limit = 20 }) {
       take: limit,
       include: {
         user: authorSelect,
-        post: {
-          select: { id: true, title: true, slug: true },
-        },
+        post: { select: { id: true, title: true, slug: true } },
       },
     }),
     prisma.blogComment.count({ where }),
@@ -869,12 +1054,7 @@ async function adminListComments({ status, postId, page = 1, limit = 20 }) {
       author: c.user,
       post: c.post,
     })),
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 }
 
@@ -947,6 +1127,13 @@ module.exports = {
   createReply,
   updateComment,
   deleteComment,
+
+  // 🆕 جدید
+  getBlogSidebar,
+  getPostToc,
+  getRelatedPosts,
+  getPostNeighbors,
+  trackView,
 
   // نویسنده
   getMyPosts,

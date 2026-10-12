@@ -181,7 +181,7 @@ const Register = () => {
         <AuthInput
           label="نام کاربری"
           name="username"
-          placeholder="yasin_m"
+          placeholder="username"
           value={form.username}
           onChange={change}
           error={errors.username}

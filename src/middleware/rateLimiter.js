@@ -170,6 +170,23 @@ const setupSecurityRateLimiter = rateLimit({
 });
 
 // ============================================================
+// 🆕 CONTACT MESSAGE RATE LIMITER
+// ============================================================
+
+const contactRateLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // ۲۴ ساعت
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    status: "error",
+    message:
+      "شما در ۲۴ ساعت گذشته حداکثر ۳ پیام ارسال کرده‌اید. لطفاً بعداً تلاش کنید.",
+  },
+});
+
+// ============================================================
 // EXPORTS
 // ============================================================
 
@@ -192,4 +209,5 @@ module.exports = {
   // 🆕
   forgotPasswordRateLimiter,
   setupSecurityRateLimiter,
+  contactRateLimiter,
 };

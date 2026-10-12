@@ -24,15 +24,22 @@ router.get(
 );
 
 router.get("/categories", blogController.getCategories);
-
 router.get("/tags", blogController.getTags);
 
+// 🆕 Sidebar
+router.get("/sidebar", blogController.getBlogSidebar);
+
+// 🆕 TOC / Related / Neighbors (قبل از /posts/:slug)
+router.get("/posts/:slug/toc", blogController.getPostToc);
+router.get("/posts/:slug/related", blogController.getRelatedPosts);
+router.get("/posts/:slug/neighbors", blogController.getPostNeighbors);
+
+// جزئیات مقاله (آخر)
 router.get("/posts/:slug", optionalAuth, blogController.getPostBySlug);
 
 // ==================== 🔹 کامنت‌ها (عمومی) ====================
 
 router.get("/posts/:id/comments", optionalAuth, blogController.getPostComments);
-
 router.get(
   "/comments/:id/replies",
   optionalAuth,
@@ -43,14 +50,12 @@ router.get(
 
 router.use(protect);
 
-// واکنش
 router.post(
   "/posts/:id/react",
   validate(reactPostSchema),
   blogController.reactToPost,
 );
 
-// کامنت
 router.post(
   "/posts/:id/comments",
   validate(createCommentSchema),

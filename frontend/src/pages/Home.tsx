@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import Seo from "../components/common/Seo";
 import HeroSection from "../components/sections/HeroSection";
 import TrustBadges from "../components/sections/TrustBadges";
 import FeaturesSection from "../components/sections/FeaturesSection";
@@ -6,15 +7,9 @@ import ArenaPreview from "../components/sections/ArenaPreview";
 import FinalCTA from "../components/sections/FinalCTA";
 
 // 🆕 Lazy loading برای بخش‌های پایین
-const HowItWorks = lazy(
-  () => import("../components/sections/HowItWorks"),
-);
-const StatsSection = lazy(
-  () => import("../components/sections/StatsSection"),
-);
-const TrustSection = lazy(
-  () => import("../components/sections/TrustSection"),
-);
+const HowItWorks = lazy(() => import("../components/sections/HowItWorks"));
+const StatsSection = lazy(() => import("../components/sections/StatsSection"));
+const TrustSection = lazy(() => import("../components/sections/TrustSection"));
 const TestimonialsSection = lazy(
   () => import("../components/sections/TestimonialsSection"),
 );
@@ -45,6 +40,25 @@ const SectionLoader = () => (
 const Home = () => {
   return (
     <>
+      {/* 🆕 SEO */}
+      <Seo
+        title="آزمون، آرنا، موفقیت"
+        description="پلتفرم هوشمند یادگیری، آزمون و رقابت برای دانش‌آموزان کنکوری. با آرنا، آزمون‌های هوشمند و تحلیل دقیق، به بهترین نسخه خودت تبدیل شو."
+        url="https://griffinedu.ir"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "آکادمی گریفین",
+          alternateName: "Griffin Academy",
+          url: "https://griffinedu.ir",
+          potentialAction: {
+            "@type": "SearchAction",
+            target: "https://griffinedu.ir/blog?search={search_term_string}",
+            "query-input": "required name=search_term_string",
+          },
+        }}
+      />
+
       {/* 🚀 بخش‌های بالا (Eager - همیشه لود می‌شن) */}
       <HeroSection />
 
