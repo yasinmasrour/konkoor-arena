@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { getMyProfile, updateMyProfile } from "../../api/userApi";
 import { useAuth } from "../../context/AuthContext";
+import DateWheelPickerModal, {
+  formatJalaliDisplay,
+} from "../ui/DateWheelPickerModal";
 
 interface ProfileForm {
   birthDate: string;
@@ -37,6 +40,17 @@ const gradeLabels: Record<string, string> = {
   "11": "یازدهم",
   "12": "دوازدهم",
 };
+
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DD" ====================
+function toLocalDateString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 const ProfileCompletionCard = () => {
   const { user, updateUser } = useAuth();
@@ -63,7 +77,10 @@ const ProfileCompletionCard = () => {
       .then((profile) => {
         updateUser(profile);
         setForm({
-          birthDate: profile.birthDate?.slice(0, 10) || "",
+          // ✅ تبدیل ISO به local date
+          birthDate: profile.birthDate
+            ? toLocalDateString(profile.birthDate)
+            : "",
           major: profile.major || "",
           grade: profile.grade || "",
           email: profile.email || "",
@@ -88,10 +105,23 @@ const ProfileCompletionCard = () => {
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setMessage("");
+    if (!form.birthDate) {
+      setMessageType("error");
+      setMessage("لطفاً تاریخ تولد را انتخاب کنید.");
+      return;
+    }
+    setLoading(true);
     try {
-      const profile = await updateMyProfile(form);
+      // ✅ birthDate رو به ISO با زمان محلی تبدیل کن
+      const payload = {
+        ...form,
+        birthDate: form.birthDate
+          ? new Date(form.birthDate + "T00:00:00").toISOString()
+          : null,
+      };
+
+      const profile = await updateMyProfile(payload);
       updateUser(profile);
       setEditing(false);
       setMessageType("success");
@@ -346,13 +376,23 @@ const Field = ({
       {label}
       {required && <span className="text-rose-500"> *</span>}
     </span>
-    <input
-      required={required}
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
-    />
+    {type === "date" ? (
+      // ✅ DateWheelPickerModal جایگزین JalaliDatePicker
+      <DateWheelPickerModal
+        value={value}
+        onChange={onChange}
+        required={required}
+        aria-label={label}
+      />
+    ) : (
+      <input
+        required={required}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+      />
+    )}
   </label>
 );
 

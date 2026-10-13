@@ -18,6 +18,9 @@ import api from "../../api/axios";
 import { FEATURES, FEATURE_LABELS } from "../../constants/features";
 import ConfirmDeleteModal from "../../components/comments/ConfirmDeleteModal";
 import CreatePlanModal from "../../components/admin/CreatePlanModal";
+import DateWheelPickerModal, {
+  formatJalaliDisplay,
+} from "../../components/ui/DateWheelPickerModal";
 
 interface SubscriptionPlan {
   id: string;
@@ -35,6 +38,17 @@ interface SubscriptionPlan {
 }
 
 const ALL_FEATURES = Object.values(FEATURES);
+
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DD" ====================
+function toLocalDateString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 const AdminSubscriptionPlans = () => {
   const navigate = useNavigate();
@@ -78,13 +92,12 @@ const AdminSubscriptionPlans = () => {
 
   // ==================== Save ====================
   const handleSave = async (plan: SubscriptionPlan) => {
-    if (actionLoading) return; // جلوگیری از double-click
+    if (actionLoading) return;
     setActionLoading(plan.id);
     setError("");
     setSuccess("");
 
     try {
-      // 🆕 فقط درخواست PATCH
       await api.patch(`/admin/subscription-plans/${plan.id}`, {
         title: plan.title,
         description: plan.description,
@@ -98,22 +111,19 @@ const AdminSubscriptionPlans = () => {
         discountEndsAt: plan.discountEndsAt,
       });
 
-      // 🆕 اگه موفق بود:
       setEditingPlan(null);
       setSuccess("پلن با موفقیت ذخیره شد.");
     } catch (err) {
       console.error("Failed to save:", err);
-      // 🆕 نمایش خطای واقعی
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message || "ذخیره‌ی پلن انجام نشد. لطفاً دوباره تلاش کنید.";
       setError(message);
-      return; // ← مهم: خروج قبل از load
+      return;
     } finally {
       setActionLoading(null);
     }
 
-    // 🆕 load رو جدا صدا بزن (اگه خطا بده، روی دکمه اثر نذاره)
     try {
       await load();
     } catch (err) {
@@ -274,7 +284,6 @@ const AdminSubscriptionPlans = () => {
           ) : (
             <div className="space-y-3">
               {plans.map((plan) => {
-                // 🆕 اگه این پلن در حال ویرایشه، از editingPlan استفاده کن
                 const isEditing = editingPlan?.id === plan.id;
                 return (
                   <PlanCard
@@ -571,15 +580,13 @@ const PlanCard = ({
               <label className="block text-[10px] font-black text-gray-500 mb-1.5">
                 تاریخ انقضا (اختیاری)
               </label>
-              <input
-                type="date"
+              <DateWheelPickerModal
                 value={
                   plan.discountEndsAt
-                    ? new Date(plan.discountEndsAt).toISOString().split("T")[0]
+                    ? toLocalDateString(plan.discountEndsAt)
                     : ""
                 }
-                onChange={(e) => {
-                  const value = e.target.value;
+                onChange={(value) => {
                   onUpdate({
                     ...plan,
                     discountEndsAt: value
@@ -587,7 +594,7 @@ const PlanCard = ({
                       : null,
                   });
                 }}
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-colors"
+                placeholder="انتخاب تاریخ انقضا"
               />
             </div>
           </div>
@@ -597,8 +604,8 @@ const PlanCard = ({
               <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
                 تخفیف {plan.discountPercent}٪ فعال میشه
                 {plan.discountEndsAt
-                  ? ` تا ${new Date(plan.discountEndsAt).toLocaleDateString(
-                      "fa-IR",
+                  ? ` تا ${formatJalaliDisplay(
+                      toLocalDateString(plan.discountEndsAt),
                     )}`
                   : " (دائمی)"}
               </p>

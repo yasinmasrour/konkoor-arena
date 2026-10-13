@@ -24,6 +24,18 @@ import {
   type StudyTaskPriority,
 } from "../../api/studyPlanApi";
 import api from "../../api/axios";
+import DateWheelPickerModal from "../../components/ui/DateWheelPickerModal";
+
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DD" ====================
+function toLocalDateString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 // ==================== Types ====================
 interface TaskForm {
@@ -102,7 +114,8 @@ const StudyPlanEditor = () => {
           setTitle(plan.title);
           setDescription(plan.description ?? "");
           setExamId(plan.exam?.id ?? "");
-          setEndDate(plan.endDate ? plan.endDate.slice(0, 10) : "");
+          // ✅ تبدیل ISO به local date
+          setEndDate(plan.endDate ? toLocalDateString(plan.endDate) : "");
           setTasks(
             (plan.tasks ?? []).map((t) => ({
               id: t.id,
@@ -114,7 +127,8 @@ const StudyPlanEditor = () => {
               estimatedMinutes: t.estimatedMinutes
                 ? String(t.estimatedMinutes)
                 : "",
-              dueDate: t.dueDate ? t.dueDate.slice(0, 10) : "",
+              // ✅ تبدیل ISO به local date
+              dueDate: t.dueDate ? toLocalDateString(t.dueDate) : "",
               isNew: false,
             })),
           );
@@ -175,7 +189,10 @@ const StudyPlanEditor = () => {
         await updatePlan(planId, {
           title: title.trim(),
           description: description.trim(),
-          endDate: endDate ? new Date(endDate).toISOString() : null,
+          // ✅ تبدیل local → ISO با زمان محلی
+          endDate: endDate
+            ? new Date(endDate + "T00:00:00").toISOString()
+            : null,
         });
 
         // 🔹 حذف تسک‌ها
@@ -195,8 +212,9 @@ const StudyPlanEditor = () => {
               estimatedMinutes: task.estimatedMinutes
                 ? Number(task.estimatedMinutes)
                 : undefined,
+              // ✅ تبدیل local → ISO با زمان محلی
               dueDate: task.dueDate
-                ? new Date(task.dueDate).toISOString()
+                ? new Date(task.dueDate + "T00:00:00").toISOString()
                 : undefined,
             });
           }
@@ -219,7 +237,10 @@ const StudyPlanEditor = () => {
           examId: examId || undefined,
           title: title.trim(),
           description: description.trim(),
-          endDate: endDate ? new Date(endDate).toISOString() : null,
+          // ✅ تبدیل local → ISO با زمان محلی
+          endDate: endDate
+            ? new Date(endDate + "T00:00:00").toISOString()
+            : null,
           tasks: validTasks.map((t) => ({
             title: t.title.trim(),
             description: t.description.trim(),
@@ -229,13 +250,15 @@ const StudyPlanEditor = () => {
             estimatedMinutes: t.estimatedMinutes
               ? Number(t.estimatedMinutes)
               : undefined,
-            dueDate: t.dueDate ? new Date(t.dueDate).toISOString() : null,
+            // ✅ تبدیل local → ISO با زمان محلی
+            dueDate: t.dueDate
+              ? new Date(t.dueDate + "T00:00:00").toISOString()
+              : null,
           })),
         });
 
         setSuccess("برنامه ساخته شد");
         setTimeout(() => {
-          // 🔹 رفتن به صفحه ویرایش برنامه جدید (برای ساخت آزمون شخصی)
           navigate(`/dashboard/counselor/plans/${result.plan.id}/edit`);
         }, 1200);
       }
@@ -455,11 +478,10 @@ const StudyPlanEditor = () => {
                 <Calendar size={10} />
                 ددلاین
               </label>
-              <input
-                type="date"
+              <DateWheelPickerModal
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+                onChange={setEndDate}
+                placeholder="انتخاب ددلاین"
               />
             </div>
           </div>
@@ -654,11 +676,10 @@ const TaskEditor = ({ task, index, onUpdate, onRemove }: TaskEditorProps) => {
         </div>
 
         {/* Due Date */}
-        <input
-          type="date"
+        <DateWheelPickerModal
           value={task.dueDate}
-          onChange={(e) => onUpdate("dueDate", e.target.value)}
-          className="rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-xs text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+          onChange={(value) => onUpdate("dueDate", value)}
+          placeholder="تاریخ انجام"
         />
       </div>
     </div>

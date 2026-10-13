@@ -42,6 +42,20 @@ import {
 import { type Question } from "../../api/questionApi";
 import MathText from "../../components/questions/MathText";
 import QuestionPickerModal from "./components/QuestionPickerModal";
+import DateWheelPickerModal from "../../components/ui/DateWheelPickerModal";
+
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DDTHH:mm" ====================
+function toLocalDateTimeString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 // ==================== ثابت‌ها ====================
 const statusLabels: Record<BookletStatus, string> = {
@@ -167,7 +181,10 @@ const BookletBuilder = () => {
             lesson: result.lesson,
             grade: result.grade,
             major: result.major,
-            examDate: result.examDate.slice(0, 16),
+            // ✅ تبدیل ISO به local
+            examDate: result.examDate
+              ? toLocalDateTimeString(result.examDate)
+              : "",
             duration: result.duration,
           });
         })
@@ -190,7 +207,6 @@ const BookletBuilder = () => {
     return message || fallback;
   };
 
-  // 🆕 حذف دفترچه
   const removeBooklet = async (item: Booklet) => {
     if (
       !window.confirm(
@@ -222,13 +238,11 @@ const BookletBuilder = () => {
     setPickerOpen(true);
   };
 
-  // 🆕 افزودن سؤال‌های انتخاب‌شده — حالا کل Question رو می‌گیره
   const handlePickerAdd = async (questions: Question[]) => {
     setQuestionBusy(true);
     setError("");
     try {
       if (!booklet) {
-        // 🆕 برای دفترچه جدید: هم ids رو نگه دار، هم Question ها
         const ids = questions.map((q) => q.id);
 
         setForm((current) => ({
@@ -236,7 +250,6 @@ const BookletBuilder = () => {
           questionIds: [...new Set([...(current.questionIds ?? []), ...ids])],
         }));
 
-        // 🆕 این خط مهمه — Question ها رو نگه دار تا نمایش داده بشن
         setPendingSelectedQuestions((current) => {
           const existingIds = new Set(current.map((q) => q.id));
           return [
@@ -249,7 +262,6 @@ const BookletBuilder = () => {
         return;
       }
 
-      // برای دفترچه موجود
       const ids = questions.map((q) => q.id);
       const updated = await addBookletQuestions(
         booklet.id,
@@ -303,6 +315,11 @@ const BookletBuilder = () => {
     setSaving(true);
     setError("");
     try {
+      // ✅ تبدیل local → ISO
+      const isoExamDate = form.examDate
+        ? new Date(form.examDate).toISOString()
+        : "";
+
       if (!booklet) {
         const created = await createBooklet({
           ...form,
@@ -310,7 +327,7 @@ const BookletBuilder = () => {
           lesson: form.lesson.trim(),
           grade: form.grade.trim(),
           major: form.major.trim(),
-          examDate: form.examDate,
+          examDate: isoExamDate,
           duration: form.duration,
           questionIds: form.questionIds ?? [],
         });
@@ -325,7 +342,7 @@ const BookletBuilder = () => {
         lesson: form.lesson.trim(),
         grade: form.grade,
         major: form.major,
-        examDate: form.examDate,
+        examDate: isoExamDate,
         duration: form.duration,
       });
       setBooklet(updated);
@@ -852,16 +869,17 @@ const BookletBuilder = () => {
                     <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                       تاریخ دفترچه *
                     </span>
-                    <input
-                      type="datetime-local"
+                    <DateWheelPickerModal
                       value={form.examDate}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setForm((current) => ({
                           ...current,
-                          examDate: e.target.value,
+                          examDate: value,
                         }))
                       }
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                      withTime
+                      required
+                      placeholder="انتخاب تاریخ و ساعت دفترچه"
                     />
                   </label>
 
@@ -1143,7 +1161,7 @@ const BookletBuilder = () => {
         </section>
       </div>
 
-      {/* 🆕 PICKER MODAL (مستقل) */}
+      {/* PICKER MODAL (مستقل) */}
       <QuestionPickerModal
         open={pickerOpen}
         currentQuestionIds={currentQuestionIds}

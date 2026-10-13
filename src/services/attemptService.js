@@ -12,6 +12,39 @@ const BOOKLET_STATUS_FINISHED = "finished";
 
 const REST_DURATION_SECONDS = 10;
 
+// ==================== Helper: پنجره‌ی دسترسی به آزمون ====================
+/**
+ * پنجره‌ی دسترسی به آزمون رو حساب می‌کنه.
+ * @returns { startDateTime, endDateTime, error }
+ */
+function getExamAccessWindow(exam) {
+  // exam.examDate = ISO DateTime (تاریخ + ساعت شروع)
+  // exam.startTime = "08:00"
+  // exam.endTime = "10:30"
+
+  const examDate = new Date(exam.examDate);
+  if (isNaN(examDate.getTime())) {
+    return { error: "تاریخ آزمون نامعتبر است" };
+  }
+
+  const year = examDate.getFullYear();
+  const month = examDate.getMonth();
+  const day = examDate.getDate();
+
+  // startDateTime
+  const [startH, startM] = (exam.startTime || "00:00").split(":").map(Number);
+  const startDateTime = new Date(year, month, day, startH, startM, 0, 0);
+
+  // endDateTime
+  let endDateTime = null;
+  if (exam.endTime) {
+    const [endH, endM] = exam.endTime.split(":").map(Number);
+    endDateTime = new Date(year, month, day, endH, endM, 0, 0);
+  }
+
+  return { startDateTime, endDateTime };
+}
+
 // ==================== ابزار کمکی ====================
 const isPast = (date) => date && new Date(date).getTime() <= Date.now();
 
@@ -265,6 +298,45 @@ const startAttempt = async (studentId, examId, userRole = null) => {
         throw new AppError("Exam is not available", 400);
       }
 
+      // ==================== 🆕 چک پنجره‌ی دسترسی ====================
+      const {
+        startDateTime,
+        endDateTime,
+        error: windowError,
+      } = getExamAccessWindow(exam);
+
+      if (windowError) {
+        throw new AppError(windowError, 400);
+      }
+
+      const now = new Date();
+
+      // اگه کاربر قبلاً Attempt داره، اجازه بده برگرده (بدون چک زمان)
+      const existingAttempt = await tx.attempt.findUnique({
+        where: { studentId_examId: { studentId, examId } },
+      });
+
+      if (existingAttempt) {
+        return existingAttempt;
+      }
+
+      // برای Attempt جدید، پنجره‌ی دسترسی رو چک کن
+      if (startDateTime && now < startDateTime) {
+        const diff = startDateTime.getTime() - now.getTime();
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        throw new AppError(
+          `آزمون هنوز شروع نشده. زمان باقی‌مانده: ${hours} ساعت و ${minutes} دقیقه`,
+          403,
+        );
+      }
+
+      if (endDateTime && now > endDateTime) {
+        throw new AppError("زمان ورود به آزمون به پایان رسیده است", 403);
+      }
+
+      // ==================== ادامه‌ی منطق قبلی ====================
       for (const eb of exam.booklets) {
         if (eb.booklet.status !== "published") {
           throw new AppError(
@@ -303,14 +375,6 @@ const startAttempt = async (studentId, examId, userRole = null) => {
             400,
           );
         }
-      }
-
-      const existingAttempt = await tx.attempt.findUnique({
-        where: { studentId_examId: { studentId, examId } },
-      });
-
-      if (existingAttempt) {
-        return existingAttempt;
       }
 
       const attempt = await tx.attempt.create({
@@ -789,4 +853,5 @@ module.exports = {
   getMyAttempts,
   getAttemptReview,
   syncAttemptState,
+  getExamAccessWindow,
 };

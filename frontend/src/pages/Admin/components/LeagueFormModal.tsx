@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   AlertCircle,
   Calendar,
@@ -17,6 +17,7 @@ import {
   type CreateLeaguePayload,
   type UpdateLeaguePayload,
 } from "../../../api/adminArenaApi";
+import DateWheelPickerModal from "../../../components/ui/DateWheelPickerModal";
 
 interface LeagueFormModalProps {
   league?: ArenaLeagueAdmin | null;
@@ -42,20 +43,18 @@ const STATUSES = [
   { value: "finished", label: "پایان‌یافته" },
 ];
 
-// 🔹 تبدیل ISO به datetime-local format
-const toDateTimeLocal = (iso?: string) => {
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DDTHH:mm" ====================
+function toLocalDateTimeString(iso: string): string {
   if (!iso) return "";
   const date = new Date(iso);
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
-};
-
-// 🔹 تبدیل datetime-local به ISO
-const toISO = (local: string) => {
-  if (!local) return "";
-  return new Date(local).toISOString();
-};
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 const LeagueFormModal = ({
   league,
@@ -69,8 +68,9 @@ const LeagueFormModal = ({
     lesson: league?.lesson || "",
     grade: league?.grade || "10",
     compatibleMajors: league?.compatibleMajors || [],
-    startDate: toDateTimeLocal(league?.startDate),
-    endDate: toDateTimeLocal(league?.endDate),
+    // ✅ تبدیل ISO به local
+    startDate: league?.startDate ? toLocalDateTimeString(league.startDate) : "",
+    endDate: league?.endDate ? toLocalDateTimeString(league.endDate) : "",
     status: league?.status || "upcoming",
   });
 
@@ -116,14 +116,22 @@ const LeagueFormModal = ({
     setSaving(true);
 
     try {
+      // ✅ تبدیل local → ISO
+      const isoStartDate = form.startDate
+        ? new Date(form.startDate).toISOString()
+        : "";
+      const isoEndDate = form.endDate
+        ? new Date(form.endDate).toISOString()
+        : "";
+
       if (editing && league) {
         const payload: UpdateLeaguePayload = {
           title: form.title.trim(),
           lesson: form.lesson.trim(),
           grade: form.grade,
           compatibleMajors: form.compatibleMajors,
-          startDate: toISO(form.startDate),
-          endDate: toISO(form.endDate),
+          startDate: isoStartDate,
+          endDate: isoEndDate,
           status: form.status,
         };
         await updateArenaLeague(league.id, payload);
@@ -133,8 +141,8 @@ const LeagueFormModal = ({
           lesson: form.lesson.trim(),
           grade: form.grade,
           compatibleMajors: form.compatibleMajors,
-          startDate: toISO(form.startDate),
-          endDate: toISO(form.endDate),
+          startDate: isoStartDate,
+          endDate: isoEndDate,
           status: form.status,
         };
         await createArenaLeague(payload);
@@ -337,14 +345,15 @@ const LeagueFormModal = ({
                 <Calendar size={11} />
                 تاریخ شروع *
               </span>
-              <input
-                type="datetime-local"
+              <DateWheelPickerModal
                 value={form.startDate}
-                onChange={(e) =>
-                  setForm((c) => ({ ...c, startDate: e.target.value }))
+                onChange={(value) =>
+                  setForm((c) => ({ ...c, startDate: value }))
                 }
+                withTime
+                required
                 disabled={saving}
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                placeholder="انتخاب تاریخ و ساعت شروع"
               />
             </label>
 
@@ -353,14 +362,13 @@ const LeagueFormModal = ({
                 <Calendar size={11} />
                 تاریخ پایان *
               </span>
-              <input
-                type="datetime-local"
+              <DateWheelPickerModal
                 value={form.endDate}
-                onChange={(e) =>
-                  setForm((c) => ({ ...c, endDate: e.target.value }))
-                }
+                onChange={(value) => setForm((c) => ({ ...c, endDate: value }))}
+                withTime
+                required
                 disabled={saving}
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 transition-all"
+                placeholder="انتخاب تاریخ و ساعت پایان"
               />
             </label>
           </div>

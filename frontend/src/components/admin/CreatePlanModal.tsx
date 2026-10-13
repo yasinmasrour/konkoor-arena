@@ -2,6 +2,9 @@ import { useState } from "react";
 import { AlertCircle, Check, Crown, LoaderCircle, Tag, X } from "lucide-react";
 import api from "../../api/axios";
 import { FEATURES, FEATURE_LABELS } from "../../constants/features";
+import DateWheelPickerModal, {
+  formatJalaliDisplay,
+} from "../ui/DateWheelPickerModal";
 
 const ALL_FEATURES = Object.values(FEATURES);
 
@@ -21,6 +24,17 @@ interface FormData {
   badge: string;
   discountPercent: number | null;
   discountEndsAt: string | null;
+}
+
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DD" ====================
+function toLocalDateString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 const CreatePlanModal = ({ onClose, onSuccess }: CreatePlanModalProps) => {
@@ -345,17 +359,13 @@ const CreatePlanModal = ({ onClose, onSuccess }: CreatePlanModalProps) => {
                   <label className="block text-[10px] font-black text-gray-500 mb-1.5">
                     تاریخ انقضا (اختیاری)
                   </label>
-                  <input
-                    type="date"
+                  <DateWheelPickerModal
                     value={
                       form.discountEndsAt
-                        ? new Date(form.discountEndsAt)
-                            .toISOString()
-                            .split("T")[0]
+                        ? toLocalDateString(form.discountEndsAt)
                         : ""
                     }
-                    onChange={(e) => {
-                      const value = e.target.value;
+                    onChange={(value) => {
                       setForm({
                         ...form,
                         discountEndsAt: value
@@ -363,7 +373,7 @@ const CreatePlanModal = ({ onClose, onSuccess }: CreatePlanModalProps) => {
                           : null,
                       });
                     }}
-                    className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-colors"
+                    placeholder="انتخاب تاریخ انقضا"
                   />
                 </div>
               </div>
@@ -373,7 +383,9 @@ const CreatePlanModal = ({ onClose, onSuccess }: CreatePlanModalProps) => {
                   <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
                     تخفیف {form.discountPercent}٪ اعمال میشه
                     {form.discountEndsAt
-                      ? ` تا ${new Date(form.discountEndsAt).toLocaleDateString("fa-IR")}`
+                      ? ` تا ${formatJalaliDisplay(
+                          toLocalDateString(form.discountEndsAt),
+                        )}`
                       : " (دائمی)"}
                   </p>
                   {form.price > 0 && (

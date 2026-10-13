@@ -46,6 +46,23 @@ import {
   EXAM_ACCESS_LIST,
 } from "../constants/examAccess";
 import BookletPickerModal from "./ExamBuilder/components/BookletPickerModal";
+import DateWheelPickerModal, {
+  formatJalaliDisplay,
+} from "../components/ui/DateWheelPickerModal";
+import TimeWheelPicker from "../components/ui/TimeWheelPicker";
+
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DDTHH:mm" ====================
+function toLocalDateTimeString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 // ==================== ثابت‌ها ====================
 const emptyForm = {
@@ -102,13 +119,11 @@ const apiError = (error: unknown, fallback: string) => {
 };
 
 const formatDate = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleString("fa-IR", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
+  if (!value) return "—";
+  const iso = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(value)
+    ? value
+    : toLocalDateTimeString(value);
+  return formatJalaliDisplay(iso, true) || "—";
 };
 
 const bookletQuestionCount = (booklet: Booklet) =>
@@ -202,7 +217,9 @@ export default function ExamBuilder() {
         setExam(result);
         setForm({
           title: result.title ?? "",
-          examDate: result.examDate ? result.examDate.slice(0, 16) : "",
+          examDate: result.examDate
+            ? toLocalDateTimeString(result.examDate)
+            : "",
           startTime: result.startTime ?? "08:00",
           endTime: result.endTime ?? "",
           accessType: (result.accessType as ExamAccessType) ?? "SUBSCRIPTION",
@@ -227,13 +244,11 @@ export default function ExamBuilder() {
     setPickerOpen(true);
   };
 
-  // 🆕 افزودن دفترچه‌های انتخاب‌شده — حالا کل Booklet رو می‌گیره
   const handlePickerAdd = async (booklets: Booklet[]) => {
     setSaving(true);
     setError("");
     try {
       if (exam) {
-        // برای آزمون موجود، فقط ids رو بفرست
         const ids = booklets.map((b) => b.id);
         const updated = await addExamBooklets(
           exam.id,
@@ -241,7 +256,6 @@ export default function ExamBuilder() {
         );
         setExam(updated);
       } else {
-        // 🆕 برای آزمون جدید: هم ids رو نگه دار، هم Booklet ها رو
         const ids = booklets.map((b) => b.id);
         setPendingBooklets((current) => {
           const existingIds = new Set(current.map((b) => b.id));
@@ -250,7 +264,6 @@ export default function ExamBuilder() {
             ...booklets.filter((b) => !existingIds.has(b.id)),
           ];
         });
-        // ids توی form نیازی نیست چون displayedBooklets از pendingBooklets میاد
         void ids;
       }
       setPickerOpen(false);
@@ -333,10 +346,15 @@ export default function ExamBuilder() {
     setSaving(true);
     setError("");
     try {
+      const isoExamDate = form.examDate
+        ? new Date(form.examDate).toISOString()
+        : "";
+
       if (!exam) {
         const created = await createExam({
           ...form,
           title: form.title.trim(),
+          examDate: isoExamDate,
           bookletIds: displayedBooklets.map((item) => item.bookletId),
           accessType: form.accessType,
         });
@@ -347,7 +365,7 @@ export default function ExamBuilder() {
         setExam(
           await updateExam(exam.id, {
             title: form.title.trim(),
-            examDate: form.examDate,
+            examDate: isoExamDate,
             startTime: form.startTime,
             endTime: form.endTime,
             accessType: form.accessType,
@@ -741,14 +759,15 @@ export default function ExamBuilder() {
                     <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                       تاریخ آزمون *
                     </span>
-                    <input
-                      disabled={!editable}
-                      type="datetime-local"
+                    <DateWheelPickerModal
                       value={form.examDate}
-                      onChange={(e) =>
-                        setForm((x) => ({ ...x, examDate: e.target.value }))
+                      onChange={(value) =>
+                        setForm((x) => ({ ...x, examDate: value }))
                       }
-                      className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all"
+                      withTime
+                      disabled={!editable}
+                      required
+                      placeholder="انتخاب تاریخ و ساعت آزمون"
                     />
                   </label>
 
@@ -757,14 +776,14 @@ export default function ExamBuilder() {
                       <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                         شروع
                       </span>
-                      <input
-                        disabled={!editable}
-                        type="time"
+                      <TimeWheelPicker
                         value={form.startTime}
-                        onChange={(e) =>
-                          setForm((x) => ({ ...x, startTime: e.target.value }))
+                        onChange={(value) =>
+                          setForm((x) => ({ ...x, startTime: value }))
                         }
-                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all tabular-nums"
+                        disabled={!editable}
+                        required
+                        placeholder="انتخاب ساعت شروع"
                       />
                     </label>
 
@@ -772,14 +791,13 @@ export default function ExamBuilder() {
                       <span className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                         پایان
                       </span>
-                      <input
-                        disabled={!editable}
-                        type="time"
+                      <TimeWheelPicker
                         value={form.endTime}
-                        onChange={(e) =>
-                          setForm((x) => ({ ...x, endTime: e.target.value }))
+                        onChange={(value) =>
+                          setForm((x) => ({ ...x, endTime: value }))
                         }
-                        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] focus:ring-2 focus:ring-[var(--griffin-gold)]/20 disabled:opacity-60 transition-all tabular-nums"
+                        disabled={!editable}
+                        placeholder="انتخاب ساعت پایان"
                       />
                     </label>
                   </div>
@@ -1052,7 +1070,7 @@ export default function ExamBuilder() {
         </section>
       </div>
 
-      {/* 🆕 BOOKLET PICKER MODAL (مستقل) */}
+      {/* BOOKLET PICKER MODAL */}
       <BookletPickerModal
         open={pickerOpen}
         currentIds={currentIds}

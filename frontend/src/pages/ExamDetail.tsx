@@ -68,6 +68,29 @@ const statusLabels: Record<string, string> = {
   archived: "بایگانی",
 };
 
+// ==================== Helper: پنجره‌ی دسترسی ====================
+function getExamAccessWindow(exam: ExamDetailType) {
+  const examDate = new Date(exam.examDate);
+  if (isNaN(examDate.getTime())) return null;
+
+  const year = examDate.getFullYear();
+  const month = examDate.getMonth();
+  const day = examDate.getDate();
+
+  const [startH, startM] = (exam.startTime || "00:00")
+    .split(":")
+    .map(Number);
+  const startDateTime = new Date(year, month, day, startH, startM, 0, 0);
+
+  let endDateTime: Date | null = null;
+  if (exam.endTime) {
+    const [endH, endM] = exam.endTime.split(":").map(Number);
+    endDateTime = new Date(year, month, day, endH, endM, 0, 0);
+  }
+
+  return { startDateTime, endDateTime };
+}
+
 // ==================== کامپوننت ====================
 const ExamDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -89,10 +112,17 @@ const ExamDetail = () => {
     submittedAt: string | null;
   } | null>(null);
 
-  const isStudent = user?.role?.name === "STUDENT";
+  // 🆕 زمان فعلی (برای به‌روزرسانی پنجره‌ی دسترسی)
+  const [now, setNow] = useState(new Date());
 
-  // 🆕 آزمون رایگان
+  const isStudent = user?.role?.name === "STUDENT";
   const isFree = exam?.accessType === "FREE";
+
+  // ==================== به‌روزرسانی هر دقیقه ====================
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // ==================== Fetch ====================
   useEffect(() => {
@@ -105,7 +135,6 @@ const ExamDetail = () => {
         const data = await getExamById(id);
         setExam(data.exam);
 
-        // 🆕 اگه دانش‌آموزه، attempt قبلی رو چک کن
         if (isStudent) {
           try {
             const attemptsData = await getMyAttempts();
@@ -137,11 +166,7 @@ const ExamDetail = () => {
   // ==================== آمار ====================
   const stats = useMemo(() => {
     if (!exam) {
-      return {
-        questionCount: 0,
-        duration: 0,
-        bookletCount: 0,
-      };
+      return { questionCount: 0, duration: 0, bookletCount: 0 };
     }
 
     const questionCount = exam.booklets.reduce(
@@ -161,11 +186,46 @@ const ExamDetail = () => {
     };
   }, [exam]);
 
+  // ==================== پنجره‌ی دسترسی ====================
+  const accessWindow = useMemo(() => {
+    if (!exam) return null;
+    return getExamAccessWindow(exam);
+  }, [exam]);
+
+  const canEnter = useMemo(() => {
+    if (!accessWindow) return false;
+    if (!accessWindow.startDateTime) return true;
+
+    // هنوز شروع نشده
+    if (now < accessWindow.startDateTime) return false;
+
+    // پنجره بسته شده
+    if (accessWindow.endDateTime && now > accessWindow.endDateTime) {
+      return false;
+    }
+
+    return true;
+  }, [accessWindow, now]);
+
+  const timeUntilStart = useMemo(() => {
+    if (!accessWindow?.startDateTime) return null;
+    const diff = accessWindow.startDateTime.getTime() - now.getTime();
+    if (diff <= 0) return null;
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return { hours, minutes };
+  }, [accessWindow, now]);
+
+  const isWindowClosed = useMemo(() => {
+    if (!accessWindow?.endDateTime) return false;
+    return now > accessWindow.endDateTime;
+  }, [accessWindow, now]);
+
   // ==================== Start/Continue ====================
   const handleStartAttempt = async () => {
     if (!exam || starting) return;
 
-    // 🆕 چک دسترسی: اگه رایگان باشه، نیازی به isPurchased نیست
     const canAccess = isFree || exam.isPurchased;
     if (!canAccess) return;
 
@@ -174,6 +234,18 @@ const ExamDetail = () => {
         navigate(`/attempts/${myAttempt.id}/result`);
       } else {
         navigate(`/attempts/${myAttempt.id}`);
+      }
+      return;
+    }
+
+    // 🆕 چک پنجره‌ی دسترسی قبل از درخواست
+    if (!canEnter) {
+      if (timeUntilStart) {
+        setError(
+          `آزمون هنوز شروع نشده. زمان باقی‌مانده: ${timeUntilStart.hours} ساعت و ${timeUntilStart.minutes} دقیقه`,
+        );
+      } else if (isWindowClosed) {
+        setError("زمان ورود به آزمون به پایان رسیده است");
       }
       return;
     }
@@ -193,12 +265,15 @@ const ExamDetail = () => {
       navigate(`/attempts/${attemptId}`);
     } catch (error) {
       console.error("START ATTEMPT ERROR:", error);
-      setError("شروع آزمون با مشکل مواجه شد");
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message || "شروع آزمون با مشکل مواجه شد";
+      setError(message);
       setStarting(false);
     }
   };
 
-  // ==================== 🆕 Purchase ====================
+  // ==================== Purchase ====================
   const handlePurchaseExam = async (gateway: "wallet" | "zarinpal") => {
     if (!exam || purchasing) return;
 
@@ -208,7 +283,6 @@ const ExamDetail = () => {
     try {
       const result = await purchaseExam(exam.id, gateway);
 
-      // 🆕 اگه پرداخت مستقیم (کیف پول) موفق بود
       if (result.purchase?.status === "paid") {
         await refreshFeatures();
         const data = await getExamById(exam.id);
@@ -216,7 +290,6 @@ const ExamDetail = () => {
         return;
       }
 
-      // 🆕 اگه paymentUrl داشتیم (زرین‌پال) → ریدایرکت
       if (result.paymentUrl) {
         window.location.href = result.paymentUrl;
         return;
@@ -337,7 +410,6 @@ const ExamDetail = () => {
                     {statusLabels[exam.status] ?? exam.status}
                   </span>
 
-                  {/* 🆕 Badge رایگان */}
                   {isFree && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/40">
                       <Gift size={11} />
@@ -348,6 +420,15 @@ const ExamDetail = () => {
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     {formatDate(exam.examDate)}
                   </span>
+
+                  {/* 🆕 نمایش ساعت شروع و پایان */}
+                  {(exam.startTime || exam.endTime) && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black tabular-nums">
+                      <Clock size={10} />
+                      {exam.startTime}
+                      {exam.endTime && ` - ${exam.endTime}`}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,11 +436,48 @@ const ExamDetail = () => {
             {/* دکمه اصلی */}
             {isStudent && (
               <div className="shrink-0 space-y-2 lg:max-w-xs">
-                {/* 🆕 آزمون رایگان یا دسترسی داره */}
+                {/* 🆕 پیام «آزمون هنوز شروع نشده» */}
+                {!myAttempt &&
+                  !canEnter &&
+                  accessWindow?.startDateTime &&
+                  now < accessWindow.startDateTime && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-center">
+                      <Clock
+                        size={16}
+                        className="mx-auto text-amber-500 mb-1.5"
+                      />
+                      <p className="text-xs font-black text-amber-600 dark:text-amber-400">
+                        آزمون هنوز شروع نشده
+                      </p>
+                      <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-1 leading-5">
+                        زمان باقی‌مانده:{" "}
+                        {timeUntilStart
+                          ? `${timeUntilStart.hours} ساعت و ${timeUntilStart.minutes} دقیقه`
+                          : "..."}
+                      </p>
+                    </div>
+                  )}
+
+                {/* 🆕 پیام «پنجره بسته شده» */}
+                {!myAttempt && isWindowClosed && (
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-center">
+                    <AlertCircle
+                      size={16}
+                      className="mx-auto text-rose-500 mb-1.5"
+                    />
+                    <p className="text-xs font-black text-rose-600 dark:text-rose-400">
+                      زمان ورود به آزمون به پایان رسیده
+                    </p>
+                  </div>
+                )}
+
+                {/* 🆕 آزمون رایگان */}
                 {isFree && !myAttempt ? (
                   <button
                     onClick={handleStartAttempt}
-                    disabled={starting || exam.status !== "published"}
+                    disabled={
+                      starting || exam.status !== "published" || !canEnter
+                    }
                     className="group relative w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/60 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all overflow-hidden"
                   >
                     <span className="relative z-10 flex items-center gap-2">
@@ -375,13 +493,12 @@ const ExamDetail = () => {
                         </>
                       )}
                     </span>
-                    {!starting && (
+                    {!starting && canEnter && (
                       <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     )}
                   </button>
                 ) : !exam.isPurchased && !myAttempt ? (
                   <div className="space-y-2">
-                    {/* دکمه خرید آزمون */}
                     <button
                       type="button"
                       onClick={() => void handlePurchaseExam("zarinpal")}
@@ -410,7 +527,6 @@ const ExamDetail = () => {
                       )}
                     </button>
 
-                    {/* توضیحات زیر دکمه */}
                     <p className="text-[10px] text-center text-gray-500 dark:text-gray-400 leading-5">
                       <ShieldCheck size={10} className="inline ml-1" />
                       پرداخت امن از طریق زرین‌پال
@@ -451,7 +567,9 @@ const ExamDetail = () => {
                 ) : (
                   <button
                     onClick={handleStartAttempt}
-                    disabled={starting || exam.status !== "published"}
+                    disabled={
+                      starting || exam.status !== "published" || !canEnter
+                    }
                     className="group relative inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl hover:shadow-[var(--griffin-gold)]/60 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all overflow-hidden"
                   >
                     <span className="relative z-10 flex items-center gap-2">
@@ -467,7 +585,7 @@ const ExamDetail = () => {
                         </>
                       )}
                     </span>
-                    {!starting && (
+                    {!starting && canEnter && (
                       <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     )}
                   </button>
@@ -536,7 +654,7 @@ const ExamDetail = () => {
           })}
         </section>
 
-        {/* ==================== نتیجه قبلی (اگه هست) ==================== */}
+        {/* ==================== نتیجه قبلی ==================== */}
         {myAttempt?.status === "submitted" && (
           <section className="relative rounded-3xl overflow-hidden border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-transparent to-[var(--griffin-gold)]/10 backdrop-blur-sm p-5">
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />

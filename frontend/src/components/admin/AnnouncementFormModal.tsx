@@ -20,6 +20,7 @@ import {
   type AnnouncementDisplayType,
   type AdminAnnouncement,
 } from "../../api/announcementApi";
+import DateWheelPickerModal from "../ui/DateWheelPickerModal";
 
 interface AnnouncementFormModalProps {
   announcement?: AdminAnnouncement | null;
@@ -42,14 +43,24 @@ interface FormState {
   priority: number;
 }
 
-const AnnouncementFormModal = ({
-  announcement,
-  onClose,
-  onSuccess,
-}: AnnouncementFormModalProps) => {
-  const isEdit = !!announcement;
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DDTHH:mm" ====================
+function toLocalDateTimeString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
-  const [form, setForm] = useState<FormState>({
+// ==================== Initial state builder ====================
+function buildInitialForm(
+  announcement: AdminAnnouncement | null | undefined,
+): FormState {
+  return {
     title: announcement?.title || "",
     message: announcement?.message || "",
     ctaText: announcement?.ctaText || "",
@@ -59,20 +70,31 @@ const AnnouncementFormModal = ({
     displayType: announcement?.displayType || "banner",
     isActive: announcement?.isActive ?? true,
     startsAt: announcement?.startsAt
-      ? new Date(announcement.startsAt).toISOString().slice(0, 16)
-      : new Date().toISOString().slice(0, 16),
+      ? toLocalDateTimeString(announcement.startsAt)
+      : toLocalDateTimeString(new Date().toISOString()),
     endsAt: announcement?.endsAt
-      ? new Date(announcement.endsAt).toISOString().slice(0, 16)
+      ? toLocalDateTimeString(announcement.endsAt)
       : "",
     dismissible: announcement?.dismissible ?? true,
     priority: announcement?.priority ?? 0,
-  });
+  };
+}
+
+const AnnouncementFormModal = ({
+  announcement,
+  onClose,
+  onSuccess,
+}: AnnouncementFormModalProps) => {
+  const isEdit = !!announcement;
+
+  const [form, setForm] = useState<FormState>(() =>
+    buildInitialForm(announcement),
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // آیکون انتخاب‌شده
   const SelectedIcon = getAnnouncementIcon(form.icon);
 
   // ==================== Submit ====================
@@ -83,6 +105,11 @@ const AnnouncementFormModal = ({
 
     if (!form.title.trim() || form.title.trim().length < 3) {
       setError("عنوان حداقل ۳ کاراکتر باشد");
+      return;
+    }
+
+    if (!form.startsAt) {
+      setError("تاریخ شروع الزامی است");
       return;
     }
 
@@ -97,7 +124,9 @@ const AnnouncementFormModal = ({
         icon: form.icon || undefined,
         displayType: form.displayType,
         isActive: form.isActive,
-        startsAt: new Date(form.startsAt).toISOString(),
+        startsAt: form.startsAt
+          ? new Date(form.startsAt).toISOString()
+          : new Date().toISOString(),
         endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
         dismissible: form.dismissible,
         priority: Number(form.priority) || 0,
@@ -377,15 +406,16 @@ const AnnouncementFormModal = ({
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                شروع نمایش
+                شروع نمایش <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="datetime-local"
+              <DateWheelPickerModal
                 value={form.startsAt}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, startsAt: e.target.value }))
+                onChange={(value) =>
+                  setForm((f) => ({ ...f, startsAt: value }))
                 }
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+                withTime
+                required
+                placeholder="انتخاب تاریخ و ساعت شروع"
               />
             </div>
 
@@ -393,13 +423,11 @@ const AnnouncementFormModal = ({
               <label className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                 پایان نمایش (اختیاری)
               </label>
-              <input
-                type="datetime-local"
+              <DateWheelPickerModal
                 value={form.endsAt}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, endsAt: e.target.value }))
-                }
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+                onChange={(value) => setForm((f) => ({ ...f, endsAt: value }))}
+                withTime
+                placeholder="انتخاب تاریخ و ساعت پایان"
               />
               <p className="mt-1 text-[10px] text-gray-400">
                 اگه خالی باشه، همیشه نمایش داده میشه

@@ -123,6 +123,11 @@ const AdminAnnouncements = () => {
     setShowFormModal(true);
   };
 
+  const handleCloseForm = () => {
+    setShowFormModal(false);
+    setEditingAnnouncement(null);
+  };
+
   const handleFormSuccess = () => {
     void load();
   };
@@ -303,8 +308,9 @@ const AdminAnnouncements = () => {
       {/* Form Modal */}
       {showFormModal && (
         <AnnouncementFormModal
+          key={editingAnnouncement?.id ?? "new"}
           announcement={editingAnnouncement}
-          onClose={() => setShowFormModal(false)}
+          onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />
       )}

@@ -533,6 +533,14 @@ h6 {
   background: rgba(197, 139, 42, 0.5);
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ============================
    BLOG MARKDOWN STYLES
    ============================ */

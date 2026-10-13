@@ -23,6 +23,9 @@ import {
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../api/axios";
 import SecurityRecoverySection from "./SecurityRecoverySection";
+import DateWheelPickerModal, {
+  formatJalaliDisplay,
+} from "../../ui/DateWheelPickerModal";
 
 interface ProfileForm {
   firstName: string;
@@ -50,6 +53,17 @@ const gradeLabels: Record<string, string> = {
   "12": "دوازدهم",
 };
 
+// ==================== Helper: ISO (UTC) → Local "YYYY-MM-DD" ====================
+function toLocalDateString(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 const ProfilePanel = () => {
   const { user, updateUser } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -75,7 +89,7 @@ const ProfilePanel = () => {
     lastName: user?.lastName ?? "",
     email: user?.email ?? "",
     phoneNumber: user?.phoneNumber ?? "",
-    birthDate: user?.birthDate ? user.birthDate.slice(0, 10) : "",
+    birthDate: user?.birthDate ? toLocalDateString(user.birthDate) : "",
     major: user?.major ?? "math",
     grade: user?.grade ?? "12",
     nationalId: user?.nationalId ?? "",
@@ -92,7 +106,7 @@ const ProfilePanel = () => {
         lastName: user.lastName ?? "",
         email: user.email ?? "",
         phoneNumber: user.phoneNumber ?? "",
-        birthDate: user.birthDate ? user.birthDate.slice(0, 10) : "",
+        birthDate: user.birthDate ? toLocalDateString(user.birthDate) : "",
         major: user.major ?? "math",
         grade: user.grade ?? "12",
         nationalId: user.nationalId ?? "",
@@ -119,7 +133,15 @@ const ProfilePanel = () => {
     setSuccess("");
 
     try {
-      const response = await api.patch("/users/me", form);
+      // ✅ birthDate رو به ISO با زمان محلی تبدیل کن
+      const payload = {
+        ...form,
+        birthDate: form.birthDate
+          ? new Date(form.birthDate + "T00:00:00").toISOString()
+          : null,
+      };
+
+      const response = await api.patch("/users/me", payload);
       if (response.data?.user) {
         updateUser(response.data.user);
       }
@@ -143,7 +165,7 @@ const ProfilePanel = () => {
         lastName: user.lastName ?? "",
         email: user.email ?? "",
         phoneNumber: user.phoneNumber ?? "",
-        birthDate: user.birthDate ? user.birthDate.slice(0, 10) : "",
+        birthDate: user.birthDate ? toLocalDateString(user.birthDate) : "",
         major: user.major ?? "math",
         grade: user.grade ?? "12",
         nationalId: user.nationalId ?? "",
@@ -655,15 +677,24 @@ const Field = ({
       {label}
     </label>
     {editing ? (
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
-      />
+      type === "date" ? (
+        <DateWheelPickerModal
+          value={value}
+          onChange={onChange}
+          aria-label={label}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
+        />
+      )
     ) : (
       <div className="rounded-xl border border-gray-200/70 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] px-3 py-2.5 text-sm font-bold text-gray-900 dark:text-white min-h-[42px] flex items-center">
-        {value || "—"}
+        {/* ✅ اگه type="date" بود، شمسی نشون بده */}
+        {type === "date" && value ? formatJalaliDisplay(value) : value || "—"}
       </div>
     )}
     {note && (
