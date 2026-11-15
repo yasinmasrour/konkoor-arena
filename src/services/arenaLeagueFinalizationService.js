@@ -6,6 +6,7 @@ const {
 } = require("../constants/arenaReward");
 const notificationService = require("./notificationService");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
+const achievementService = require("./achievementService");
 
 // ==================== ساخت standings ====================
 const buildStandings = (ratings, leagueId) => {
@@ -25,7 +26,6 @@ const distributeRewardsTx = async (tx, leagueId, standings) => {
   const results = [];
 
   for (const standing of standings) {
-    // 🔹 چک واجد شرایط بودن
     if (!isEligibleForReward(standing)) {
       results.push({
         userId: standing.userId,
@@ -36,7 +36,6 @@ const distributeRewardsTx = async (tx, leagueId, standings) => {
       continue;
     }
 
-    // 🔹 گرفتن مبلغ جایزه
     const amount = getRewardForRank(standing.rank);
 
     if (amount <= 0) {
@@ -49,7 +48,6 @@ const distributeRewardsTx = async (tx, leagueId, standings) => {
       continue;
     }
 
-    // 🔹 چک که قبلاً پرداخت نشده باشه
     const existingReward = await tx.walletTransaction.findFirst({
       where: {
         userId: standing.userId,
@@ -69,9 +67,7 @@ const distributeRewardsTx = async (tx, leagueId, standings) => {
       continue;
     }
 
-    // 🔹 واریز به کیف پول
     try {
-      // گرفتن یا ساخت کیف پول
       let wallet = await tx.wallet.findUnique({
         where: { userId: standing.userId },
       });
@@ -89,13 +85,11 @@ const distributeRewardsTx = async (tx, leagueId, standings) => {
       const balanceBefore = wallet.balance;
       const balanceAfter = balanceBefore + amount;
 
-      // آپدیت موجودی
       await tx.wallet.update({
         where: { id: wallet.id },
         data: { balance: balanceAfter },
       });
 
-      // ثبت تراکنش
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
@@ -153,9 +147,8 @@ const distributeRewardsTx = async (tx, leagueId, standings) => {
   return results;
 };
 
-// ==================== نهایی‌سازی داخل transaction (استفاده‌شده در Job) ====================
+// ==================== نهایی‌سازی داخل transaction ====================
 const finalizeLeagueTx = async (tx, leagueId) => {
-  // 🔹 چک standings قبلی
   const existingStandings = await tx.arenaLeagueStanding.findMany({
     where: { leagueId },
   });
@@ -165,7 +158,6 @@ const finalizeLeagueTx = async (tx, leagueId) => {
   if (existingStandings.length > 0) {
     standings = existingStandings;
   } else {
-    // 🔹 گرفتن rating ها
     const ratings = await tx.arenaRating.findMany({
       where: { leagueId },
       orderBy: [{ rating: "desc" }, { wins: "desc" }],
@@ -175,7 +167,6 @@ const finalizeLeagueTx = async (tx, leagueId) => {
       return { standings: [], rewards: [] };
     }
 
-    // 🔹 ساخت standings
     standings = buildStandings(ratings, leagueId);
 
     await tx.arenaLeagueStanding.createMany({
@@ -183,21 +174,17 @@ const finalizeLeagueTx = async (tx, leagueId) => {
     });
   }
 
-  // 🔹 چک که جایزه‌ها قبلاً پرداخت نشده باشن
   const league = await tx.arenaLeague.findUnique({
     where: { id: leagueId },
     select: { rewardsDistributedAt: true },
   });
 
   if (league?.rewardsDistributedAt) {
-    // جایزه‌ها قبلاً پرداخت شده
     return { standings, rewards: [] };
   }
 
-  // 🔹 پرداخت جایزه‌ها
   const rewards = await distributeRewardsTx(tx, leagueId, standings);
 
-  // 🔹 ثبت که جایزه‌ها پرداخت شده
   await tx.arenaLeague.update({
     where: { id: leagueId },
     data: { rewardsDistributedAt: new Date() },
@@ -206,9 +193,34 @@ const finalizeLeagueTx = async (tx, leagueId) => {
   return { standings, rewards };
 };
 
+// ==================== 🆕 آپدیت آمار برنده‌ی رتبه‌ی اول ====================
+/**
+ * بعد از finalize شدن یه لیگ، اگه کاربر رتبه‌ی اول داشته باشه،
+ * arenaFirstRank رو زیاد می‌کنه.
+ */
+const incrementArenaFirstRank = async (userId) => {
+  try {
+    await achievementService.updateUserStats(userId, {
+      arenaFirstRank: { increment: 1 },
+    });
+
+    const newlyUnlocked =
+      await achievementService.checkAndUnlockAchievements(userId);
+
+    if (newlyUnlocked.length > 0) {
+      console.log(
+        `🏆 User ${userId} unlocked ${newlyUnlocked.length} achievements:`,
+        newlyUnlocked.map((ua) => ua.tier?.title),
+      );
+    }
+  } catch (err) {
+    console.error("incrementArenaFirstRank error:", err);
+  }
+};
+
 // ==================== نهایی‌سازی مستقل (بدون transaction خارجی) ====================
 const finalizeLeague = async (leagueId) => {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const league = await tx.arenaLeague.findUnique({
       where: { id: leagueId },
     });
@@ -223,6 +235,17 @@ const finalizeLeague = async (leagueId) => {
 
     return finalizeLeagueTx(tx, leagueId);
   });
+
+  // 🆕 بعد از تراکنش: آپدیت arenaFirstRank
+  if (result.standings && result.standings.length > 0) {
+    const firstPlace = result.standings.find((s) => s.rank === 1);
+
+    if (firstPlace) {
+      await incrementArenaFirstRank(firstPlace.userId);
+    }
+  }
+
+  return result;
 };
 
 // ==================== گرفتن جایزه‌های یه لیگ ====================
@@ -257,4 +280,5 @@ module.exports = {
   finalizeLeague,
   finalizeLeagueTx,
   getLeagueRewards,
+  incrementArenaFirstRank,
 };

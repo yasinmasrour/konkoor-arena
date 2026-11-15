@@ -4,7 +4,7 @@ const {
 } = require("../src/utils/referralCode");
 
 async function main() {
-  console.log("🔍 شروع backfill کدهای دعوت...\n");
+  console.log("شروع backfill کدهای دعوت...\n");
 
   const users = await prisma.user.findMany({
     where: { referralCode: null },
@@ -12,7 +12,7 @@ async function main() {
   });
 
   if (users.length === 0) {
-    console.log("✅ همه کاربران از قبل کد دارن. کاری برای انجام نیست.");
+    console.log("همه کاربران از قبل کد دارن. کاری برای انجام نیست.");
     return;
   }
 
@@ -29,23 +29,23 @@ async function main() {
         data: { referralCode: code },
       });
       console.log(
-        `✅ ${user.username} (${user.firstName} ${user.lastName}) → ${code}`
+        `${user.username} (${user.firstName} ${user.lastName}) → ${code}`
       );
       successCount++;
     } catch (error) {
-      console.error(`❌ ${user.username} → خطا: ${error.message}`);
+      console.error(`${user.username} → خطا: ${error.message}`);
       failCount++;
     }
   }
 
-  console.log("\n🎉 تمام شد!");
-  console.log(`   ✅ موفق: ${successCount}`);
-  console.log(`   ❌ ناموفق: ${failCount}`);
+  console.log("\nتمام شد!");
+  console.log(`   موفق: ${successCount}`);
+  console.log(`   ناموفق: ${failCount}`);
 }
 
 main()
   .catch((e) => {
-    console.error("❌ خطای کلی:", e);
+    console.error("خطای کلی:", e);
     process.exit(1);
   })
   .finally(async () => {

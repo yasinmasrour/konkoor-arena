@@ -15,6 +15,14 @@ const adminListPosts = asyncHandler(async (req, res) => {
   res.status(200).json(result);
 });
 
+// 🆕 دریافت مقاله با ID (برای ویرایش)
+const adminGetPostById = asyncHandler(async (req, res) => {
+  const result = await blogService.adminGetPostById({
+    postId: req.params.id,
+  });
+  res.status(200).json(result);
+});
+
 const adminCreatePost = asyncHandler(async (req, res) => {
   const post = await blogService.createPost({
     userId: req.user.id,
@@ -124,6 +132,7 @@ const adminDeleteComment = asyncHandler(async (req, res) => {
 
 module.exports = {
   adminListPosts,
+  adminGetPostById, // 🆕
   adminCreatePost,
   adminUpdatePost,
   adminDeletePost,

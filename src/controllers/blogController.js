@@ -174,11 +174,14 @@ const createPost = asyncHandler(async (req, res) => {
 });
 
 const updatePost = asyncHandler(async (req, res) => {
+  // 🆕 پشتیبانی از هر دو حالت: role رشته یا آبجکت
+  const isAdmin = req.user.role === "ADMIN" || req.user.role?.name === "ADMIN";
+
   const post = await blogService.updatePost({
     postId: req.params.id,
     userId: req.user.id,
     data: req.body,
-    isAdmin: false,
+    isAdmin,
   });
   res.status(200).json({ message: "مقاله ویرایش شد", post });
 });

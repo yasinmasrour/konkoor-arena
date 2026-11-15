@@ -1,6 +1,10 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const arenaRatingService = require("./arenaRatingService");
+const achievementService = require("./achievementService");
+
+// ==================== 🆕 آستانه‌ی پاسخ سریع (۳۰ ثانیه) ====================
+const FAST_ANSWER_THRESHOLD_MS = 30000;
 
 const runArenaTransaction = async (callback) => {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -11,9 +15,6 @@ const runArenaTransaction = async (callback) => {
         timeout: 10000,
       });
     } catch (error) {
-      // PostgreSQL can abort one of two truly simultaneous Arena actions
-      // under Serializable isolation. Retrying makes the action naturally
-      // converge on the committed match/question state.
       if (error?.code !== "P2034" || attempt === 3) {
         throw error;
       }
@@ -144,7 +145,7 @@ const createArenaMatchTx = async (
     data: {
       leagueId,
       status: "waiting",
-      isFriendly, // 🆕
+      isFriendly,
       players: {
         create: [
           { userId: userId1, lives: 3 },
@@ -176,7 +177,6 @@ const getArenaMatchById = async (matchId, userId) => {
     where: {
       id: matchId,
     },
-
     include: {
       league: {
         select: {
@@ -188,19 +188,13 @@ const getArenaMatchById = async (matchId, userId) => {
           status: true,
         },
       },
-
       players: {
         select: {
           id: true,
-
           userId: true,
-
           lives: true,
-
           status: true,
-
           isWinner: true,
-
           user: {
             select: {
               firstName: true,
@@ -209,31 +203,21 @@ const getArenaMatchById = async (matchId, userId) => {
           },
         },
       },
-
       questions: {
         where: {
           status: "active",
         },
-
         orderBy: {
           order: "asc",
         },
-
         take: 1,
-
         select: {
           id: true,
-
           questionId: true,
-
           order: true,
-
           timeLimit: true,
-
           startedAt: true,
-
           status: true,
-
           question: {
             select: {
               id: true,
@@ -271,31 +255,19 @@ const getArenaMatchById = async (matchId, userId) => {
 
   return {
     id: match.id,
-
     status: match.status,
-
     winnerId: match.winnerId,
-
     startedAt: match.startedAt,
-
     finishedAt: match.finishedAt,
-
     league: match.league,
-
     players: match.players.map((player) => ({
       userId: player.userId,
-
       firstName: player.user.firstName,
-
       lastName: player.user.lastName,
-
       lives: player.lives,
-
       status: player.status,
-
       isWinner: player.isWinner,
     })),
-
     currentQuestion: currentQuestion
       ? {
           matchQuestionId: currentQuestion.id,
@@ -317,10 +289,8 @@ const startArenaMatch = async (matchId) => {
       where: {
         id: matchId,
       },
-
       include: {
         players: true,
-
         questions: {
           orderBy: {
             order: "asc",
@@ -351,7 +321,6 @@ const startArenaMatch = async (matchId) => {
       where: {
         id: matchId,
       },
-
       data: {
         status: "playing",
         startedAt: now,
@@ -364,13 +333,46 @@ const startArenaMatch = async (matchId) => {
   });
 };
 
+// ==================== 🆕 after match finished ====================
+/**
+ * بعد از اینکه یه match تموم شد و برنده داشت:
+ * - arenaWins برنده رو زیاد کن
+ * - چک دستاوردها
+ */
+const afterMatchFinished = async (matchResult) => {
+  if (!matchResult?.finished || !matchResult?.winnerId) return;
+
+  try {
+    await achievementService.updateUserStats(matchResult.winnerId, {
+      arenaWins: { increment: 1 },
+    });
+
+    const newlyUnlocked = await achievementService.checkAndUnlockAchievements(
+      matchResult.winnerId,
+    );
+
+    if (newlyUnlocked.length > 0) {
+      console.log(
+        `🏆 User ${matchResult.winnerId} unlocked ${newlyUnlocked.length} achievements:`,
+        newlyUnlocked.map((ua) => ua.tier?.title),
+      );
+    }
+  } catch (err) {
+    console.error("afterMatchFinished error:", err);
+  }
+};
+
+// ==================== submitArenaAnswer ====================
 const submitArenaAnswer = async ({
   matchId,
   matchQuestionId,
   playerId,
   selectedAnswer,
 }) => {
-  return await runArenaTransaction(async (tx) => {
+  // 🆕 پرچم‌ها برای بعد از تراکنش
+  let shouldIncrementFastAnswer = false;
+
+  const result = await runArenaTransaction(async (tx) => {
     const matchQuestion = await tx.arenaMatchQuestion.findUnique({
       where: { id: matchQuestionId },
       include: {
@@ -411,6 +413,12 @@ const submitArenaAnswer = async ({
     }
 
     const isCorrect = selectedAnswer === matchQuestion.question.correctAnswer;
+
+    // 🆕 اگه پاسخ درست و سریع بود
+    if (isCorrect && elapsedMs <= FAST_ANSWER_THRESHOLD_MS) {
+      shouldIncrementFastAnswer = true;
+    }
+
     const answer = await tx.arenaAnswer.create({
       data: {
         matchQuestionId,
@@ -430,9 +438,6 @@ const submitArenaAnswer = async ({
     );
 
     if (!isCorrect) {
-      // A wrong answer locks the player. The life is deducted only when the
-      // question is resolved: either the opponent answers correctly, or both
-      // players have answered incorrectly.
       await tx.arenaMatchPlayer.update({
         where: { id: player.id },
         data: { status: "locked" },
@@ -449,9 +454,6 @@ const submitArenaAnswer = async ({
         };
       }
 
-      // At this point the opponent can only have answered incorrectly. A
-      // correct opponent answer would already have atomically finished the
-      // question before this request reached this branch.
       const finishedGate = await tx.arenaMatchQuestion.updateMany({
         where: { id: matchQuestionId, status: "active" },
         data: { status: "finished", finishedAt: now },
@@ -491,7 +493,6 @@ const submitArenaAnswer = async ({
       };
     }
 
-    // The first correct answer atomically claims the active question.
     const finishedGate = await tx.arenaMatchQuestion.updateMany({
       where: { id: matchQuestionId, status: "active" },
       data: {
@@ -505,10 +506,6 @@ const submitArenaAnswer = async ({
       throw new AppError("Question is no longer active", 409);
     }
 
-    // A correct answer costs the opponent one life whether they had not
-    // answered yet or had already answered incorrectly. The only case where
-    // no life is deducted is impossible here for a correct opponent answer,
-    // because the first correct answer atomically finishes the question.
     let opponentLives = opponent.lives;
     if (!opponentAnswer || !opponentAnswer.isCorrect) {
       opponentLives = Math.max(opponent.lives - 1, 0);
@@ -532,8 +529,31 @@ const submitArenaAnswer = async ({
       match: matchResult,
     };
   });
+
+  // 🆕 بعد از تراکنش: آمار
+  if (shouldIncrementFastAnswer) {
+    await achievementService
+      .updateUserStats(playerId, {
+        fastAnswers: { increment: 1 },
+      })
+      .catch((err) => {
+        console.error("Failed to increment fastAnswers:", err);
+      });
+
+    await achievementService
+      .checkAndUnlockAchievements(playerId)
+      .catch((err) => {
+        console.error("Failed to check achievements:", err);
+      });
+  }
+
+  // 🆕 اگه match تموم شد و برنده داشت
+  await afterMatchFinished(result.match);
+
+  return result;
 };
 
+// ==================== finishArenaMatch ====================
 const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
   const match = await tx.arenaMatch.findUnique({
     where: { id: matchId },
@@ -569,8 +589,6 @@ const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
   } else if (player2.lives <= 0) {
     winnerId = player1.userId;
   } else if (forceFinish) {
-    // After all five questions: remaining lives are the primary score.
-    // Question wins break a tie. If both are still equal, it is a draw.
     if (player1.lives > player2.lives) {
       winnerId = player1.userId;
     } else if (player2.lives > player1.lives) {
@@ -645,8 +663,9 @@ const finishArenaMatch = async (tx, matchId, { forceFinish = false } = {}) => {
   return { finished: true, winnerId, isDraw: !winnerId, rating };
 };
 
+// ==================== finishArenaQuestionByTimeout ====================
 const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
-  return await runArenaTransaction(async (tx) => {
+  const result = await runArenaTransaction(async (tx) => {
     const matchQuestion = await tx.arenaMatchQuestion.findUnique({
       where: { id: matchQuestionId },
       include: {
@@ -678,8 +697,6 @@ const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
       throw new AppError("Invalid number of players", 400);
     }
 
-    // Claim the active question before mutating lives so a duplicate timeout
-    // callback can never deduct lives twice.
     const finishedGate = await tx.arenaMatchQuestion.updateMany({
       where: { id: matchQuestionId, status: "active" },
       data: { status: "finished", finishedAt: now },
@@ -689,9 +706,6 @@ const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
       throw new AppError("Question is no longer active", 409);
     }
 
-    // 🆕 FIXED: هر بازیکنی که جواب درست نداده (اشتباه، تایم‌اوت، یا جواب نداده)
-    // باید یه جان کم کنه. منطق قبلی فقط کسی که جواب نداده رو penalize می‌کرد
-    // و کسی که جواب اشتباه داده بود، نادیده گرفته می‌شد (سناریو ۴).
     const playersWhoLostLife = [];
 
     for (const player of matchQuestion.match.players) {
@@ -699,10 +713,8 @@ const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
         (item) => item.playerId === player.userId,
       );
 
-      // اگه جواب درست داده → معاف
       if (answer?.isCorrect === true) continue;
 
-      // در غیر این صورت (اشتباه، تایم‌اوت، یا جواب نداده) → یه جان کم کن
       const lives = Math.max(player.lives - 1, 0);
       await tx.arenaMatchPlayer.update({
         where: { id: player.id },
@@ -723,8 +735,14 @@ const finishArenaQuestionByTimeout = async (matchId, matchQuestionId) => {
       match: matchResult,
     };
   });
+
+  // 🆕 بعد از تراکنش: اگه match تموم شد
+  await afterMatchFinished(result.match);
+
+  return result;
 };
 
+// ==================== startNextArenaQuestion ====================
 const startNextArenaQuestion = async (matchId) => {
   return await runArenaTransaction(async (tx) => {
     const match = await tx.arenaMatch.findUnique({

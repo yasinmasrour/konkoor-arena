@@ -68,7 +68,6 @@ const BookletBuilder = lazy(() => import("../pages/Booklets/BookletBuilder"));
 const BlogList = lazy(() => import("../pages/Blog/BlogList"));
 const BlogPost = lazy(() => import("../pages/Blog/BlogPost"));
 const BlogEditor = lazy(() => import("../pages/Blog/BlogEditor"));
-const MyBlogPosts = lazy(() => import("../pages/Blog/MyBlogPosts"));
 const AdminBlog = lazy(() => import("../pages/Admin/AdminBlog"));
 const AdminBlogComments = lazy(
   () => import("../pages/Admin/AdminBlogComments"),
@@ -118,6 +117,9 @@ const AdminContactMessages = lazy(
 const AdminAnnouncements = lazy(
   () => import("../pages/Admin/AdminAnnouncements"),
 );
+
+// 🆕 Achievements
+const Achievements = lazy(() => import("../pages/Achievements"));
 
 // Public (سبک)
 const About = lazy(() => import("../pages/About"));
@@ -207,6 +209,9 @@ const router = createBrowserRouter([
           { path: "notifications", element: withSuspense(Notifications) },
           { path: "referral", element: withSuspense(Referral) },
 
+          // 🆕 --- دستاوردها ---
+          { path: "achievements", element: withSuspense(Achievements) },
+
           // --- بلاگ نویسنده ---
           {
             path: "dashboard/blog/new",
@@ -215,10 +220,6 @@ const router = createBrowserRouter([
           {
             path: "dashboard/blog/:id/edit",
             element: withSuspense(BlogEditor),
-          },
-          {
-            path: "dashboard/my-blog-posts",
-            element: withSuspense(MyBlogPosts),
           },
 
           // --- برنامه مطالعاتی (لیست + جزئیات) ---

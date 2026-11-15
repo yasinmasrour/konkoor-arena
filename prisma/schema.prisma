@@ -122,6 +122,9 @@ model User {
   passwordResetLockedUntil DateTime?
 
   contactMessages ContactMessage[]
+
+  userAchievements UserAchievement[]
+  userStats        UserStats?
 }
 
 model Notification {
@@ -547,38 +550,30 @@ model Exam {
   id String @id @default(cuid())
 
   title String
-
   examDate DateTime
-
   startTime String
-
   endTime String @default("")
 
   booklets ExamBooklet[]
-
   attempts Attempt[]
-
   status String @default("draft")
-
   comments ExamComment[]
-
   studyPlans StudyPlan[]
-
   payments  Payment[]
-
   price     Int            @default(3000000)
-
   purchases ExamPurchase[]
-
   accessType String @default("SUBSCRIPTION")
   // FREE | PURCHASE | SUBSCRIPTION | SUBSCRIPTION_OR_PURCHASE
 
-  createdById String
+  participantCount Int @default(0)
+  averageScore Float?
+  stdDeviation Float?
+  lastStatsUpdate DateTime?
 
+  createdById String
   createdBy User @relation(fields: [createdById], references: [id])
 
   createdAt DateTime @default(now())
-
   updatedAt DateTime @updatedAt
 }
 
@@ -604,37 +599,37 @@ model Attempt {
   id String @id @default(cuid())
 
   studentId String
-
   examId String
 
   student User @relation(fields: [studentId], references: [id])
-
   exam Exam @relation(fields: [examId], references: [id])
 
   answers AttemptAnswer[]
-
   attemptBooklets AttemptBooklet[]
 
   startedAt DateTime?
-
   submittedAt DateTime?
 
   status String @default("started")
 
   score Float @default(0)
-
   analysis Json @default("{}")
+
+  tarazScore Float?
+  rank Int?
+  totalParticipants Int?
+  percentile Float?
 
   aiAnalysis AIAnalysis?
 
   createdAt DateTime @default(now())
-
   updatedAt DateTime @updatedAt
 
   @@unique([studentId, examId])
   @@index([studentId])
   @@index([examId])
   @@index([studentId, status])
+  @@index([examId, status, score])
 }
 
 model AIAnalysis {
@@ -1494,4 +1489,96 @@ model Announcement {
 
   @@index([isActive, displayType, priority])
   @@index([startsAt, endsAt])
+}
+
+model AchievementFamily {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  description String
+  category    String
+  icon        String   @default("Trophy")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  tiers AchievementTier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([sortOrder])
+}
+
+model AchievementTier {
+  id             String @id @default(cuid())
+  familyId       String
+  tier           String
+  title          String
+  description    String
+  conditionValue Int
+  points         Int    @default(10)
+  sortOrder      Int    @default(0)
+
+  family AchievementFamily  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  users  UserAchievement[]
+
+  @@unique([familyId, tier])
+  @@index([familyId])
+}
+
+model UserAchievement {
+  id         String   @id @default(cuid())
+  userId     String
+  tierId     String
+  progress   Int      @default(0)
+  unlockedAt DateTime @default(now())
+  seen       Boolean  @default(false)
+
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier AchievementTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tierId])
+  @@index([userId])
+  @@index([userId, seen])
+}
+
+model UserStats {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  totalAttempts      Int @default(0)
+  totalPerfectScores Int @default(0)
+  totalHighScores90  Int @default(0)
+  totalHighScores70  Int @default(0)
+
+  current90Streak Int @default(0)
+  max90Streak     Int @default(0)
+  current70Streak Int @default(0)
+  max70Streak     Int @default(0)
+  currentAttemptStreak Int @default(0)
+  maxAttemptStreak     Int @default(0)
+
+  totalQuestions Int @default(0)
+  totalCorrect   Int @default(0)
+  totalWrong     Int @default(0)
+
+  perfectMath      Int @default(0)
+  perfectPhysics   Int @default(0)
+  perfectChemistry Int @default(0)
+  perfectBiology   Int @default(0)
+
+  arenaWins      Int @default(0)
+  arenaFirstRank Int @default(0)
+
+  fastAnswers   Int @default(0)
+  earlyFinishes Int @default(0)
+
+  hasSubscription Boolean   @default(false)
+  membershipStart DateTime?
+
+  achievementPoints Int @default(0)
+
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -13,7 +13,7 @@ const { NOTIFICATIONS } = require("../constants/referral");
  * ریست دوره همه کاربرانی که نیاز دارن
  */
 async function resetExpiredCycles() {
-  console.log("🔄 [ReferralCycleJob] شروع بررسی دورهها...");
+  console.log("[ReferralCycleJob] شروع بررسی دورهها...");
 
   const now = new Date();
   const currentCycleStart = getCurrentCycleStart(now);
@@ -30,12 +30,12 @@ async function resetExpiredCycles() {
   });
 
   if (users.length === 0) {
-    console.log("✅ [ReferralCycleJob] هیچ کاربری نیاز به ریست نداره.");
+    console.log("[ReferralCycleJob] هیچ کاربری نیاز به ریست نداره.");
     return { reset: 0 };
   }
 
   console.log(
-    `🔹 [ReferralCycleJob] ${users.length} کاربر نیاز به ریست دارن.`
+    `[ReferralCycleJob] ${users.length} کاربر نیاز به ریست دارن.`
   );
 
   let successCount = 0;
@@ -64,14 +64,14 @@ async function resetExpiredCycles() {
       successCount++;
     } catch (error) {
       console.error(
-        `❌ [ReferralCycleJob] خطا برای کاربر ${user.id}:`,
+        `  [ReferralCycleJob] خطا برای کاربر ${user.id}:`,
         error.message
       );
     }
   }
 
   console.log(
-    `🎉 [ReferralCycleJob] ${successCount} کاربر با موفقیت ریست شدن.`
+    `  [ReferralCycleJob] ${successCount} کاربر با موفقیت ریست شدن.`
   );
 
   return { reset: successCount };
@@ -87,12 +87,12 @@ function startReferralCycleJob() {
     try {
       await resetExpiredCycles();
     } catch (error) {
-      console.error("❌ [ReferralCycleJob] خطای کلی:", error);
+      console.error("[ReferralCycleJob] خطای کلی:", error);
     }
   });
 
   console.log(
-    "✅ [ReferralCycleJob] Cron Job راهاندازی شد (هر روز ۳ بامداد)."
+    "[ReferralCycleJob] Cron Job راهاندازی شد (هر روز ۳ بامداد)."
   );
 
   return task;

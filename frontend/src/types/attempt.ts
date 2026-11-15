@@ -1,3 +1,4 @@
+// ==================== Questions ====================
 export interface AttemptQuestion {
   id: string;
   questionText: string;
@@ -16,6 +17,7 @@ export interface AttemptQuestionsResponse {
   questions: AttemptQuestion[];
 }
 
+// ==================== Result ====================
 export interface AttemptSubjectResult {
   lesson: string;
   correct: number;
@@ -42,9 +44,18 @@ export interface AttemptResultResponse {
     percentage: number;
 
     subjects?: AttemptSubjectResult[];
+
+    tarazScore: number | null;
+    rank: number | null;
+    percentile: number | null;
+    totalParticipants: number;
+    minParticipants: number;
+    examAverage: number | null;
+    examStdDev: number | null;
   };
 }
 
+// ==================== Review ====================
 export interface AttemptReviewQuestion {
   id: string;
   questionText: string;
@@ -74,6 +85,7 @@ export interface AttemptReviewResponse {
   questions: AttemptReviewQuestion[];
 }
 
+// ==================== My Attempts ====================
 export interface MyAttempt {
   id: string;
 
@@ -90,6 +102,11 @@ export interface MyAttempt {
   percentage: number;
 
   submittedAt: string | null;
+
+  tarazScore: number | null;
+  rank: number | null;
+  percentile: number | null;
+  totalParticipants: number | null;
 }
 
 export interface MyAttemptsResponse {

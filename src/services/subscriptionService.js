@@ -2,6 +2,7 @@ const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const { SUBSCRIPTION_STATUS } = require("../constants/subscription");
 const { getPlanPricing } = require("../utils/planHelper");
+const achievementService = require("./achievementService");
 
 const expireSubscriptions = async (tx = prisma) => {
   await tx.subscription.updateMany({
@@ -17,11 +18,6 @@ const expireSubscriptions = async (tx = prisma) => {
   });
 };
 
-/**
- * محاسبه‌ی قیمت نهایی یه پلن
- * @param {string} planId
- * @returns {Promise<{plan, pricing}>}
- */
 const getPlanPricingById = async (planId) => {
   const plan = await prisma.subscriptionPlan.findUnique({
     where: { id: planId },
@@ -136,6 +132,33 @@ const getSubscriptionHistory = async (userId) => {
   });
 };
 
+// ==================== چک FIRST_SUBSCRIPTION ====================
+const checkFirstSubscriptionAchievement = async (userId) => {
+  try {
+    const stats = await achievementService.getUserStats(userId);
+
+    if (stats.hasSubscription) return;
+
+    await achievementService.updateUserStats(userId, {
+      hasSubscription: true,
+      membershipStart: new Date(),
+    });
+
+    const newlyUnlocked =
+      await achievementService.checkAndUnlockAchievements(userId);
+
+    if (newlyUnlocked.length > 0) {
+      console.log(
+        `🏆 User ${userId} unlocked ${newlyUnlocked.length} achievements:`,
+        newlyUnlocked.map((ua) => ua.tier?.title),
+      );
+    }
+  } catch (err) {
+    console.error("checkFirstSubscriptionAchievement error:", err);
+  }
+};
+
+// ==================== createSubscription ====================
 const createSubscription = async ({
   userId,
   planId,
@@ -147,7 +170,7 @@ const createSubscription = async ({
   const end = new Date(start);
   end.setDate(end.getDate() + plan.durationDays);
 
-  return prisma.$transaction(async (tx) => {
+  const subscription = await prisma.$transaction(async (tx) => {
     await expireSubscriptions(tx);
 
     const activeSubscription = await tx.subscription.findFirst({
@@ -180,6 +203,10 @@ const createSubscription = async ({
       },
     });
   });
+
+  await checkFirstSubscriptionAchievement(userId);
+
+  return subscription;
 };
 
 const getAdminPlans = async () => {
@@ -196,14 +223,53 @@ const getAdminPlans = async () => {
   });
 };
 
+// ==================== محاسبه‌ی مبلغ واقعی پرداختی ====================
+const getActualPaidAmount = async (tx, subscription) => {
+  const payment = await tx.payment.findFirst({
+    where: {
+      subscriptionId: subscription.id,
+      status: "paid",
+    },
+    orderBy: { paidAt: "desc" },
+    select: { amount: true, discountAmount: true },
+  });
+
+  if (payment?.amount) {
+    return payment.amount;
+  }
+
+  const fallbackPayment = await tx.payment.findFirst({
+    where: {
+      userId: subscription.userId,
+      planId: subscription.planId,
+      status: "paid",
+      type: "subscription",
+    },
+    orderBy: { createdAt: "desc" },
+    select: { amount: true },
+  });
+
+  if (fallbackPayment?.amount) {
+    return fallbackPayment.amount;
+  }
+
+  return subscription.plan?.price ?? 0;
+};
+
 // ==================== 🆕 Refund اشتراک قدیمی ====================
 /**
- * محاسبه و بازگشت باقی‌مونده اشتراک قدیمی به کیف پول
+ * بازگشت وجه اشتراک قدیمی.
+ *
+ * 🆕 قانون جدید:
+ * فقط اگه اشتراک جدید **گرون‌تر** از اشتراک فعلی باشه، refund انجام میشه.
+ * (یعنی کاربر داره به یه پلن بالاتر ارتقا میده)
+ *
  * @param {object} tx - تراکنش Prisma
  * @param {object} oldSubscription - اشتراک فعال قبلی (با plan)
- * @returns {Promise<{ refundAmount: number, remainingDays: number } | null>}
+ * @param {object} newPlan - پلن جدید که کاربر داره میخره (با price)
+ * @returns {Promise<{refundAmount, remainingDays, actualPaidAmount} | null>}
  */
-const refundOldSubscription = async (tx, oldSubscription) => {
+const refundOldSubscription = async (tx, oldSubscription, newPlan) => {
   if (
     !oldSubscription ||
     oldSubscription.status !== SUBSCRIPTION_STATUS.ACTIVE
@@ -211,11 +277,18 @@ const refundOldSubscription = async (tx, oldSubscription) => {
     return null;
   }
 
+  // 🆕 قانون: فقط اگه اشتراک جدید گرون‌تر باشه
+  const oldPlanPrice = oldSubscription.plan?.price ?? 0;
+  const newPlanPrice = newPlan?.price ?? 0;
+
+  if (newPlanPrice <= oldPlanPrice) {
+    return null; // اشتراک جدید بهتر/گرون‌تر نیست → refund نمیشه
+  }
+
   const now = new Date();
   const endDate = new Date(oldSubscription.endDate);
   const startDate = new Date(oldSubscription.startDate);
 
-  // اگه منقضی شده
   if (endDate <= now) return null;
 
   const totalDays = Math.ceil(
@@ -227,13 +300,19 @@ const refundOldSubscription = async (tx, oldSubscription) => {
 
   if (totalDays <= 0 || remainingDays <= 0) return null;
 
-  // محاسبه refund نسبی
-  const planPrice = oldSubscription.plan?.price ?? 0;
-  const refundAmount = Math.floor((remainingDays / totalDays) * planPrice);
+  // 🆕 استفاده از مبلغ واقعی پرداختی (نه قیمت اصلی)
+  const actualPaidAmount = await getActualPaidAmount(tx, oldSubscription);
+
+  if (actualPaidAmount <= 0) return null;
+
+  // 🆕 refund نسبی بر اساس مبلغ واقعی
+  const refundAmount = Math.floor(
+    (remainingDays / totalDays) * actualPaidAmount,
+  );
 
   if (refundAmount <= 0) return null;
 
-  // 🔹 گرفتن کیف پول کاربر
+  // 🔹 گرفتن یا ساخت کیف پول
   let wallet = await tx.wallet.findUnique({
     where: { userId: oldSubscription.userId },
   });
@@ -265,6 +344,10 @@ const refundOldSubscription = async (tx, oldSubscription) => {
           oldPlanId: oldSubscription.planId,
           remainingDays,
           totalDays,
+          actualPaidAmount,
+          originalPlanPrice: oldSubscription.plan?.price ?? 0,
+          newPlanId: newPlan?.id ?? null,
+          newPlanPrice: newPlanPrice,
         },
       },
     });
@@ -295,12 +378,15 @@ const refundOldSubscription = async (tx, oldSubscription) => {
           oldPlanId: oldSubscription.planId,
           remainingDays,
           totalDays,
+          actualPaidAmount,
+          originalPlanPrice: oldSubscription.plan?.price ?? 0,
+          newPlanId: newPlan?.id ?? null,
+          newPlanPrice: newPlanPrice,
         },
       },
     });
   }
 
-  // 🔹 اشتراک قدیمی → cancelled
   await tx.subscription.update({
     where: { id: oldSubscription.id },
     data: {
@@ -310,7 +396,7 @@ const refundOldSubscription = async (tx, oldSubscription) => {
     },
   });
 
-  return { refundAmount, remainingDays };
+  return { refundAmount, remainingDays, actualPaidAmount };
 };
 
 module.exports = {
@@ -326,4 +412,6 @@ module.exports = {
   getAdminPlans,
   refundOldSubscription,
   getPlanPricingById,
+  checkFirstSubscriptionAchievement,
+  getActualPaidAmount,
 };

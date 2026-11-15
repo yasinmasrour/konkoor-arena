@@ -6,9 +6,6 @@ const {
 } = require("../constants/notification");
 
 // ==================== ساخت اعلان ====================
-/**
- * ساخت یه اعلان جدید
- */
 const createNotification = async ({
   userId,
   type,
@@ -50,6 +47,82 @@ const createManyNotifications = async (notifications) => {
   }));
 
   return prisma.notification.createMany({ data });
+};
+
+// ==================== 🆕 ساخت یا ادغام اعلان ====================
+/**
+ * اگه Notification مشابه توی بازه‌ی اخیر وجود داشت،
+ * به جای ساخت Notification جدید، اون رو ادغام می‌کنه.
+ *
+ * @param {object} params
+ * @param {string} params.userId
+ * @param {string} params.type
+ * @param {string} params.title - عنوان پایه (بدون عدد)
+ * @param {string} params.message - پیام جدید
+ * @param {string} [params.link]
+ * @param {string} [params.icon]
+ * @param {object} [params.metadata]
+ * @param {number} [params.mergeWindowMinutes] - پنجره‌ی ادغام (پیش‌فرض: ۳۰ دقیقه)
+ */
+const createOrMergeNotification = async ({
+  userId,
+  type,
+  title,
+  message,
+  link = null,
+  icon = null,
+  metadata = null,
+  mergeWindowMinutes = 30,
+}) => {
+  if (!userId || !type || !title || !message) {
+    throw new AppError("userId, type, title و message الزامی هستند", 400);
+  }
+
+  const windowStart = new Date(Date.now() - mergeWindowMinutes * 60 * 1000);
+
+  // پیدا کردن Notification مشابه
+  const existing = await prisma.notification.findFirst({
+    where: {
+      userId,
+      type,
+      isRead: false,
+      createdAt: { gte: windowStart },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    const existingMeta = existing.metadata || {};
+    const count = (existingMeta.count || 1) + 1;
+
+    // ادغام: عنوان با عدد، پیام ترکیبی
+    const newTitle = `${count.toLocaleString("fa-IR")} ${title}`;
+    const newMessage = `${message}\n${existing.message}`.slice(0, 500);
+
+    return prisma.notification.update({
+      where: { id: existing.id },
+      data: {
+        title: newTitle,
+        message: newMessage,
+        metadata: {
+          ...existingMeta,
+          count,
+          lastUpdated: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
+  // Notification جدید
+  return createNotification({
+    userId,
+    type,
+    title,
+    message,
+    link,
+    icon,
+    metadata: { ...metadata, count: 1 },
+  });
 };
 
 // ==================== لیست اعلان‌های کاربر ====================
@@ -184,6 +257,7 @@ const notifyManyUsers = async ({
 module.exports = {
   createNotification,
   createManyNotifications,
+  createOrMergeNotification,
   getUserNotifications,
   getUnreadCount,
   markAsRead,

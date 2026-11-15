@@ -3,6 +3,8 @@ const app = require("./app");
 const initializeSocket = require("./socket/socketServer");
 const startArenaLeagueJob = require("./jobs/arenaLeagueJob");
 const { startReferralCycleJob } = require("./jobs/referralCycleJob");
+const { startAchievementDailyJob } = require("./jobs/achievementDailyJob");
+const { seedAchievements } = require("./jobs/seedAchievements");
 const prisma = require("./config/prisma");
 const { port, isProduction } = require("./config/env");
 
@@ -11,6 +13,7 @@ const server = http.createServer(app);
 const io = initializeSocket(server);
 const arenaLeagueJob = startArenaLeagueJob();
 const referralCycleJob = startReferralCycleJob();
+startAchievementDailyJob();
 
 let isShuttingDown = false;
 
@@ -59,6 +62,17 @@ process.on("uncaughtException", (error) => {
   shutdown("uncaughtException");
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// 🆕 Seed achievements قبل از start
+(async () => {
+  try {
+    await seedAchievements();
+    console.log("✅ Achievements ready");
+  } catch (err) {
+    console.error("❌ Seed achievements failed:", err);
+    // نادیده بگیر — سرور start میشه
+  }
+
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+})();

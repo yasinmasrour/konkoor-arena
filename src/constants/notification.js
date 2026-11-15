@@ -17,6 +17,9 @@ const NOTIFICATION_TYPES = Object.freeze({
 
   // 🔹 Exam
   EXAM_NEW: "EXAM_NEW",
+  EXAM_REMINDER: "EXAM_REMINDER",
+  EXAM_PURCHASED: "EXAM_PURCHASED",
+  EXAM_RESULT_READY: "EXAM_RESULT_READY",
 
   // 🔹 Question
   QUESTION_REVIEW: "QUESTION_REVIEW",
@@ -28,28 +31,57 @@ const NOTIFICATION_TYPES = Object.freeze({
   REFERRAL_MILESTONE: "REFERRAL_MILESTONE",
   REFERRAL_CYCLE_RESET: "REFERRAL_CYCLE_RESET",
 
+  // 🔹 Achievements
+  ACHIEVEMENT_UNLOCKED: "ACHIEVEMENT_UNLOCKED",
+
   // 🔹 System
   SYSTEM: "SYSTEM",
+
+  // 🆕 Taraz
+  TARAZ_READY: "TARAZ_READY",
 });
 
 const NOTIFICATION_ICONS = Object.freeze({
+  // Arena
   ARENA_REWARD: "trophy",
   ARENA_MATCH_INVITE: "swords",
+
+  // Wallet
   WALLET_CHARGE: "wallet",
   WALLET_WITHDRAW: "credit-card",
+
+  // Payment
   PAYMENT_SUCCESS: "check-circle",
   PAYMENT_FAILED: "x-circle",
+
+  // Subscription
   SUBSCRIPTION_ACTIVATED: "crown",
   SUBSCRIPTION_EXPIRING: "clock",
+
+  // Exam
   EXAM_NEW: "book-open",
+  EXAM_REMINDER: "clock",
+  EXAM_PURCHASED: "check-circle",
+  EXAM_RESULT_READY: "trophy",
+
+  // Question
   QUESTION_REVIEW: "clipboard",
   QUESTION_APPROVED: "check",
   QUESTION_REJECTED: "x",
+
+  // Referral
   REFERRAL_REWARD: "gift",
   REFERRAL_MILESTONE: "award",
   REFERRAL_CYCLE_RESET: "refresh-cw",
 
+  // Achievements
+  ACHIEVEMENT_UNLOCKED: "trophy",
+
+  // System
   SYSTEM: "bell",
+
+  // 🆕 Taraz
+  TARAZ_READY: "bar-chart",
 });
 
 module.exports = {

@@ -4,8 +4,11 @@ import {
   AlertCircle,
   ArrowLeft,
   Award,
+  BarChart3,
   CheckCircle2,
+  Crown,
   Flame,
+  Info,
   LoaderCircle,
   MinusCircle,
   RotateCcw,
@@ -14,6 +17,7 @@ import {
   TrendingDown,
   TrendingUp,
   Trophy,
+  Users,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -104,6 +108,289 @@ const useCountUp = (target: number, duration = 1500) => {
   return value;
 };
 
+// ==================== 🆕 TarazCard ====================
+interface TarazCardProps {
+  tarazScore: number | null;
+  rank: number | null;
+  percentile: number | null;
+  totalParticipants: number;
+  minParticipants: number;
+  examAverage: number | null;
+  examStdDev: number | null;
+}
+
+const TarazCard = ({
+  tarazScore,
+  rank,
+  percentile,
+  totalParticipants,
+  minParticipants,
+  examAverage,
+  examStdDev,
+}: TarazCardProps) => {
+  // 🆕 اگه تراز در دسترس نیست
+  if (tarazScore === null || rank === null || percentile === null) {
+    const remaining = Math.max(0, minParticipants - totalParticipants);
+
+    return (
+      <section className="relative rounded-3xl overflow-hidden border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm p-6 sm:p-8">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+
+        <div className="relative flex flex-col sm:flex-row items-center gap-5">
+          <div className="relative shrink-0">
+            <div className="absolute inset-0 bg-amber-500 blur-2xl opacity-40" />
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-xl rotate-3">
+              <BarChart3 size={28} strokeWidth={2.3} />
+            </div>
+          </div>
+
+          <div className="flex-1 text-center sm:text-right">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">
+              تراز در دسترس نیست
+            </p>
+            <h3 className="font-heading text-lg font-black text-gray-900 dark:text-white">
+              برای محاسبه‌ی تراز، حداقل {minParticipants.toLocaleString("fa-IR")}{" "}
+              نفر باید در آزمون شرکت کنن
+            </h3>
+            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-6">
+              در حال حاضر{" "}
+              <span className="font-black text-amber-600 dark:text-amber-400">
+                {totalParticipants.toLocaleString("fa-IR")} نفر
+              </span>{" "}
+              در این آزمون شرکت کردن.
+              {remaining > 0 && (
+                <>
+                  {" "}
+                  فقط{" "}
+                  <span className="font-black text-amber-600 dark:text-amber-400">
+                    {remaining.toLocaleString("fa-IR")} نفر
+                  </span>{" "}
+                  دیگه مونده!
+                </>
+              )}
+            </p>
+            <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-500">
+              بعد از رسیدن به حداقل، تراز و رتبه‌ی شما به‌طور خودکار محاسبه
+              می‌شه.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 🆕 تراز در دسترسه
+  const tarazInt = Math.round(tarazScore);
+  const percentileInt = Math.round(percentile);
+
+  // رنگ بر اساس تراز
+  const tarazColor =
+    tarazInt >= 7000
+      ? {
+          text: "text-emerald-600 dark:text-emerald-400",
+          bg: "bg-emerald-500/10",
+          border: "border-emerald-500/30",
+          glow: "bg-emerald-500",
+          gradient: "from-emerald-500/20 via-transparent to-emerald-500/5",
+        }
+      : tarazInt >= 5000
+        ? {
+            text: "text-[var(--griffin-gold)]",
+            bg: "bg-[var(--griffin-gold)]/10",
+            border: "border-[var(--griffin-gold)]/30",
+            glow: "bg-[var(--griffin-gold)]",
+            gradient: "from-[var(--griffin-gold)]/20 via-transparent to-purple-500/5",
+          }
+        : {
+            text: "text-rose-600 dark:text-rose-400",
+            bg: "bg-rose-500/10",
+            border: "border-rose-500/30",
+            glow: "bg-rose-500",
+            gradient: "from-rose-500/20 via-transparent to-rose-500/5",
+          };
+
+  return (
+    <section
+      className={`relative rounded-3xl overflow-hidden border ${tarazColor.border} bg-gradient-to-br ${tarazColor.gradient} backdrop-blur-sm p-6 sm:p-8`}
+    >
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--griffin-gold)] to-transparent" />
+      <div
+        className={`absolute -top-32 -right-32 w-80 h-80 rounded-full ${tarazColor.glow}/20 blur-[100px] pointer-events-none`}
+      />
+
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-11 h-11 rounded-2xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+            <BarChart3 size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--griffin-gold)]">
+              Taraz
+            </p>
+            <h2 className="font-heading text-lg font-black text-gray-900 dark:text-white -mt-0.5">
+              تراز و رتبه
+            </h2>
+          </div>
+        </div>
+
+        {/* Main Grid */}
+        <div className="grid sm:grid-cols-3 gap-4 mb-6">
+          {/* تراز */}
+          <div
+            className={`relative rounded-2xl ${tarazColor.bg} border ${tarazColor.border} p-5 text-center overflow-hidden`}
+          >
+            <div
+              className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${tarazColor.glow}/20 blur-2xl`}
+            />
+            <div className="relative">
+              <div
+                className={`inline-flex items-center gap-1.5 mb-2 ${tarazColor.text}`}
+              >
+                <Trophy size={12} />
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  تراز کل
+                </span>
+              </div>
+              <p
+                className={`font-heading text-4xl sm:text-5xl font-black tabular-nums ${tarazColor.text}`}
+              >
+                {tarazInt.toLocaleString("fa-IR")}
+              </p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2">
+                (میانگین: ۵۰۰۰)
+              </p>
+            </div>
+          </div>
+
+          {/* رتبه */}
+          <div className="relative rounded-2xl bg-purple-500/10 border border-purple-500/30 p-5 text-center overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-purple-500/20 blur-2xl" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-1.5 mb-2 text-purple-600 dark:text-purple-400">
+                <Crown size={12} />
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  رتبه
+                </span>
+              </div>
+              <p className="font-heading text-4xl sm:text-5xl font-black text-purple-600 dark:text-purple-400 tabular-nums">
+                {rank.toLocaleString("fa-IR")}
+              </p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2">
+                از {totalParticipants.toLocaleString("fa-IR")} نفر
+              </p>
+            </div>
+          </div>
+
+          {/* صدک */}
+          <div className="relative rounded-2xl bg-blue-500/10 border border-blue-500/30 p-5 text-center overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-blue-500/20 blur-2xl" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-1.5 mb-2 text-blue-600 dark:text-blue-400">
+                <TrendingUp size={12} />
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  صدک
+                </span>
+              </div>
+              <p className="font-heading text-4xl sm:text-5xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
+                {percentileInt.toLocaleString("fa-IR")}
+                <span className="text-2xl">٪</span>
+              </p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2">
+                بهتر از {percentileInt.toLocaleString("fa-IR")}٪
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar صدک */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              جایگاه شما در آزمون
+            </span>
+            <span className="text-[10px] font-black text-[var(--griffin-gold)]">
+              صدک {percentileInt.toLocaleString("fa-IR")}٪
+            </span>
+          </div>
+          <div className="relative h-3 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-l from-[var(--griffin-gold)] to-amber-400 transition-all duration-1000 shadow-lg"
+              style={{ width: `${percentileInt}%` }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white dark:bg-gray-900 border-2 border-[var(--griffin-gold)] shadow-lg transition-all duration-1000"
+              style={{ right: `calc(${percentileInt}% - 8px)` }}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[9px] text-gray-400 dark:text-gray-500">
+              ضعیف‌تر
+            </span>
+            <span className="text-[9px] text-gray-400 dark:text-gray-500">
+              قوی‌تر
+            </span>
+          </div>
+        </div>
+
+        {/* آمار آزمون */}
+        {(examAverage !== null || examStdDev !== null) && (
+          <div className="grid grid-cols-2 gap-3 pt-5 border-t border-gray-200/70 dark:border-white/5">
+            {examAverage !== null && (
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gray-500/10 border border-gray-500/20 flex items-center justify-center text-gray-600 dark:text-gray-400 shrink-0">
+                  <Users size={14} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    میانگین آزمون
+                  </p>
+                  <p className="font-heading text-sm font-black text-gray-900 dark:text-white tabular-nums">
+                    {examAverage.toLocaleString("fa-IR", {
+                      maximumFractionDigits: 1,
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {examStdDev !== null && (
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gray-500/10 border border-gray-500/20 flex items-center justify-center text-gray-600 dark:text-gray-400 shrink-0">
+                  <TrendingUp size={14} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    پراکندگی
+                  </p>
+                  <p className="font-heading text-sm font-black text-gray-900 dark:text-white tabular-nums">
+                    {examStdDev.toLocaleString("fa-IR", {
+                      maximumFractionDigits: 1,
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* توضیح */}
+        <div className="mt-5 rounded-xl bg-gray-500/5 dark:bg-white/[0.02] border border-gray-200/70 dark:border-white/5 p-3 flex items-start gap-2.5">
+          <Info
+            size={14}
+            className="text-gray-400 dark:text-gray-500 shrink-0 mt-0.5"
+          />
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-5">
+            تراز با میانگین ۵۰۰۰ و انحراف معیار ۲۰۰۰ محاسبه می‌شه. این معیار
+            باعث می‌شه نمرات در آزمون‌های مختلف (سخت و آسان) قابل مقایسه
+            باشن.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 // ==================== کامپوننت ====================
 const AttemptResult = () => {
   const { id } = useParams<{ id: string }>();
@@ -185,7 +472,7 @@ const AttemptResult = () => {
 
   const { exam, result } = data;
 
-  // ==================== 🆕 mascot بر اساس نمره ====================
+  // ==================== mascot بر اساس نمره ====================
   const mascotVariant =
     result.percentage >= 70
       ? "testGood"
@@ -281,9 +568,8 @@ const AttemptResult = () => {
           />
           <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-purple-600/15 blur-[100px] pointer-events-none" />
 
-          {/* ==================== grid دو ستونه ==================== */}
           <div className="relative grid lg:grid-cols-2 gap-6 lg:gap-10 items-center">
-            {/* ===== متن ===== */}
+            {/* متن */}
             <div className="text-center lg:text-right space-y-4 order-2 lg:order-1">
               <div className="inline-flex items-center gap-2">
                 <Sparkles
@@ -319,7 +605,7 @@ const AttemptResult = () => {
               </div>
             </div>
 
-            {/* ===== mascot ===== */}
+            {/* mascot */}
             <div className="relative order-1 lg:order-2 flex items-center justify-center">
               <div className="relative w-full max-w-[280px] sm:max-w-[320px]">
                 <GriffinMascot
@@ -333,7 +619,6 @@ const AttemptResult = () => {
                 />
               </div>
 
-              {/* برچسب شناور */}
               <div className="absolute top-2 right-2 animate-[float_3s_ease-in-out_infinite]">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-xl border border-[var(--griffin-gold)]/30 shadow-2xl">
                   <div
@@ -448,6 +733,17 @@ const AttemptResult = () => {
             </div>
           </div>
         </section>
+
+        {/* 🆕 ==================== TARAZ CARD ==================== */}
+        <TarazCard
+          tarazScore={result.tarazScore ?? null}
+          rank={result.rank ?? null}
+          percentile={result.percentile ?? null}
+          totalParticipants={result.totalParticipants ?? 0}
+          minParticipants={result.minParticipants ?? 20}
+          examAverage={result.examAverage ?? null}
+          examStdDev={result.examStdDev ?? null}
+        />
 
         {/* ==================== STATS ==================== */}
         <section className="grid grid-cols-3 gap-3">

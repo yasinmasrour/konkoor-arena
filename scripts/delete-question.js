@@ -13,7 +13,7 @@ const QUESTION_CODES = [
 
 // ==================== تابع اصلی ====================
 async function main() {
-  console.log("🔍 جستجوی سوالات...\n");
+  console.log("   جستجوی سوالات...\n");
 
   const questions = await prisma.question.findMany({
     where: { code: { in: QUESTION_CODES } },
@@ -21,18 +21,18 @@ async function main() {
   });
 
   if (questions.length === 0) {
-    console.log("❌ هیچ سوالی با این کدها پیدا نشد.");
+    console.log("  هیچ سوالی با این کدها پیدا نشد.");
     return;
   }
 
-  console.log(`✅ ${questions.length} سوال پیدا شد:\n`);
+  console.log(`  ${questions.length} سوال پیدا شد:\n`);
   for (const q of questions) {
     console.log(`  - ${q.code} | ${q.lesson} | ${q.status}`);
   }
   console.log("");
 
   // ==================== چک وابستگی‌ها ====================
-  console.log("🔎 بررسی وابستگی‌ها...\n");
+  console.log("  بررسی وابستگی‌ها...\n");
 
   for (const q of questions) {
     const [arenaMatches, attemptAnswers, bookletQuestions, reviews] =
@@ -43,7 +43,7 @@ async function main() {
         prisma.questionReview.count({ where: { questionId: q.id } }),
       ]);
 
-    console.log(`📌 ${q.code}:`);
+    console.log(`   ${q.code}:`);
     console.log(`   ArenaMatchQuestion: ${arenaMatches}`);
     console.log(`   AttemptAnswer:      ${attemptAnswers}  ← ${attemptAnswers > 0 ? "⚠️ خطرناک!" : "✅"}`);
     console.log(`   BookletQuestion:    ${bookletQuestions}  (cascade)`);
@@ -61,7 +61,7 @@ async function main() {
   }
 
   if (dangerousQuestions.length > 0) {
-    console.log("🚨 توجه! سوالات زیر در AttemptAnswer استفاده شده‌اند:");
+    console.log("   توجه! سوالات زیر در AttemptAnswer استفاده شده‌اند:");
     console.log(`   ${dangerousQuestions.join(", ")}`);
     console.log("   اگه اینا رو حذف کنی، کاربرا نمی‌تونن آزمون‌هاشون رو مرور کنن!");
     console.log("   پیشنهاد: اینا رو حذف نکن، به‌جاش آرشیو کن.\n");
@@ -77,13 +77,13 @@ async function main() {
     readline.close();
 
     if (answer.toLowerCase() !== "yes") {
-      console.log("❌ لغو شد.");
+      console.log("لغو شد.");
       return;
     }
   }
 
   // ==================== حذف ====================
-  console.log("\n🗑️ شروع حذف...\n");
+  console.log("\nشروع حذف...\n");
 
   for (const q of questions) {
     await prisma.$transaction(async (tx) => {
@@ -103,15 +103,15 @@ async function main() {
       });
     });
 
-    console.log(`✅ ${q.code} حذف شد`);
+    console.log(`${q.code} حذف شد`);
   }
 
-  console.log("\n🎉 تمام!");
+  console.log("\nتمام!");
 }
 
 main()
   .catch((err) => {
-    console.error("❌ خطا:", err);
+    console.error("خطا:", err);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

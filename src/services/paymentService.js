@@ -19,7 +19,7 @@ const buildMerchantOrderId = (prefix = "PAY") =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 // ============================================================
-// 🆕 Helper: ساخت paymentUrl از authority
+// Helper: ساخت paymentUrl از authority
 // ============================================================
 const buildZarinPalPaymentUrl = (authority, sandbox) => {
   const base = sandbox
@@ -29,7 +29,7 @@ const buildZarinPalPaymentUrl = (authority, sandbox) => {
 };
 
 // ============================================================
-// 🆕 Helper: درخواست از زرین‌پال + ذخیره authority
+// Helper: درخواست از زرین‌پال + ذخیره authority
 // ============================================================
 const requestZarinPalAndSaveAuthority = async ({
   paymentId,
@@ -55,6 +55,31 @@ const requestZarinPalAndSaveAuthority = async ({
 };
 
 // ============================================================
+// 🆕 Helper: چک قانون ارتقا
+// ============================================================
+/**
+ * چک می‌کنه اگه کاربر اشتراک فعال داره، پلن جدید حتماً گرون‌تر باشه.
+ * اگه پلن جدید پایین‌تر یا مساوی بود، خطا پرتاب می‌کنه.
+ *
+ * @param {object} activeSubscription - اشتراک فعال (با plan)
+ * @param {object} newPlan - پلن جدید
+ * @throws {AppError} اگه پلن جدید پایین‌تر یا مساوی باشه
+ */
+const assertUpgradeOnly = (activeSubscription, newPlan) => {
+  if (!activeSubscription || !activeSubscription.plan) return;
+
+  const oldPrice = activeSubscription.plan.price ?? 0;
+  const newPrice = newPlan?.price ?? 0;
+
+  if (newPrice <= oldPrice) {
+    throw new AppError(
+      `شما در حال حاضر اشتراک «${activeSubscription.plan.title}» دارید. برای خرید اشتراک جدید، باید پلن بالاتری انتخاب کنید.`,
+      400,
+    );
+  }
+};
+
+// ============================================================
 // اشتراک — زرین‌پال
 // ============================================================
 const createZarinPalSubscriptionPayment = async ({
@@ -69,6 +94,18 @@ const createZarinPalSubscriptionPayment = async ({
   if (!plan) throw new AppError("پلن اشتراک پیدا نشد", 404);
 
   const pricing = getPlanPricing(plan);
+
+  // 🆕 چک: اگه کاربر اشتراک فعال داره، پلن جدید باید گرون‌تر باشه
+  const activeSubscription = await prisma.subscription.findFirst({
+    where: {
+      userId,
+      status: SUBSCRIPTION_STATUS.ACTIVE,
+      endDate: { gt: new Date() },
+    },
+    include: { plan: true },
+  });
+
+  assertUpgradeOnly(activeSubscription, plan);
 
   let discount = 0;
   let pendingReferral = null;
@@ -212,6 +249,9 @@ const createWalletSubscriptionPayment = async ({
       include: { plan: true },
     });
 
+    // 🆕 چک: اگه کاربر اشتراک فعال داره، پلن جدید باید گرون‌تر باشه
+    assertUpgradeOnly(activeSubscription, plan);
+
     let discount = 0;
     let pendingReferral = null;
 
@@ -237,6 +277,7 @@ const createWalletSubscriptionPayment = async ({
       refundInfo = await subscriptionService.refundOldSubscription(
         tx,
         activeSubscription,
+        plan,
       );
     }
 
@@ -331,7 +372,7 @@ const createSubscriptionPayment = async ({
 };
 
 // ============================================================
-// 🆕 شارژ کیف پول — زرین‌پال
+// شارژ کیف پول — زرین‌پال
 // ============================================================
 const createZarinPalWalletChargePayment = async ({ userId, amount }) => {
   if (amount < walletService.WALLET_CONFIG.minChargeAmount) {
@@ -347,7 +388,6 @@ const createZarinPalWalletChargePayment = async ({ userId, amount }) => {
     );
   }
 
-  // اگه پرداخت pending قبلی هست، همون رو برگردون
   const existingPending = await prisma.payment.findFirst({
     where: {
       userId,
@@ -409,7 +449,7 @@ const createZarinPalWalletChargePayment = async ({ userId, amount }) => {
 };
 
 // ============================================================
-// 🆕 شارژ کیف پول — انتخاب درگاه
+// شارژ کیف پول — انتخاب درگاه
 // ============================================================
 const createWalletChargePayment = async ({
   userId,
@@ -420,12 +460,11 @@ const createWalletChargePayment = async ({
     return createZarinPalWalletChargePayment({ userId, amount });
   }
 
-  // اگه future: gateways دیگه، اینجا اضافه کن
   throw new AppError("درگاه پرداخت پشتیبانی نمی‌شود", 400);
 };
 
 // ============================================================
-// 🆕 خرید آزمون — زرین‌پال
+// خرید آزمون — زرین‌پال
 // ============================================================
 const createZarinPalExamPurchasePayment = async ({ userId, examId }) => {
   const exam = await prisma.exam.findUnique({
@@ -556,7 +595,6 @@ const failPayment = async ({ paymentId }) => {
       });
     }
 
-    // 🆕 اگه خرید آزمون بود، examPurchase هم fail کن
     if (payment.type === PAYMENT_TYPE.EXAM_PURCHASE) {
       await tx.examPurchase.updateMany({
         where: { paymentId, status: "pending" },
@@ -606,7 +644,7 @@ const cancelPayment = async ({ paymentId }) => {
 };
 
 // ============================================================
-// 🆕 نهایی‌سازی پرداخت زرین‌پال
+// نهایی‌سازی پرداخت زرین‌پال
 // ============================================================
 const finalizeZarinPalPayment = async ({ paymentId, transactionId }) => {
   const result = await prisma.$transaction(async (tx) => {
@@ -651,8 +689,15 @@ const finalizeZarinPalPayment = async ({ paymentId, transactionId }) => {
         include: { plan: true },
       });
 
+      // 🆕 چک: اگه کاربر اشتراک فعال داره، پلن جدید باید گرون‌تر باشه
+      assertUpgradeOnly(activeSubscription, plan);
+
       if (activeSubscription) {
-        await subscriptionService.refundOldSubscription(tx, activeSubscription);
+        await subscriptionService.refundOldSubscription(
+          tx,
+          activeSubscription,
+          plan,
+        );
       }
 
       const startDate = new Date();
@@ -823,7 +868,7 @@ const getPaymentByAuthority = async (authority) => {
 module.exports = {
   createSubscriptionPayment,
   createWalletChargePayment,
-  createZarinPalExamPurchasePayment, // 🆕
+  createZarinPalExamPurchasePayment,
 
   getPaymentByAuthority,
   cancelPayment,

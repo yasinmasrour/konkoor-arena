@@ -76,37 +76,37 @@ router.patch(
 
 router.delete("/comments/:id", blogController.deleteComment);
 
-// ==================== 🔹 نویسنده ====================
+// ==================== 🔹 نویسنده (فقط ادمین) ====================
 
 router.get(
   "/my-posts",
-  allowRoles("ADMIN", "COUNSELOR"),
+  allowRoles("ADMIN"),
   blogController.getMyPosts,
 );
 
 router.post(
   "/posts",
-  allowRoles("ADMIN", "COUNSELOR"),
+  allowRoles("ADMIN"),
   validate(createPostSchema),
   blogController.createPost,
 );
 
 router.patch(
   "/posts/:id",
-  allowRoles("ADMIN", "COUNSELOR"),
+  allowRoles("ADMIN"),
   validate(updatePostSchema),
   blogController.updatePost,
 );
 
 router.post(
   "/posts/:id/submit",
-  allowRoles("ADMIN", "COUNSELOR"),
+  allowRoles("ADMIN"),
   blogController.submitForReview,
 );
 
 router.delete(
   "/posts/:id",
-  allowRoles("ADMIN", "COUNSELOR"),
+  allowRoles("ADMIN"),
   blogController.deleteMyPost,
 );
 

@@ -23,8 +23,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   createPost,
   getPostBySlug,
-  submitForReview,
+  adminGetPostById,
   updatePost,
+  adminUpdatePost,
   CATEGORY_LABELS,
   type BlogCategory,
 } from "../../api/blogApi";
@@ -55,7 +56,8 @@ const BlogEditor = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const isEdit = !!id;
-  const isAdmin = user?.role?.name === "ADMIN";
+  // 🆕 پشتیبانی از هر دو حالت: role رشته یا آبجکت
+  const isAdmin = user?.role === "ADMIN" || user?.role?.name === "ADMIN";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ==================== State ====================
@@ -74,7 +76,7 @@ const BlogEditor = () => {
 
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPreview, setShowPreview] = useState(false);
@@ -90,7 +92,10 @@ const BlogEditor = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const result = await getPostBySlug(id);
+        // 🆕 اگه ادمین بود، از endpoint ادمین استفاده کن
+        const result = isAdmin
+          ? await adminGetPostById(id)
+          : await getPostBySlug(id);
         const post = result.post;
         setTitle(post.title);
         setSlug(post.slug);
@@ -126,7 +131,7 @@ const BlogEditor = () => {
       }
     };
     void load();
-  }, [id]);
+  }, [id, isAdmin]);
 
   // ==================== Auto-slug ====================
   useEffect(() => {
@@ -214,7 +219,7 @@ const BlogEditor = () => {
     ? currentSnapshot !== initialSnapshot
     : title.trim().length > 0 || content.trim().length > 0;
 
-  useUnsavedChanges(hasChanges && !saving && !submitting);
+  useUnsavedChanges(hasChanges && !saving && !publishing);
 
   // ==================== Stats ====================
   const wordCount = useMemo(() => countWords(content), [content]);
@@ -255,57 +260,68 @@ const BlogEditor = () => {
     });
   };
 
-  // ==================== Save ====================
-  const handleSave = async () => {
+  // ==================== Validation ====================
+  const validate = (): string | null => {
+    if (!title.trim() || title.trim().length < 3) {
+      return "عنوان حداقل ۳ کاراکتر باشد";
+    }
+    if (!content.trim()) {
+      return "متن مقاله الزامی است";
+    }
+    if (slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())) {
+      return "slug باید فقط حروف کوچک انگلیسی، اعداد و - باشد";
+    }
+    return null;
+  };
+
+  // ==================== Build Payload ====================
+  const buildPayload = (status: "draft" | "published") => ({
+    title: title.trim(),
+    slug: slug.trim() || undefined,
+    excerpt: excerpt.trim() || undefined,
+    content,
+    coverImage: coverImage.trim() || undefined,
+    seoTitle: seoTitle.trim() || undefined,
+    seoDescription: seoDescription.trim() || undefined,
+    coverImageAlt: coverImageAlt.trim() || undefined,
+    category,
+    tags,
+    status,
+  });
+
+  // ==================== Save Draft ====================
+  const handleSaveDraft = async () => {
     setError("");
     setSuccess("");
 
-    if (!title.trim() || title.trim().length < 3) {
-      setError("عنوان حداقل ۳ کاراکتر باشد");
-      return;
-    }
-    if (!content.trim()) {
-      setError("متن مقاله الزامی است");
-      return;
-    }
-    if (slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())) {
-      setError("slug باید فقط حروف کوچک انگلیسی، اعداد و - باشد");
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     setSaving(true);
     try {
-      const payload = {
-        title: title.trim(),
-        slug: slug.trim() || undefined,
-        excerpt: excerpt.trim() || undefined,
-        content,
-        coverImage: coverImage.trim() || undefined,
-        seoTitle: seoTitle.trim() || undefined,
-        seoDescription: seoDescription.trim() || undefined,
-        coverImageAlt: coverImageAlt.trim() || undefined,
-        category,
-        tags,
-      };
+      const payload = buildPayload("draft");
 
       if (isEdit && id) {
-        const result = await updatePost(id, payload);
-        setSuccess("مقاله ذخیره شد");
+        // 🆕 اگه ادمین بود، از endpoint ادمین استفاده کن
+        const result = isAdmin
+          ? await adminUpdatePost(id, payload)
+          : await updatePost(id, payload);
+        setSuccess("پیش‌نویس ذخیره شد");
         setInitialSnapshot(currentSnapshot);
         if (result.post.slug !== id) {
-          setTimeout(() => navigate(`/blog/${result.post.slug}`), 1200);
+          setTimeout(
+            () => navigate(`/admin/blog/${result.post.id}/edit`),
+            1200,
+          );
         }
       } else {
         const result = await createPost(payload);
-        setSuccess(isAdmin ? "مقاله ساخته و منتشر شد" : "مقاله ساخته شد");
+        setSuccess("پیش‌نویس ساخته شد");
         clearDraft(draftKey);
-        setTimeout(() => {
-          navigate(
-            isAdmin
-              ? `/blog/${result.post.slug}`
-              : "/dashboard?section=my-blog-posts",
-          );
-        }, 1200);
+        setTimeout(() => navigate(`/admin/blog/${result.post.id}/edit`), 1200);
       }
     } catch (err) {
       const message =
@@ -317,21 +333,42 @@ const BlogEditor = () => {
     }
   };
 
-  // ==================== Submit ====================
-  const handleSubmit = async () => {
-    if (!id) return;
-    setSubmitting(true);
+  // ==================== Publish ====================
+  const handlePublish = async () => {
+    setError("");
+    setSuccess("");
+
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setPublishing(true);
     try {
-      await submitForReview(id);
-      setSuccess("برای تایید ارسال شد");
-      setTimeout(() => navigate("/dashboard?section=my-blog-posts"), 1200);
+      const payload = buildPayload("published");
+
+      if (isEdit && id) {
+        // 🆕 اگه ادمین بود، از endpoint ادمین استفاده کن
+        const result = isAdmin
+          ? await adminUpdatePost(id, payload)
+          : await updatePost(id, payload);
+        setSuccess("مقاله منتشر شد");
+        setInitialSnapshot(currentSnapshot);
+        setTimeout(() => navigate(`/blog/${result.post.slug}`), 1200);
+      } else {
+        const result = await createPost(payload);
+        setSuccess("مقاله ساخته و منتشر شد");
+        clearDraft(draftKey);
+        setTimeout(() => navigate(`/blog/${result.post.slug}`), 1200);
+      }
     } catch (err) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "ارسال انجام نشد";
+          ?.message || "انتشار انجام نشد";
       setError(message);
     } finally {
-      setSubmitting(false);
+      setPublishing(false);
     }
   };
 
@@ -357,7 +394,7 @@ const BlogEditor = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
-        void handleSave();
+        void handleSaveDraft();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -396,18 +433,14 @@ const BlogEditor = () => {
           {/* Back */}
           <button
             type="button"
-            onClick={() =>
-              navigate(
-                isAdmin ? "/admin/blog" : "/dashboard?section=my-blog-posts",
-              )
-            }
+            onClick={() => navigate("/admin/blog")}
             className="group inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-[var(--griffin-gold)] transition"
           >
             <ArrowLeft
               size={13}
               className="transition-transform group-hover:-translate-x-1"
             />
-            بازگشت
+            بازگشت به مدیریت وبلاگ
           </button>
 
           {/* Hero */}
@@ -457,19 +490,37 @@ const BlogEditor = () => {
                   </button>
                 )}
 
+                {/* 🆕 ذخیره پیش‌نویس */}
                 <button
                   type="button"
-                  onClick={() => void handleSave()}
-                  disabled={saving}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl disabled:opacity-40 transition-all"
+                  onClick={() => void handleSaveDraft()}
+                  disabled={saving || publishing}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-4 py-2.5 text-xs font-black text-gray-700 dark:text-gray-300 hover:border-[var(--griffin-gold)]/40 hover:text-[var(--griffin-gold)] disabled:opacity-40 transition-all"
                 >
                   {saving ? (
                     <LoaderCircle size={13} className="animate-spin" />
                   ) : (
                     <Save size={13} />
                   )}
-                  ذخیره
+                  ذخیره پیش‌نویس
                 </button>
+
+                {/* 🆕 انتشار (فقط ادمین) */}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => void handlePublish()}
+                    disabled={saving || publishing}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:shadow-xl disabled:opacity-40 transition-all"
+                  >
+                    {publishing ? (
+                      <LoaderCircle size={13} className="animate-spin" />
+                    ) : (
+                      <Send size={13} />
+                    )}
+                    انتشار
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -515,7 +566,6 @@ const BlogEditor = () => {
             <div className="space-y-4 min-w-0">
               {/* Title + Slug + Category + Cover */}
               <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm p-5 space-y-4">
-                {/* Title */}
                 <div>
                   <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                     <FileText size={10} />
@@ -531,7 +581,6 @@ const BlogEditor = () => {
                   />
                 </div>
 
-                {/* Slug */}
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
@@ -576,7 +625,6 @@ const BlogEditor = () => {
                   </p>
                 </div>
 
-                {/* Category + Cover + Alt */}
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
                     <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
@@ -608,7 +656,6 @@ const BlogEditor = () => {
                     />
                   </div>
 
-                  {/* 🆕 Alt Text */}
                   <div className="sm:col-span-2">
                     <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                       <Search size={10} />
@@ -625,8 +672,7 @@ const BlogEditor = () => {
                       className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
                     />
                     <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
-                      {coverImageAlt.length.toLocaleString("fa-IR")} / ۲۰۰ — اگه
-                      خالی باشه، از عنوان مقاله استفاده میشه
+                      {coverImageAlt.length.toLocaleString("fa-IR")} / ۲۰۰
                     </p>
                   </div>
                 </div>
@@ -635,7 +681,7 @@ const BlogEditor = () => {
               {/* Excerpt */}
               <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm p-5">
                 <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 block">
-                  خلاصه (اختیاری — اگه ندید، از متن ساخته میشه)
+                  خلاصه (اختیاری)
                 </label>
                 <textarea
                   value={excerpt}
@@ -650,7 +696,7 @@ const BlogEditor = () => {
                 </p>
               </section>
 
-              {/* 🆕 SEO */}
+              {/* SEO */}
               <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm p-5 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Sparkles size={13} className="text-[var(--griffin-gold)]" />
@@ -658,11 +704,10 @@ const BlogEditor = () => {
                     تنظیمات SEO
                   </h3>
                   <span className="text-[10px] text-gray-400 font-bold">
-                    (اختیاری — برای موتورهای جستجو)
+                    (اختیاری)
                   </span>
                 </div>
 
-                {/* SEO Title */}
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                     عنوان SEO
@@ -672,23 +717,16 @@ const BlogEditor = () => {
                     value={seoTitle}
                     onChange={(e) => setSeoTitle(e.target.value)}
                     placeholder={
-                      title || "اگه خالی باشه، از عنوان مقاله استفاده میشه"
+                      title || "اگه خالی باشه، از عنوان استفاده میشه"
                     }
                     maxLength={70}
                     className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all"
                   />
-                  <p
-                    className={`mt-1 text-[10px] ${
-                      seoTitle.length > 70
-                        ? "text-rose-500"
-                        : "text-gray-400 dark:text-gray-500"
-                    }`}
-                  >
+                  <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
                     {seoTitle.length.toLocaleString("fa-IR")} / ۷۰
                   </p>
                 </div>
 
-                {/* SEO Description */}
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                     توضیحات SEO (Meta Description)
@@ -703,13 +741,7 @@ const BlogEditor = () => {
                     }
                     className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-[var(--griffin-gold)] transition-all resize-none leading-7"
                   />
-                  <p
-                    className={`mt-1 text-[10px] ${
-                      seoDescription.length > 160
-                        ? "text-rose-500"
-                        : "text-gray-400 dark:text-gray-500"
-                    }`}
-                  >
+                  <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
                     {seoDescription.length.toLocaleString("fa-IR")} / ۱۶۰
                   </p>
                 </div>
@@ -811,7 +843,6 @@ const BlogEditor = () => {
                   </div>
 
                   <div className="p-5 max-h-[70vh] overflow-y-auto dashboard-scroll">
-                    {/* Cover */}
                     {coverImage.trim() && (
                       <div className="relative w-full aspect-video overflow-hidden rounded-xl mb-5 bg-gray-100 dark:bg-white/5">
                         <img
@@ -826,27 +857,22 @@ const BlogEditor = () => {
                       </div>
                     )}
 
-                    {/* Category */}
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--griffin-gold)]/10 text-[var(--griffin-gold)] text-[10px] font-black mb-3">
                       {CATEGORY_LABELS[category]}
                     </span>
 
-                    {/* Title */}
                     <h1 className="font-heading text-2xl font-black text-gray-900 dark:text-white leading-tight mb-3">
                       {title || "عنوان مقاله..."}
                     </h1>
 
-                    {/* Excerpt */}
                     {excerpt.trim() && (
                       <p className="text-sm text-gray-500 dark:text-gray-400 leading-7 mb-5 pb-5 border-b border-gray-200/70 dark:border-white/5">
                         {excerpt}
                       </p>
                     )}
 
-                    {/* Content */}
                     <MarkdownPreview content={content} />
 
-                    {/* Tags */}
                     {tags.length > 0 && (
                       <div className="mt-6 pt-5 border-t border-gray-200/70 dark:border-white/5 flex flex-wrap gap-1.5">
                         {tags.map((tag) => (
@@ -859,60 +885,11 @@ const BlogEditor = () => {
                         ))}
                       </div>
                     )}
-
-                    {/* 🆕 SEO Preview */}
-                    {(seoTitle.trim() || seoDescription.trim()) && (
-                      <div className="mt-6 pt-5 border-t border-gray-200/70 dark:border-white/5">
-                        <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
-                          پیش‌نمایش Google
-                        </p>
-                        <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.02] p-3">
-                          <p className="text-[11px] text-emerald-700 dark:text-emerald-500 font-english">
-                            griffinedu.ir › blog › {slug || "..."}
-                          </p>
-                          <p className="mt-1 text-blue-700 dark:text-blue-400 font-bold text-sm line-clamp-1">
-                            {seoTitle.trim() || title || "عنوان SEO..."}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2">
-                            {seoDescription.trim() ||
-                              excerpt ||
-                              "توضیحات SEO..."}
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </section>
               </div>
             )}
           </div>
-
-          {/* Submit for review */}
-          {isEdit && !isAdmin && (
-            <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex-1">
-                <p className="font-heading text-sm font-black text-gray-900 dark:text-white">
-                  آماده انتشار؟
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  بعد از ذخیره، می‌تونی برای تایید ادمین ارسال کنی.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleSubmit()}
-                disabled={submitting}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-5 py-3 font-black text-white text-xs shadow-lg shadow-emerald-500/40 hover:shadow-xl disabled:opacity-40 transition-all"
-              >
-                {submitting ? (
-                  <LoaderCircle size={13} className="animate-spin" />
-                ) : (
-                  <Send size={13} />
-                )}
-                ارسال برای تایید
-              </button>
-            </section>
-          )}
         </div>
       </main>
 

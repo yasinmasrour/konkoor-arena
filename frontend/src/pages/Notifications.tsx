@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  Award,
+  BarChart3,
   Bell,
   Check,
   CheckCheck,
@@ -10,9 +12,15 @@ import {
   CreditCard,
   Crown,
   Filter,
+  Flame,
+  Gift,
   LoaderCircle,
+  Medal,
+  RefreshCw,
   Sparkles,
+  Star,
   Swords,
+  Target,
   Trash2,
   Trophy,
   Wallet,
@@ -40,6 +48,18 @@ const iconMap: Record<string, typeof Bell> = {
   clock: Clock,
   bell: Bell,
   alert: AlertCircle,
+  gift: Gift,
+  award: Award,
+  "refresh-cw": RefreshCw,
+  target: Target,
+  star: Star,
+  flame: Flame,
+  medal: Medal,
+  sigma: Target,
+  atom: Star,
+  dna: Trophy,
+  flask: Award,
+  "bar-chart": BarChart3, // 🆕
 };
 
 // ==================== Type Labels ====================
@@ -53,18 +73,43 @@ const typeLabels: Record<string, string> = {
   SUBSCRIPTION_ACTIVATED: "فعال‌سازی اشتراک",
   SUBSCRIPTION_EXPIRING: "اشتراک در حال انقضا",
   EXAM_NEW: "آزمون جدید",
+  EXAM_REMINDER: "یادآوری آزمون",
+  EXAM_PURCHASED: "خرید آزمون",
+  EXAM_RESULT_READY: "نتیجه‌ی آزمون",
   QUESTION_REVIEW: "بررسی سؤال",
   QUESTION_APPROVED: "تأیید سؤال",
   QUESTION_REJECTED: "رد سؤال",
+  REFERRAL_REWARD: "جایزه دعوت",
+  REFERRAL_MILESTONE: "دستاورد دعوت",
+  REFERRAL_CYCLE_RESET: "شروع دوره جدید",
+  ACHIEVEMENT_UNLOCKED: "دستاورد جدید",
+  TARAZ_READY: "تراز آماده شد", // 🆕
   SYSTEM: "سیستمی",
 };
 
 // ==================== Type Style ====================
 const getTypeStyle = (type: string) => {
+  // 🆕 تراز → آبی
+  if (type === "TARAZ_READY") {
+    return {
+      bg: "bg-blue-500/10",
+      text: "text-blue-600 dark:text-blue-400",
+      border: "border-blue-500/30",
+    };
+  }
+  // دستاورد → طلایی
+  if (type === "ACHIEVEMENT_UNLOCKED") {
+    return {
+      bg: "bg-[var(--griffin-gold)]/10",
+      text: "text-[var(--griffin-gold)]",
+      border: "border-[var(--griffin-gold)]/30",
+    };
+  }
   if (
     type.includes("REWARD") ||
     type.includes("SUCCESS") ||
-    type.includes("APPROVED")
+    type.includes("APPROVED") ||
+    type.includes("PURCHASED")
   ) {
     return {
       bg: "bg-emerald-500/10",
@@ -235,7 +280,7 @@ const Notifications = () => {
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-4xl space-y-5">
-        {/* ==================== HERO (تیره) ==================== */}
+        {/* HERO */}
         <section className="relative rounded-2xl overflow-hidden border border-white/10 bg-[#080B12] p-6 sm:p-8">
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--griffin-gold)]/15 via-transparent to-purple-600/15 pointer-events-none" />
           <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-[var(--griffin-gold)]/20 blur-[100px] pointer-events-none" />
@@ -289,10 +334,9 @@ const Notifications = () => {
           </div>
         </section>
 
-        {/* ==================== Toolbar ==================== */}
+        {/* Toolbar */}
         <section className="rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] backdrop-blur-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-gray-200/70 dark:border-white/5">
-            {/* Filters */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="inline-flex items-center gap-1.5 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest pl-1">
                 <Filter size={11} />
@@ -346,7 +390,6 @@ const Notifications = () => {
               })}
             </div>
 
-            {/* Actions */}
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
                 <button
@@ -382,7 +425,7 @@ const Notifications = () => {
             </div>
           </div>
 
-          {/* ==================== لیست ==================== */}
+          {/* لیست */}
           <div className="p-4 space-y-2">
             {loading ? (
               <div className="flex items-center justify-center py-16">
@@ -485,7 +528,7 @@ const Notifications = () => {
                         </button>
                       </div>
 
-                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-6">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-6 whitespace-pre-line">
                         {notification.message}
                       </p>
 
@@ -514,7 +557,7 @@ const Notifications = () => {
             )}
           </div>
 
-          {/* ==================== Pagination ==================== */}
+          {/* Pagination */}
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-200/70 dark:border-white/5">
               <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">

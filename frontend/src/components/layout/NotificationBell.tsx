@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Bell,
   Check,
@@ -15,6 +15,14 @@ import {
   ClipboardList,
   X,
   AlertCircle,
+  Gift,
+  Award,
+  RefreshCw,
+  Target,
+  Star,
+  Flame,
+  Medal,
+  BarChart3, // 🆕
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -43,14 +51,42 @@ const iconMap: Record<string, typeof Bell> = {
   x: X,
   bell: Bell,
   alert: AlertCircle,
+  gift: Gift,
+  award: Award,
+  "refresh-cw": RefreshCw,
+  target: Target,
+  star: Star,
+  flame: Flame,
+  medal: Medal,
+  sigma: Target,
+  atom: Star,
+  dna: Trophy,
+  flask: Award,
+  "bar-chart": BarChart3, // 🆕
 };
 
 // ==================== Type Colors ====================
 const getTypeStyle = (type: string) => {
+  // 🆕 تراز → آبی
+  if (type === "TARAZ_READY") {
+    return {
+      bg: "bg-blue-500/10",
+      text: "text-blue-500",
+      border: "border-blue-500/30",
+    };
+  }
+  if (type === "ACHIEVEMENT_UNLOCKED") {
+    return {
+      bg: "bg-[var(--griffin-gold)]/10",
+      text: "text-[var(--griffin-gold)]",
+      border: "border-[var(--griffin-gold)]/30",
+    };
+  }
   if (
     type.includes("REWARD") ||
     type.includes("SUCCESS") ||
-    type.includes("APPROVED")
+    type.includes("APPROVED") ||
+    type.includes("PURCHASED")
   ) {
     return {
       bg: "bg-emerald-500/10",
@@ -112,7 +148,56 @@ const NotificationBell = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    left: number;
+    top: number;
+    width: number;
+  } | null>(null);
+
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const calculatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+
+    const rect = buttonRef.current.getBoundingClientRect();
+    const dropdownWidth = 400;
+    const gap = 8;
+
+    let left = rect.right - dropdownWidth;
+
+    if (left < 16) {
+      left = 16;
+    }
+
+    if (left + dropdownWidth > window.innerWidth - 16) {
+      left = window.innerWidth - dropdownWidth - 16;
+    }
+
+    setDropdownPosition({
+      left,
+      top: rect.bottom + gap,
+      width: dropdownWidth,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    calculatePosition();
+
+    const handleResize = () => calculatePosition();
+    const handleScroll = () => calculatePosition();
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("scroll", handleScroll, true);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [open, calculatePosition]);
 
   // 🔹 بارگذاری اولیه unread count
   useEffect(() => {
@@ -129,7 +214,6 @@ const NotificationBell = () => {
 
     void loadCount();
 
-    // 🔹 هر ۳۰ ثانیه چک کن
     const interval = window.setInterval(loadCount, 30000);
     return () => window.clearInterval(interval);
   }, [user]);
@@ -159,7 +243,13 @@ const NotificationBell = () => {
     if (!open) return;
 
     const onClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     };
@@ -179,7 +269,6 @@ const NotificationBell = () => {
   // 🔹 خواندن یه اعلان
   const handleMarkAsRead = async (notification: Notification) => {
     if (notification.isRead) {
-      // اگه خوانده شده، فقط برو به لینک
       if (notification.link) {
         navigate(notification.link);
         setOpen(false);
@@ -244,9 +333,10 @@ const NotificationBell = () => {
   if (!user) return null;
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       {/* ==================== دکمه Bell ==================== */}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         aria-label="اعلان‌ها"
@@ -265,7 +355,6 @@ const NotificationBell = () => {
       >
         <Bell size={16} />
 
-        {/* Badge */}
         {unreadCount > 0 && (
           <>
             <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-white text-[9px] font-black shadow-lg">
@@ -279,192 +368,276 @@ const NotificationBell = () => {
       {/* ==================== Overlay موبایل ==================== */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm sm:hidden animate-[fadeIn_0.2s_ease-out]"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm sm:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* ==================== Dropdown ==================== */}
       {open && (
-        <div
-          className="
-            fixed sm:absolute
-            top-20 sm:top-full
-            left-4 right-4 sm:left-auto sm:right-0
-            sm:mt-2 z-50
-            w-auto sm:w-[400px]
-            max-h-[calc(100vh-6rem)] sm:max-h-[500px]
-            rounded-2xl
-            border border-gray-200 dark:border-white/10
-            bg-white dark:bg-[#0a0d14]
-            shadow-2xl shadow-black/10 dark:shadow-black/50
-            overflow-hidden
-            flex flex-col
-            animate-[fadeInDown_0.2s_ease-out]
-          "
-        >
-          {/* هدر */}
-          <div className="flex items-center justify-between gap-2 p-4 border-b border-gray-100 dark:border-white/5">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
-                <Bell size={14} />
-              </div>
-              <div>
-                <p className="font-heading text-xs font-black text-gray-900 dark:text-white">
-                  اعلان‌ها
-                </p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  {unreadCount > 0
-                    ? `${unreadCount.toLocaleString("fa-IR")} خوانده‌نشده`
-                    : "همه خوانده شده"}
-                </p>
-              </div>
-            </div>
-
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={() => void handleMarkAllAsRead()}
-                disabled={markingAll}
-                className="group inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black text-[var(--griffin-gold)] hover:bg-[var(--griffin-gold)]/10 transition-colors disabled:opacity-50"
-              >
-                {markingAll ? (
-                  <LoaderCircle size={11} className="animate-spin" />
-                ) : (
-                  <CheckCheck size={11} />
-                )}
-                خواندن همه
-              </button>
-            )}
+        <>
+          {/* موبایل */}
+          <div
+            className="
+              fixed sm:hidden
+              top-20
+              left-4 right-4              z-50
+              max-h-[calc(100vh-6rem)]
+              rounded-2xl
+              border border-gray-200 dark:border-white/10
+              bg-white dark:bg-[#0a0d14]
+              shadow-2xl shadow-black/10 dark:shadow-black/50
+              overflow-hidden
+              flex flex-col
+            "
+          >
+            <NotificationDropdownContent
+              loading={loading}
+              notifications={notifications}
+              unreadCount={unreadCount}
+              markingAll={markingAll}
+              onMarkAsRead={handleMarkAsRead}
+              onMarkAllAsRead={handleMarkAllAsRead}
+              onDelete={handleDelete}
+              onViewAll={() => {
+                navigate("/notifications");
+                setOpen(false);
+              }}
+              iconMap={iconMap}
+              getTypeStyle={getTypeStyle}
+              timeAgo={timeAgo}
+            />
           </div>
 
-          {/* لیست */}
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <LoaderCircle
-                  size={20}
-                  className="text-[var(--griffin-gold)] animate-spin"
-                />
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="py-12 px-4 text-center">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-3">
-                  <Bell
-                    size={24}
-                    className="text-gray-400 dark:text-gray-500"
-                  />
-                </div>
-                <p className="font-heading text-xs font-black text-gray-700 dark:text-gray-300">
-                  اعلانی نداری!
-                </p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                  وقتی اتفاقی بیفته، اینجا نشون داده می‌شه
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100 dark:divide-white/5">
-                {notifications.map((notification) => {
-                  const Icon = iconMap[notification.icon || "bell"] || Bell;
-                  const style = getTypeStyle(notification.type);
-
-                  return (
-                    <button
-                      key={notification.id}
-                      type="button"
-                      onClick={() => void handleMarkAsRead(notification)}
-                      className={`
-                        group relative w-full text-right
-                        p-3.5 flex items-start gap-3
-                        transition-colors duration-200
-                        ${
-                          notification.isRead
-                            ? "hover:bg-gray-50 dark:hover:bg-white/[0.02]"
-                            : "bg-[var(--griffin-gold)]/[0.03] hover:bg-[var(--griffin-gold)]/[0.06]"
-                        }
-                      `}
-                    >
-                      {/* خط رنگی چپ */}
-                      {!notification.isRead && (
-                        <span className="absolute top-3 bottom-3 right-0 w-0.5 rounded-full bg-[var(--griffin-gold)] shadow-[0_0_8px_var(--griffin-gold)]" />
-                      )}
-
-                      {/* آیکون */}
-                      <div
-                        className={`
-                          shrink-0 w-9 h-9 rounded-xl
-                          flex items-center justify-center
-                          ${style.bg} ${style.text}
-                          border ${style.border}
-                        `}
-                      >
-                        <Icon size={15} strokeWidth={2.3} />
-                      </div>
-
-                      {/* محتوا */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p
-                            className={`
-                              font-heading text-xs font-black leading-5
-                              ${notification.isRead ? "text-gray-600 dark:text-gray-400" : "text-gray-900 dark:text-white"}
-                            `}
-                          >
-                            {notification.title}
-                          </p>
-
-                          {/* دکمه حذف */}
-                          <button
-                            type="button"
-                            onClick={(e) =>
-                              void handleDelete(notification.id, e)
-                            }
-                            aria-label="حذف"
-                            className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-
-                        <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 leading-5 line-clamp-2">
-                          {notification.message}
-                        </p>
-
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <span className="text-[9px] text-gray-400 dark:text-gray-500">
-                            {timeAgo(notification.createdAt)}
-                          </span>
-
-                          {!notification.isRead && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--griffin-gold)] shadow-[0_0_6px_var(--griffin-gold)]" />
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* فوتر */}
-          {notifications.length > 0 && (
-            <div className="p-2 border-t border-gray-100 dark:border-white/5">
-              <button
-                type="button"
-                onClick={() => {
+          {/* دسکتاپ */}
+          {dropdownPosition && (
+            <div
+              ref={panelRef}
+              style={{
+                position: "fixed",
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+                width: `${dropdownPosition.width}px`,
+              }}
+              className="
+                hidden sm:flex
+                z-50
+                max-h-[500px]
+                rounded-2xl
+                border border-gray-200 dark:border-white/10
+                bg-white dark:bg-[#0a0d14]
+                shadow-2xl shadow-black/10 dark:shadow-black/50
+                overflow-hidden
+                flex-col
+                animate-[fadeInDown_0.2s_ease-out]
+              "
+            >
+              <NotificationDropdownContent
+                loading={loading}
+                notifications={notifications}
+                unreadCount={unreadCount}
+                markingAll={markingAll}
+                onMarkAsRead={handleMarkAsRead}
+                onMarkAllAsRead={handleMarkAllAsRead}
+                onDelete={handleDelete}
+                onViewAll={() => {
                   navigate("/notifications");
                   setOpen(false);
                 }}
-                className="w-full py-2 rounded-xl text-[11px] font-black text-[var(--griffin-gold)] hover:bg-[var(--griffin-gold)]/10 transition-colors"
-              >
-                مشاهده همه اعلان‌ها
-              </button>
+                iconMap={iconMap}
+                getTypeStyle={getTypeStyle}
+                timeAgo={timeAgo}
+              />
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
+  );
+};
+
+// ==================== Dropdown Content (مشترک) ====================
+interface DropdownContentProps {
+  loading: boolean;
+  notifications: Notification[];
+  unreadCount: number;
+  markingAll: boolean;
+  onMarkAsRead: (n: Notification) => void;
+  onMarkAllAsRead: () => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+  onViewAll: () => void;
+  iconMap: Record<string, typeof Bell>;
+  getTypeStyle: (type: string) => {
+    bg: string;
+    text: string;
+    border: string;
+  };
+  timeAgo: (date: string) => string;
+}
+
+const NotificationDropdownContent = ({
+  loading,
+  notifications,
+  unreadCount,
+  markingAll,
+  onMarkAsRead,
+  onMarkAllAsRead,
+  onDelete,
+  onViewAll,
+  iconMap,
+  getTypeStyle,
+  timeAgo,
+}: DropdownContentProps) => {
+  return (
+    <>
+      {/* هدر */}
+      <div className="flex items-center justify-between gap-2 p-4 border-b border-gray-100 dark:border-white/5 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-[var(--griffin-gold)]/10 border border-[var(--griffin-gold)]/20 flex items-center justify-center text-[var(--griffin-gold)]">
+            <Bell size={14} />
+          </div>
+          <div>
+            <p className="font-heading text-xs font-black text-gray-900 dark:text-white">
+              اعلان‌ها
+            </p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+              {unreadCount > 0
+                ? `${unreadCount.toLocaleString("fa-IR")} خوانده‌نشده`
+                : "همه خوانده شده"}
+            </p>
+          </div>
+        </div>
+
+        {unreadCount > 0 && (
+          <button
+            type="button"
+            onClick={() => void onMarkAllAsRead()}
+            disabled={markingAll}
+            className="group inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black text-[var(--griffin-gold)] hover:bg-[var(--griffin-gold)]/10 transition-colors disabled:opacity-50"
+          >
+            {markingAll ? (
+              <LoaderCircle size={11} className="animate-spin" />
+            ) : (
+              <CheckCheck size={11} />
+            )}
+            خواندن همه
+          </button>
+        )}
+      </div>
+
+      {/* لیست */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <LoaderCircle
+              size={20}
+              className="text-[var(--griffin-gold)] animate-spin"
+            />
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="py-12 px-4 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-3">
+              <Bell size={24} className="text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="font-heading text-xs font-black text-gray-700 dark:text-gray-300">
+              اعلانی نداری!
+            </p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+              وقتی اتفاقی بیفته، اینجا نشون داده می‌شه
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100 dark:divide-white/5">
+            {notifications.map((notification) => {
+              const Icon = iconMap[notification.icon || "bell"] || Bell;
+              const style = getTypeStyle(notification.type);
+
+              return (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() => void onMarkAsRead(notification)}
+                  className={`
+                    group relative w-full text-right
+                    p-3.5 flex items-start gap-3
+                    transition-colors duration-200
+                    ${
+                      notification.isRead
+                        ? "hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                        : "bg-[var(--griffin-gold)]/[0.03] hover:bg-[var(--griffin-gold)]/[0.06]"
+                    }
+                  `}
+                >
+                  {!notification.isRead && (
+                    <span className="absolute top-3 bottom-3 right-0 w-0.5 rounded-full bg-[var(--griffin-gold)] shadow-[0_0_8px_var(--griffin-gold)]" />
+                  )}
+
+                  <div
+                    className={`
+                      shrink-0 w-9 h-9 rounded-xl
+                      flex items-center justify-center
+                      ${style.bg} ${style.text}
+                      border ${style.border}
+                    `}
+                  >
+                    <Icon size={15} strokeWidth={2.3} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className={`
+                          font-heading text-xs font-black leading-5
+                          ${notification.isRead ? "text-gray-600 dark:text-gray-400" : "text-gray-900 dark:text-white"}
+                        `}
+                      >
+                        {notification.title}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={(e) => void onDelete(notification.id, e)}
+                        aria-label="حذف"
+                        className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+
+                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 leading-5 line-clamp-2 whitespace-pre-line">
+                      {notification.message}
+                    </p>
+
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="text-[9px] text-gray-400 dark:text-gray-500">
+                        {timeAgo(notification.createdAt)}
+                      </span>
+
+                      {!notification.isRead && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--griffin-gold)] shadow-[0_0_6px_var(--griffin-gold)]" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* فوتر */}
+      {notifications.length > 0 && (
+        <div className="p-2 border-t border-gray-100 dark:border-white/5 shrink-0">
+          <button
+            type="button"
+            onClick={onViewAll}
+            className="w-full py-2 rounded-xl text-[11px] font-black text-[var(--griffin-gold)] hover:bg-[var(--griffin-gold)]/10 transition-colors"
+          >
+            مشاهده همه اعلان‌ها
+          </button>
+        </div>
+      )}
+    </>
   );
 };
 

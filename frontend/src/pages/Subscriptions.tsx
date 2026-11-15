@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Tag,
   Gift,
+  Lock,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -56,7 +57,6 @@ const getRemainingDays = (endDate: string) => {
 // ==================== کامپوننت ====================
 const Subscriptions = () => {
   const navigate = useNavigate();
-  // 🆕 user رو از useAuth بگیر
   const { user, refreshFeatures } = useAuth();
 
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -76,24 +76,21 @@ const Subscriptions = () => {
     refundAmount: number;
   } | null>(null);
 
-  // 🆕 Referral
+  // Referral
   const [referralCode, setReferralCode] = useState("");
   const [appliedReferral, setAppliedReferral] =
     useState<ValidateCodeResponse | null>(null);
   const [validatingReferral, setValidatingReferral] = useState(false);
   const [referralError, setReferralError] = useState("");
 
-  // 🆕 load — برای مهمان فقط پلن‌ها، برای لاگین همه چیز
   const load = async () => {
     setLoading(true);
     setError("");
 
     try {
-      // همیشه پلن‌ها رو بگیر (عمومی)
       const plansData = await getSubscriptionPlans();
       setPlans(plansData.plans);
 
-      // 🆕 فقط برای کاربر لاگین‌شده، اشتراک فعلی و تاریخچه
       if (user) {
         const [currentData, historyData] = await Promise.all([
           getMySubscription(),
@@ -118,7 +115,7 @@ const Subscriptions = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // 🆕 وقتی user عوض شد دوباره لود کن
+  }, [user]);
 
   const remainingDays = useMemo(
     () => (subscription ? getRemainingDays(subscription.endDate) : 0),
@@ -146,10 +143,81 @@ const Subscriptions = () => {
     return Math.max(0, planPrice - referralDiscount);
   };
 
-  // 🆕 چک user قبل از باز کردن modal خرید
+  // 🆕 محاسبه‌ی وضعیت پلن نسبت به اشتراک فعلی
+  const getPlanAvailability = (
+    plan: SubscriptionPlan,
+  ): {
+    canPurchase: boolean;
+    reason: "no-subscription" | "upgrade" | "current" | "downgrade";
+    label: string;
+  } => {
+    if (!subscription) {
+      return {
+        canPurchase: true,
+        reason: "no-subscription",
+        label: "خرید این پلن",
+      };
+    }
+
+    const currentPrice = subscription.plan.price;
+    const planPrice = plan.price;
+
+    if (planPrice === currentPrice) {
+      return {
+        canPurchase: false,
+        reason: "current",
+        label: "اشتراک فعلی شما",
+      };
+    }
+
+    if (planPrice < currentPrice) {
+      return {
+        canPurchase: false,
+        reason: "downgrade",
+        label: "پایین‌تر از اشتراک فعلی",
+      };
+    }
+
+    return {
+      canPurchase: true,
+      reason: "upgrade",
+      label: "ارتقا به این پلن",
+    };
+  };
+
+  // 🆕 تخمین refund
+  const estimateRefund = (plan: SubscriptionPlan) => {
+    if (!subscription) return 0;
+    if (plan.price <= subscription.plan.price) return 0;
+
+    const now = new Date();
+    const endDate = new Date(subscription.endDate);
+    const startDate = new Date(subscription.startDate);
+
+    const totalDays = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const remaining = Math.ceil(
+      (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (totalDays <= 0 || remaining <= 0) return 0;
+
+    // تخمین: بر اساس قیمت اصلی پلن فعلی
+    // (چون ممکنه با تخفیف خریده باشه، عدد دقیق نیست)
+    const currentPrice = subscription.plan.price;
+    return Math.floor((remaining / totalDays) * currentPrice);
+  };
+
   const handlePurchaseClick = (plan: SubscriptionPlan) => {
     if (!user) {
       navigate(`/login?returnTo=${encodeURIComponent("/subscriptions")}`);
+      return;
+    }
+
+    const availability = getPlanAvailability(plan);
+
+    if (!availability.canPurchase) {
       return;
     }
 
@@ -234,6 +302,8 @@ const Subscriptions = () => {
       setPurchasing(false);
     }
   };
+
+  const estimatedRefund = selectedPlan ? estimateRefund(selectedPlan) : 0;
 
   return (
     <main className="min-h-screen px-4 py-10 sm:px-6 sm:py-16">
@@ -419,6 +489,8 @@ const Subscriptions = () => {
                   {plans.map((plan, index) => {
                     const isRecommended = index === recommendedIndex;
                     const hasDiscount = plan.hasDiscount;
+                    const availability = getPlanAvailability(plan);
+                    const isDisabled = !availability.canPurchase;
 
                     return (
                       <RevealOnScroll key={plan.id} delay={index * 120}>
@@ -427,7 +499,7 @@ const Subscriptions = () => {
                             group relative h-full flex flex-col
                             rounded-[2rem] overflow-hidden
                             border transition-transform duration-300
-                            hover:-translate-y-1
+                            ${isDisabled ? "opacity-60" : "hover:-translate-y-1"}
                             ${
                               isRecommended
                                 ? "border-[var(--griffin-gold)]/50 bg-gradient-to-br from-[var(--griffin-gold)]/10 via-amber-500/5 to-transparent"
@@ -445,33 +517,49 @@ const Subscriptions = () => {
                             }`}
                           />
 
-                          {hasDiscount && (
+                          {/* 🆕 Badge اشتراک فعلی */}
+                          {availability.reason === "current" && (
                             <div className="absolute top-5 left-5 z-10">
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-rose-500 to-rose-700 text-white text-[10px] font-black shadow-lg shadow-rose-500/40">
-                                <Tag size={11} />
-                                {plan.discountPercent.toLocaleString("fa-IR")}٪
-                                تخفیف
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-black shadow-lg">
+                                <Check size={11} strokeWidth={3} />
+                                اشتراک فعلی شما
                               </div>
                             </div>
                           )}
 
-                          {isRecommended && !hasDiscount && (
+                          {/* 🆕 Badge پایین‌تر */}
+                          {availability.reason === "downgrade" && (
                             <div className="absolute top-5 left-5 z-10">
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-[var(--griffin-gold)] to-amber-600 text-white text-[10px] font-black shadow-lg">
-                                <Crown size={11} />
-                                پیشنهادی
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-500 text-white text-[10px] font-black shadow-lg">
+                                <Lock size={11} />
+                                پایین‌تر از اشتراک فعلی
                               </div>
                             </div>
                           )}
 
-                          {plan.badge && !isRecommended && !hasDiscount && (
-                            <div className="absolute top-5 left-5 z-10">
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500 text-white text-[10px] font-black shadow-lg">
-                                <Sparkles size={11} />
-                                {plan.badge}
+                          {hasDiscount &&
+                            availability.reason !== "current" &&
+                            availability.reason !== "downgrade" && (
+                              <div className="absolute top-5 left-5 z-10">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-rose-500 to-rose-700 text-white text-[10px] font-black shadow-lg shadow-rose-500/40">
+                                  <Tag size={11} />
+                                  {plan.discountPercent.toLocaleString("fa-IR")}
+                                  ٪ تخفیف
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+
+                          {isRecommended &&
+                            !hasDiscount &&
+                            availability.reason !== "current" &&
+                            availability.reason !== "downgrade" && (
+                              <div className="absolute top-5 left-5 z-10">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-[var(--griffin-gold)] to-amber-600 text-white text-[10px] font-black shadow-lg">
+                                  <Crown size={11} />
+                                  پیشنهادی
+                                </div>
+                              </div>
+                            )}
 
                           <div className="relative p-7 flex-1 flex flex-col">
                             <div
@@ -577,30 +665,42 @@ const Subscriptions = () => {
                               </ul>
                             )}
 
+                            {/* 🆕 دکمه‌ی خرید */}
                             <button
                               type="button"
                               onClick={() => handlePurchaseClick(plan)}
-                              disabled={purchasing}
+                              disabled={purchasing || isDisabled}
                               className={`
                                 mt-7 w-full flex items-center justify-center gap-2
                                 rounded-xl py-3.5 text-sm font-black
                                 transition-transform duration-300
                                 disabled:opacity-50 disabled:cursor-not-allowed
                                 ${
-                                  isRecommended || hasDiscount
-                                    ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:-translate-y-0.5"
-                                    : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:-translate-y-0.5"
+                                  isDisabled
+                                    ? "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"
+                                    : isRecommended || hasDiscount
+                                      ? "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 text-white shadow-lg shadow-[var(--griffin-gold)]/40 hover:-translate-y-0.5"
+                                      : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:-translate-y-0.5"
                                 }
                               `}
                             >
-                              <Crown size={16} />
-                              {!user
-                                ? "ورود برای خرید"
-                                : subscription
-                                  ? "تغییر به این پلن"
-                                  : hasDiscount
-                                    ? "خرید با تخفیف"
-                                    : "خرید این پلن"}
+                              {isDisabled ? (
+                                <>
+                                  <Lock size={16} />
+                                  {availability.label}
+                                </>
+                              ) : (
+                                <>
+                                  <Crown size={16} />
+                                  {!user
+                                    ? "ورود برای خرید"
+                                    : availability.reason === "upgrade"
+                                      ? "ارتقا به این پلن"
+                                      : hasDiscount
+                                        ? "خرید با تخفیف"
+                                        : "خرید این پلن"}
+                                </>
+                              )}
                             </button>
                           </div>
                         </article>
@@ -765,7 +865,8 @@ const Subscriptions = () => {
                 </div>
                 <div>
                   <h3 className="font-heading text-lg font-black text-gray-900 dark:text-white">
-                    خرید {selectedPlan.title}
+                    {subscription ? "ارتقا به " : "خرید "}
+                    {selectedPlan.title}
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     روش پرداخت رو انتخاب کن
@@ -929,11 +1030,32 @@ const Subscriptions = () => {
                 </div>
               </div>
 
-              {subscription && (
-                <p className="mt-3 text-[11px] text-amber-600 dark:text-amber-400 leading-5">
-                  <AlertCircle size={11} className="inline ml-1" />
-                  اشتراک فعلی شما لغو شده و باقی‌مانده آن به کیف پول برمی‌گردد.
-                </p>
+              {/* 🆕 هشدار refund */}
+              {subscription && estimatedRefund > 0 && (
+                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle
+                      size={14}
+                      className="text-amber-500 shrink-0 mt-0.5"
+                    />
+                    <div>
+                      <p className="text-[11px] font-black text-amber-600 dark:text-amber-400">
+                        ارتقا اشتراک
+                      </p>
+                      <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-1 leading-5">
+                        اشتراک فعلی «{subscription.plan.title}» لغو میشه و
+                        حدوداً{" "}
+                        <span className="font-black">
+                          {formatPrice(estimatedRefund)} تومان
+                        </span>{" "}
+                        به کیف پولت برمی‌گرده.
+                      </p>
+                      <p className="text-[9px] text-amber-600/60 dark:text-amber-400/60 mt-1">
+                        * مبلغ دقیق بعد از پرداخت محاسبه میشه.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 

@@ -34,6 +34,7 @@ export type DashboardSection =
   | "profile"
   | "exams"
   | "arena"
+  | "achievements"
   | "subscription"
   | "payments"
   | "wallet"
@@ -53,8 +54,6 @@ export type DashboardSection =
   | "admin-arena-leagues"
   | "admin-comments"
   | "admin-strategy-plans"
-  | "my-blog-posts"
-  | "new-blog-post"
   | "admin-blog"
   | "study-plans"
   | "counselor-students"
@@ -92,6 +91,7 @@ const getMenuForRole = (role?: string): MenuGroup[] => {
           { id: "arena", label: "آرنا", icon: Swords },
           { id: "strategy", label: "برنامه راهبردی", icon: CalendarDays },
           { id: "study-plans", label: "برنامه مطالعاتی", icon: Target },
+          { id: "achievements", label: "دستاوردها", icon: Trophy },
         ],
       },
       {
@@ -266,13 +266,6 @@ const getMenuForRole = (role?: string): MenuGroup[] => {
         items: [
           { id: "exams", label: "آزمون‌ها", icon: ClipboardList },
           { id: "arena", label: "آرنا", icon: Trophy },
-        ],
-      },
-      {
-        title: "وبلاگ",
-        items: [
-          { id: "new-blog-post", label: "مقاله جدید", icon: BookOpen },
-          { id: "my-blog-posts", label: "مقالات من", icon: BookOpen },
         ],
       },
       {

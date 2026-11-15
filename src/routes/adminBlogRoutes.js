@@ -19,6 +19,9 @@ router.use(allowRoles("ADMIN"));
 
 // ==================== 🔹 مقالات ====================
 
+// 🆕 این route باید قبل از /posts/:id/approve و /posts/:id/reject باشه
+router.get("/posts/:id", adminBlogController.adminGetPostById);
+
 router.get(
   "/posts",
   validate(adminListPostsSchema, "query"),

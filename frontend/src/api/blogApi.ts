@@ -296,11 +296,13 @@ export const createPost = async (data: {
   coverImageAlt?: string;
   category: BlogCategory;
   tags?: string[];
+  status?: "draft" | "published";
 }): Promise<{ message: string; post: BlogPost }> => {
   const response = await api.post("/blog/posts", data);
   return response.data;
 };
 
+// 🆕 status اضافه شد
 export const updatePost = async (
   postId: string,
   data: Partial<{
@@ -314,6 +316,7 @@ export const updatePost = async (
     coverImageAlt: string;
     category: BlogCategory;
     tags: string[];
+    status: "draft" | "published";
   }>,
 ): Promise<{ message: string; post: BlogPost }> => {
   const response = await api.patch(`/blog/posts/${postId}`, data);
@@ -359,11 +362,13 @@ export const adminCreatePost = async (data: {
   coverImageAlt?: string;
   category: BlogCategory;
   tags?: string[];
+  status?: "draft" | "published";
 }): Promise<{ message: string; post: BlogPost }> => {
   const response = await api.post("/admin/blog/posts", data);
   return response.data;
 };
 
+// 🆕 status اضافه شد
 export const adminUpdatePost = async (
   postId: string,
   data: Partial<{
@@ -377,6 +382,7 @@ export const adminUpdatePost = async (
     coverImageAlt: string;
     category: BlogCategory;
     tags: string[];
+    status: "draft" | "published";
   }>,
 ): Promise<{ message: string; post: BlogPost }> => {
   const response = await api.patch(`/admin/blog/posts/${postId}`, data);
@@ -511,4 +517,11 @@ export const formatBlogDate = (date: string): string => {
 export const formatReadingTime = (minutes?: number): string => {
   if (!minutes || minutes < 1) return "۱ دقیقه مطالعه";
   return `${minutes.toLocaleString("fa-IR")} دقیقه مطالعه`;
+};
+
+export const adminGetPostById = async (
+  postId: string,
+): Promise<{ post: BlogPost }> => {
+  const response = await api.get(`/admin/blog/posts/${postId}`);
+  return response.data;
 };

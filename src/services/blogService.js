@@ -125,7 +125,6 @@ async function getPublishedPostBySlug(slug, userId = null, meta = {}) {
     throw new AppError("مقاله پیدا نشد", 404);
   }
 
-  // ثبت بازدید ضد تقلب
   if (meta.ip) {
     await trackView({
       postId: post.id,
@@ -756,13 +755,11 @@ async function createPost({ userId, data }) {
     slug = await generateUniqueSlug(data.title, (s) => slugExists(s), "en");
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: { select: { name: true } } },
-  });
-  const isAdmin = user?.role?.name === "ADMIN";
-
   const readingTime = calculateReadingTime(data.content);
+
+  // 🆕 ادمین می‌تونه انتخاب کنه draft یا published
+  const status =
+    data.status === "published" ? BLOG_STATUS.PUBLISHED : BLOG_STATUS.DRAFT;
 
   return prisma.blogPost.create({
     data: {
@@ -771,7 +768,6 @@ async function createPost({ userId, data }) {
       excerpt: buildExcerpt(data.content, data.excerpt),
       content: data.content,
       coverImage: data.coverImage || "",
-      // 🆕 SEO fields
       seoTitle: data.seoTitle?.trim() || null,
       seoDescription: data.seoDescription?.trim() || null,
       coverImageAlt: data.coverImageAlt?.trim() || null,
@@ -779,8 +775,8 @@ async function createPost({ userId, data }) {
       tags: data.tags || [],
       readingTime,
       authorId: userId,
-      status: isAdmin ? BLOG_STATUS.PUBLISHED : BLOG_STATUS.DRAFT,
-      publishedAt: isAdmin ? new Date() : null,
+      status,
+      publishedAt: status === BLOG_STATUS.PUBLISHED ? new Date() : null,
     },
     include: { author: authorSelect },
   });
@@ -844,7 +840,6 @@ async function updatePost({ postId, userId, data, isAdmin = false }) {
   if (data.category !== undefined) updateData.category = data.category;
   if (data.tags !== undefined) updateData.tags = data.tags;
 
-  // 🆕 SEO fields
   if (data.seoTitle !== undefined) {
     updateData.seoTitle = data.seoTitle?.trim() || null;
   }
@@ -855,6 +850,19 @@ async function updatePost({ postId, userId, data, isAdmin = false }) {
     updateData.coverImageAlt = data.coverImageAlt?.trim() || null;
   }
 
+  // 🆕 اگه ادمین بود و status فرستاده شده بود
+  if (isAdmin && data.status !== undefined) {
+    if (data.status === "published") {
+      updateData.status = BLOG_STATUS.PUBLISHED;
+      if (post.status !== BLOG_STATUS.PUBLISHED) {
+        updateData.publishedAt = new Date();
+      }
+    } else if (data.status === "draft") {
+      updateData.status = BLOG_STATUS.DRAFT;
+    }
+  }
+
+  // اگه مشاور بود، همیشه draft
   if (!isAdmin && Object.keys(updateData).length > 0) {
     updateData.status = BLOG_STATUS.DRAFT;
   }
@@ -946,6 +954,20 @@ async function adminListPosts({
     posts: posts.map((p) => ({ ...p, commentsCount: p._count.comments })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
+}
+
+async function adminGetPostById({ postId }) {
+  const post = await prisma.blogPost.findUnique({
+    where: { id: postId },
+    include: {
+      author: authorSelect,
+      reviewedBy: reviewerSelect,
+    },
+  });
+
+  if (!post) throw new AppError("مقاله پیدا نشد", 404);
+
+  return { post };
 }
 
 async function approvePost({ postId, adminId, note = "" }) {
@@ -1141,6 +1163,9 @@ module.exports = {
   updatePost,
   submitPostForReview,
   deleteMyPost,
+
+  // 🆕 ادمین: دریافت مقاله با ID
+  adminGetPostById,
 
   // ادمین
   adminListPosts,

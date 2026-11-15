@@ -23,6 +23,7 @@ const VALID_SECTIONS: DashboardSection[] = [
   "profile",
   "exams",
   "arena",
+  "achievements",
   "subscription",
   "payments",
   "wallet",
@@ -42,8 +43,6 @@ const VALID_SECTIONS: DashboardSection[] = [
   "admin-arena-leagues",
   "admin-comments",
   "admin-strategy-plans",
-  "my-blog-posts",
-  "new-blog-post",
   "admin-blog",
   "study-plans",
   "counselor-students",
@@ -149,15 +148,6 @@ export default function DashboardLayout() {
       navigate("/admin/strategy-plans");
       return;
     }
-    if (section === "my-blog-posts") {
-      navigate("/dashboard/my-blog-posts");
-      return;
-    }
-
-    if (section === "new-blog-post") {
-      navigate("/dashboard/blog/new");
-      return;
-    }
 
     if (section === "admin-blog") {
       navigate("/admin/blog");
@@ -178,8 +168,14 @@ export default function DashboardLayout() {
       navigate("/admin/contact-messages");
       return;
     }
+
     if (section === "announcements") {
       navigate("/admin/announcements");
+      return;
+    }
+
+    if (section === "achievements") {
+      navigate("/achievements");
       return;
     }
 

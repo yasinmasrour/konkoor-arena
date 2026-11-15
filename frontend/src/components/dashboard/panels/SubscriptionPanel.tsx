@@ -7,6 +7,7 @@ import {
   Crown,
   History,
   LoaderCircle,
+  Lock,
   Medal,
   Receipt,
   Shield,
@@ -129,6 +130,48 @@ const SubscriptionPanel = () => {
 
   const isExpiringSoon = remainingDays <= 7 && remainingDays > 0;
   const isExpired = subscription && remainingDays === 0;
+
+  // 🆕 محاسبه‌ی وضعیت پلن نسبت به اشتراک فعلی
+  const getPlanAvailability = (
+    plan: SubscriptionPlan,
+  ): {
+    canPurchase: boolean;
+    reason: "no-subscription" | "upgrade" | "current" | "downgrade";
+    label: string;
+  } => {
+    if (!subscription) {
+      return {
+        canPurchase: true,
+        reason: "no-subscription",
+        label: "خرید این پلن",
+      };
+    }
+
+    const currentPrice = subscription.plan.price;
+    const planPrice = plan.price;
+
+    if (planPrice === currentPrice) {
+      return {
+        canPurchase: false,
+        reason: "current",
+        label: "اشتراک فعلی شما",
+      };
+    }
+
+    if (planPrice < currentPrice) {
+      return {
+        canPurchase: false,
+        reason: "downgrade",
+        label: "پایین‌تر از اشتراک فعلی",
+      };
+    }
+
+    return {
+      canPurchase: true,
+      reason: "upgrade",
+      label: "ارتقا به این پلن",
+    };
+  };
 
   // ==================== Loading ====================
   if (loading) {
@@ -442,6 +485,8 @@ const SubscriptionPanel = () => {
           <div className="p-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan) => {
               const hasDiscount = plan.hasDiscount;
+              const availability = getPlanAvailability(plan);
+              const isDisabled = !availability.canPurchase;
 
               return (
                 <div
@@ -449,15 +494,37 @@ const SubscriptionPanel = () => {
                   className={`
                     group relative rounded-xl overflow-hidden
                     bg-white/50 dark:bg-white/[0.02]
-                    p-4 transition-all duration-300 hover:-translate-y-1
+                    p-4 transition-all duration-300
+                    ${isDisabled ? "opacity-60" : "hover:-translate-y-1"}
                     ${
-                      hasDiscount
+                      hasDiscount && !isDisabled
                         ? "border border-rose-500/30 hover:border-rose-500/50"
-                        : "border border-gray-200 dark:border-white/10 hover:bg-[var(--griffin-gold)]/5 dark:hover:bg-white/[0.05] hover:border-[var(--griffin-gold)]/40"
+                        : isDisabled
+                          ? "border border-gray-200 dark:border-white/10"
+                          : "border border-gray-200 dark:border-white/10 hover:bg-[var(--griffin-gold)]/5 dark:hover:bg-white/[0.05] hover:border-[var(--griffin-gold)]/40"
                     }
                   `}
                 >
                   <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--griffin-gold)]/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                  {/* 🆕 Badge وضعیت */}
+                  {availability.reason === "current" && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[9px] font-black shadow-md">
+                        <Check size={9} strokeWidth={3} />
+                        اشتراک فعلی
+                      </span>
+                    </div>
+                  )}
+
+                  {availability.reason === "downgrade" && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-500 text-white text-[9px] font-black shadow-md">
+                        <Lock size={9} />
+                        پایین‌تر
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
@@ -473,7 +540,7 @@ const SubscriptionPanel = () => {
                     </div>
                   </div>
 
-                  {/* 🆕 قیمت با تخفیف */}
+                  {/* قیمت با تخفیف */}
                   <div className="mb-3">
                     {hasDiscount ? (
                       <>
@@ -483,7 +550,8 @@ const SubscriptionPanel = () => {
                           </span>
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gradient-to-l from-rose-500 to-rose-700 text-white text-[9px] font-black shadow-md shadow-rose-500/30">
                             <Tag size={9} />
-                            {plan.discountPercent.toLocaleString("fa-IR")}٪ تخفیف
+                            {plan.discountPercent.toLocaleString("fa-IR")}٪
+                            تخفیف
                           </span>
                         </div>
                         <div className="flex items-baseline gap-1">
@@ -506,7 +574,7 @@ const SubscriptionPanel = () => {
                       </div>
                     )}
 
-                    {/* 🆕 تایمر تخفیف */}
+                    {/* تایمر تخفیف */}
                     {hasDiscount && plan.remainingDays !== null && (
                       <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-black">
                         <Clock3 size={10} />
@@ -530,19 +598,35 @@ const SubscriptionPanel = () => {
                   <button
                     type="button"
                     onClick={() => navigate("/subscriptions")}
+                    disabled={isDisabled}
                     className={`
                       w-full inline-flex items-center justify-center gap-2
                       rounded-lg py-2.5 text-[11px] font-black text-white
                       transition-all
                       ${
-                        hasDiscount
-                          ? "bg-gradient-to-l from-rose-500 to-rose-600 shadow-md shadow-rose-500/30 hover:shadow-lg hover:shadow-rose-500/50"
-                          : "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg hover:shadow-[var(--griffin-gold)]/50"
+                        isDisabled
+                          ? "bg-gray-300 dark:bg-white/10 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                          : hasDiscount
+                            ? "bg-gradient-to-l from-rose-500 to-rose-600 shadow-md shadow-rose-500/30 hover:shadow-lg hover:shadow-rose-500/50"
+                            : "bg-gradient-to-l from-[var(--griffin-gold)] to-amber-500 shadow-md shadow-[var(--griffin-gold)]/30 hover:shadow-lg hover:shadow-[var(--griffin-gold)]/50"
                       }
                     `}
                   >
-                    <Zap size={12} />
-                    {hasDiscount ? "خرید با تخفیف" : "خرید این پلن"}
+                    {isDisabled ? (
+                      <>
+                        <Lock size={12} />
+                        {availability.label}
+                      </>
+                    ) : (
+                      <>
+                        <Zap size={12} />
+                        {availability.reason === "upgrade"
+                          ? "ارتقا به این پلن"
+                          : hasDiscount
+                            ? "خرید با تخفیف"
+                            : "خرید این پلن"}
+                      </>
+                    )}
                   </button>
                 </div>
               );

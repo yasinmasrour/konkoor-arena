@@ -49,7 +49,6 @@ const createPostSchema = z.object({
     .nullable()
     .or(z.literal("")),
 
-  // 🆕 SEO fields
   seoTitle: z
     .string()
     .trim()
@@ -82,6 +81,9 @@ const createPostSchema = z.object({
     .array(z.string().trim().min(1).max(BLOG_LIMITS.MAX_TAG_LENGTH))
     .max(BLOG_LIMITS.MAX_TAGS)
     .default([]),
+
+  // 🆕 وضعیت اولیه (فقط برای ادمین)
+  status: z.enum(["draft", "published"]).optional().default("draft"),
 });
 
 // ==================== 🔹 ویرایش ====================

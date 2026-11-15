@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  Edit3,
   Eye,
   FileText,
   LoaderCircle,
@@ -84,9 +85,7 @@ const AdminBlog = () => {
     try {
       const result = await adminApprovePost(post.id);
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id ? { ...p, ...result.post } : p,
-        ),
+        prev.map((p) => (p.id === post.id ? { ...p, ...result.post } : p)),
       );
     } catch (err) {
       console.error("Failed to approve:", err);
@@ -103,9 +102,7 @@ const AdminBlog = () => {
     try {
       const result = await adminRejectPost(post.id, note);
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id ? { ...p, ...result.post } : p,
-        ),
+        prev.map((p) => (p.id === post.id ? { ...p, ...result.post } : p)),
       );
     } catch (err) {
       console.error("Failed to reject:", err);
@@ -119,9 +116,7 @@ const AdminBlog = () => {
     try {
       const result = await adminToggleFeatured(post.id);
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id ? { ...p, ...result.post } : p,
-        ),
+        prev.map((p) => (p.id === post.id ? { ...p, ...result.post } : p)),
       );
     } catch (err) {
       console.error("Failed to toggle featured:", err);
@@ -333,6 +328,7 @@ const AdminBlog = () => {
                     key={post.id}
                     post={post}
                     onView={() => navigate(`/blog/${post.slug}`)}
+                    onEdit={() => navigate(`/admin/blog/${post.id}/edit`)}
                     onApprove={() => void handleApprove(post)}
                     onReject={() => void handleReject(post)}
                     onToggleFeatured={() => void handleToggleFeatured(post)}
@@ -393,6 +389,7 @@ const AdminBlog = () => {
 interface AdminPostCardProps {
   post: BlogPost;
   onView: () => void;
+  onEdit: () => void;
   onApprove: () => void;
   onReject: () => void;
   onToggleFeatured: () => void;
@@ -403,6 +400,7 @@ interface AdminPostCardProps {
 const AdminPostCard = ({
   post,
   onView,
+  onEdit,
   onApprove,
   onReject,
   onToggleFeatured,
@@ -414,7 +412,6 @@ const AdminPostCard = ({
   return (
     <div className="group relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-white/[0.02] p-4 hover:border-purple-500/30 transition-all">
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Cover */}
         <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-[var(--griffin-gold)]/20 shrink-0">
           {post.coverImage ? (
             <img
@@ -429,7 +426,6 @@ const AdminPostCard = ({
           )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
             <span
@@ -485,7 +481,6 @@ const AdminPostCard = ({
           </div>
         </div>
 
-        {/* Actions */}
         <div className="shrink-0 flex sm:flex-col items-center gap-1 self-start">
           <button
             type="button"
@@ -495,6 +490,17 @@ const AdminPostCard = ({
             title="مشاهده"
           >
             <Eye size={13} />
+          </button>
+
+          {/* 🆕 دکمه ویرایش */}
+          <button
+            type="button"
+            onClick={onEdit}
+            disabled={actionLoading}
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-blue-500/15 hover:text-blue-500 disabled:opacity-40 transition-all"
+            title="ویرایش"
+          >
+            <Edit3 size={13} />
           </button>
 
           {post.status === "published" && (
@@ -509,7 +515,10 @@ const AdminPostCard = ({
               }`}
               title={post.isFeatured ? "حذف از ویژه" : "ویژه کردن"}
             >
-              <Star size={13} fill={post.isFeatured ? "currentColor" : "none"} />
+              <Star
+                size={13}
+                fill={post.isFeatured ? "currentColor" : "none"}
+              />
             </button>
           )}
 

@@ -47,6 +47,7 @@ const uploadRoutes = require("./uploadRoutes");
 const sitemapRoutes = require("./sitemapRoutes");
 const announcementRoutes = require("./announcementRoutes");
 const adminAnnouncementRoutes = require("./adminAnnouncementRoutes");
+const achievementRoutes = require("./achievementRoutes");
 
 const router = express.Router();
 
@@ -77,6 +78,9 @@ router.use("/exams", examRoutes);
 router.use("/exams", examPurchaseRoutes);
 router.use("/attempts", attemptRoutes);
 router.use("/attempts", aiAnalysisRoutes);
+
+// ==================== ACHIEVEMENTS ====================
+router.use("/achievements", achievementRoutes);
 
 // ==================== ARENA ====================
 router.use("/arena", arenaMatchHistoryRoutes);

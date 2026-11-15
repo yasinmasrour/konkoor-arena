@@ -1,6 +1,10 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/appError");
 const { hasExamAccess } = require("../utils/accessHelper");
+const achievementService = require("./achievementService");
+const notificationService = require("./notificationService");
+const tarazService = require("./tarazService");
+const { NOTIFICATION_TYPES } = require("../constants/notification");
 
 const ATTEMPT_STATUS_STARTED = "started";
 const ATTEMPT_STATUS_SUBMITTED = "submitted";
@@ -12,16 +16,11 @@ const BOOKLET_STATUS_FINISHED = "finished";
 
 const REST_DURATION_SECONDS = 10;
 
-// ==================== Helper: پنجره‌ی دسترسی به آزمون ====================
-/**
- * پنجره‌ی دسترسی به آزمون رو حساب می‌کنه.
- * @returns { startDateTime, endDateTime, error }
- */
-function getExamAccessWindow(exam) {
-  // exam.examDate = ISO DateTime (تاریخ + ساعت شروع)
-  // exam.startTime = "08:00"
-  // exam.endTime = "10:30"
+// 🆕 آستانه‌ی زودتر تموم کردن (به ثانیه)
+const EARLY_FINISH_THRESHOLD_SECONDS = 60;
 
+// ==================== Helper: پنجره‌ی دسترسی به آزمون ====================
+function getExamAccessWindow(exam) {
   const examDate = new Date(exam.examDate);
   if (isNaN(examDate.getTime())) {
     return { error: "تاریخ آزمون نامعتبر است" };
@@ -31,11 +30,9 @@ function getExamAccessWindow(exam) {
   const month = examDate.getMonth();
   const day = examDate.getDate();
 
-  // startDateTime
   const [startH, startM] = (exam.startTime || "00:00").split(":").map(Number);
   const startDateTime = new Date(year, month, day, startH, startM, 0, 0);
 
-  // endDateTime
   let endDateTime = null;
   if (exam.endTime) {
     const [endH, endM] = exam.endTime.split(":").map(Number);
@@ -55,14 +52,7 @@ const secondsBetween = (from, to = new Date()) => {
   );
 };
 
-// ==================== 🆕 چک دسترسی آزمون ====================
-/**
- * چک می‌کنه کاربر به آزمون دسترسی داره یا نه.
- * اگه نداشت، خطای 403 پرتاب می‌کنه.
- * @param {string} userId
- * @param {string} examId
- * @param {string} [userRole]
- */
+// ==================== چک دسترسی آزمون ====================
 const assertExamAccess = async (userId, examId, userRole = null) => {
   const hasAccess = await hasExamAccess(userId, examId, userRole);
   if (!hasAccess) {
@@ -70,6 +60,88 @@ const assertExamAccess = async (userId, examId, userRole = null) => {
       "برای شرکت در این آزمون باید اشتراک تهیه کنید یا آزمون را خریداری کنید",
       403,
     );
+  }
+};
+
+// ==================== 🆕 ساخت Notification دستاورد ====================
+const createAchievementNotifications = async (userId, userAchievements) => {
+  try {
+    if (!userAchievements || userAchievements.length === 0) return;
+
+    // 🆕 اگه بیشتر از ۱ دستاورد باز شد، گروهی
+    if (userAchievements.length > 1) {
+      const totalPoints = userAchievements.reduce(
+        (sum, ua) => sum + (ua.tier?.points ?? 0),
+        0,
+      );
+
+      await notificationService.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.ACHIEVEMENT_UNLOCKED,
+        title: `🏆 ${userAchievements.length} دستاورد جدید!`,
+        message: `${userAchievements
+          .map((ua) => `«${ua.tier?.title ?? "دستاورد"}»`)
+          .join("، ")} — مجموع +${totalPoints} امتیاز`,
+        link: "/achievements",
+        icon: "trophy",
+        metadata: {
+          achievementIds: userAchievements.map((ua) => ua.tierId),
+          count: userAchievements.length,
+          totalPoints,
+        },
+      });
+      return;
+    }
+
+    // یه دستاورد
+    const ua = userAchievements[0];
+    const tier = ua.tier;
+    const family = tier?.family;
+
+    await notificationService.createNotification({
+      userId,
+      type: NOTIFICATION_TYPES.ACHIEVEMENT_UNLOCKED,
+      title: `🏆 دستاورد جدید: ${tier?.title ?? "دستاورد"}`,
+      message: `${family?.title ? `«${family.title}» — ` : ""}${tier?.description ?? ""} (+${tier?.points ?? 0} امتیاز)`,
+      link: "/achievements",
+      icon: family?.icon?.toLowerCase() ?? "trophy",
+      metadata: {
+        achievementId: tier?.id,
+        familyCode: family?.code,
+        tier: tier?.tier,
+        points: tier?.points,
+      },
+    });
+  } catch (err) {
+    console.error("createAchievementNotifications error:", err);
+  }
+};
+
+// ==================== 🆕 بعد از submit Attempt ====================
+const afterAttemptSubmitted = async (userId, attempt) => {
+  try {
+    // ۱. آمار کاربر
+    await achievementService.applyAttemptToStats(userId, attempt);
+
+    // 🆕 ۲. محاسبه‌ی تراز
+    await tarazService.updateAttemptWithTaraz(attempt.id).catch((err) => {
+      console.error("Failed to calculate taraz:", err);
+    });
+
+    // ۳. دستاوردها
+    const newlyUnlocked =
+      await achievementService.checkAndUnlockAchievements(userId);
+
+    if (newlyUnlocked.length > 0) {
+      console.log(
+        `🏆 User ${userId} unlocked ${newlyUnlocked.length} achievements:`,
+        newlyUnlocked.map((ua) => ua.tier?.title ?? ua.tier?.code),
+      );
+
+      await createAchievementNotifications(userId, newlyUnlocked);
+    }
+  } catch (err) {
+    console.error("afterAttemptSubmitted error:", err);
   }
 };
 
@@ -88,7 +160,7 @@ const createAttemptBooklets = async (tx, attemptId, examBooklets) => {
 
 // ==================== syncAttemptState ====================
 const syncAttemptState = async (attemptId) => {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const attempt = await tx.attempt.findUnique({
       where: { id: attemptId },
       include: {
@@ -101,11 +173,12 @@ const syncAttemptState = async (attemptId) => {
     if (!attempt) throw new AppError("Attempt not found", 404);
 
     if (attempt.status === ATTEMPT_STATUS_SUBMITTED) {
-      return attempt;
+      return { attempt, wasSubmitted: false };
     }
 
     const now = new Date();
     let changed = false;
+    let wasSubmitted = false;
 
     for (const ab of attempt.attemptBooklets) {
       if (ab.status === BOOKLET_STATUS_ACTIVE) {
@@ -150,6 +223,7 @@ const syncAttemptState = async (attemptId) => {
             });
           } else if (!next) {
             await finalizeAttemptSubmission(tx, attemptId, now);
+            wasSubmitted = true;
           }
 
           changed = true;
@@ -158,16 +232,23 @@ const syncAttemptState = async (attemptId) => {
     }
 
     if (changed) {
-      return await tx.attempt.findUnique({
+      const updated = await tx.attempt.findUnique({
         where: { id: attemptId },
         include: {
           attemptBooklets: { orderBy: { order: "asc" } },
         },
       });
+      return { attempt: updated, wasSubmitted };
     }
 
-    return attempt;
+    return { attempt, wasSubmitted: false };
   });
+
+  if (result.wasSubmitted && result.attempt) {
+    await afterAttemptSubmitted(result.attempt.studentId, result.attempt);
+  }
+
+  return result.attempt;
 };
 
 // ==================== finalizeAttemptSubmission ====================
@@ -269,7 +350,6 @@ const calculateAnalysis = (answers) => {
 
 // ==================== startAttempt ====================
 const startAttempt = async (studentId, examId, userRole = null) => {
-  // 🆕 چک دسترسی قبل از هر کاری
   await assertExamAccess(studentId, examId, userRole);
 
   try {
@@ -298,7 +378,6 @@ const startAttempt = async (studentId, examId, userRole = null) => {
         throw new AppError("Exam is not available", 400);
       }
 
-      // ==================== 🆕 چک پنجره‌ی دسترسی ====================
       const {
         startDateTime,
         endDateTime,
@@ -311,7 +390,6 @@ const startAttempt = async (studentId, examId, userRole = null) => {
 
       const now = new Date();
 
-      // اگه کاربر قبلاً Attempt داره، اجازه بده برگرده (بدون چک زمان)
       const existingAttempt = await tx.attempt.findUnique({
         where: { studentId_examId: { studentId, examId } },
       });
@@ -320,7 +398,6 @@ const startAttempt = async (studentId, examId, userRole = null) => {
         return existingAttempt;
       }
 
-      // برای Attempt جدید، پنجره‌ی دسترسی رو چک کن
       if (startDateTime && now < startDateTime) {
         const diff = startDateTime.getTime() - now.getTime();
         const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -336,7 +413,6 @@ const startAttempt = async (studentId, examId, userRole = null) => {
         throw new AppError("زمان ورود به آزمون به پایان رسیده است", 403);
       }
 
-      // ==================== ادامه‌ی منطق قبلی ====================
       for (const eb of exam.booklets) {
         if (eb.booklet.status !== "published") {
           throw new AppError(
@@ -431,14 +507,18 @@ const startAttempt = async (studentId, examId, userRole = null) => {
 
 // ==================== getAttemptQuestions ====================
 const getAttemptQuestions = async (attemptId, userId, userRole = null) => {
-  // 🔹 اول sync کن
   await syncAttemptState(attemptId);
 
-  // 🔹 حالا بخون
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
     include: {
-      exam: { select: { id: true, title: true } },
+      exam: {
+        select: {
+          id: true,
+          title: true,
+          accessType: true,
+        },
+      },
       attemptBooklets: {
         orderBy: { order: "asc" },
         include: {
@@ -463,10 +543,8 @@ const getAttemptQuestions = async (attemptId, userId, userRole = null) => {
   if (!attempt) throw new AppError("Attempt not found", 404);
   if (attempt.studentId !== userId) throw new AppError("Forbidden", 403);
 
-  // 🆕 چک دسترسی به آزمون
   await assertExamAccess(userId, attempt.examId, userRole);
 
-  // 🔹 گروه‌بندی answerها بر اساس booklet
   const examBooklets = await prisma.examBooklet.findMany({
     where: { examId: attempt.examId },
     include: {
@@ -564,6 +642,7 @@ const getAttemptQuestions = async (attemptId, userId, userRole = null) => {
     exam: {
       id: attempt.exam.id,
       title: attempt.exam.title,
+      accessType: attempt.exam.accessType,
     },
     booklets,
     activeBookletId,
@@ -577,7 +656,6 @@ const getAttemptQuestions = async (attemptId, userId, userRole = null) => {
 const submitAnswer = async (attemptId, userId, data, userRole = null) => {
   const { questionId, selectedAnswer } = data;
 
-  // 🆕 چک دسترسی قبل از هر کاری
   const attemptForAccess = await prisma.attempt.findUnique({
     where: { id: attemptId },
     select: { examId: true, studentId: true },
@@ -675,7 +753,6 @@ const submitAnswer = async (attemptId, userId, data, userRole = null) => {
 
 // ==================== toggleFlag ====================
 const toggleFlag = async (attemptId, userId, questionId, userRole = null) => {
-  // 🆕 چک دسترسی
   const attemptForAccess = await prisma.attempt.findUnique({
     where: { id: attemptId },
     select: { examId: true, studentId: true },
@@ -718,7 +795,9 @@ const toggleFlag = async (attemptId, userId, questionId, userRole = null) => {
 const submitAttempt = async (attemptId, userId) => {
   await syncAttemptState(attemptId);
 
-  return await prisma.$transaction(async (tx) => {
+  let isEarlyFinish = false;
+
+  const result = await prisma.$transaction(async (tx) => {
     const attempt = await tx.attempt.findUnique({
       where: { id: attemptId },
       include: { attemptBooklets: { orderBy: { order: "asc" } } },
@@ -731,6 +810,20 @@ const submitAttempt = async (attemptId, userId) => {
     }
 
     const now = new Date();
+
+    const activeBooklet = attempt.attemptBooklets.find(
+      (ab) => ab.status === BOOKLET_STATUS_ACTIVE,
+    );
+
+    if (activeBooklet && activeBooklet.startedAt) {
+      const elapsed = secondsBetween(activeBooklet.startedAt, now);
+      const total = activeBooklet.duration * 60;
+      const remaining = total - elapsed;
+
+      if (remaining > EARLY_FINISH_THRESHOLD_SECONDS) {
+        isEarlyFinish = true;
+      }
+    }
 
     await tx.attemptBooklet.updateMany({
       where: { attemptId },
@@ -745,13 +838,39 @@ const submitAttempt = async (attemptId, userId) => {
 
     return await tx.attempt.findUnique({ where: { id: attemptId } });
   });
+
+  if (result) {
+    if (isEarlyFinish) {
+      await achievementService
+        .updateUserStats(userId, {
+          earlyFinishes: { increment: 1 },
+        })
+        .catch((err) => {
+          console.error("Failed to increment earlyFinishes:", err);
+        });
+    }
+
+    await afterAttemptSubmitted(userId, result);
+  }
+
+  return result;
 };
 
 // ==================== getAttemptResult ====================
 const getAttemptResult = async (attemptId, userId) => {
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
-    include: { exam: { select: { id: true, title: true } } },
+    include: {
+      exam: {
+        select: {
+          id: true,
+          title: true,
+          averageScore: true,
+          stdDeviation: true,
+          participantCount: true,
+        },
+      },
+    },
   });
   if (!attempt) throw new AppError("Attempt not found", 404);
   if (attempt.studentId !== userId) throw new AppError("Forbidden", 403);
@@ -762,6 +881,24 @@ const getAttemptResult = async (attemptId, userId) => {
     totalQuestions > 0
       ? Number(((attempt.score / totalQuestions) * 100).toFixed(2))
       : 0;
+
+  // 🆕 اگه تراز محاسبه نشده ولی تعداد کافیه، محاسبه کن
+  let taraz = attempt.tarazScore;
+  let rank = attempt.rank;
+  let percentile = attempt.percentile;
+  let totalParticipants = attempt.totalParticipants;
+
+  if (taraz === null && attempt.status === ATTEMPT_STATUS_SUBMITTED) {
+    const result = await tarazService
+      .updateAttemptWithTaraz(attemptId)
+      .catch(() => null);
+    if (result) {
+      taraz = result.taraz;
+      rank = result.rank;
+      percentile = result.percentile;
+      totalParticipants = result.stats?.count;
+    }
+  }
 
   return {
     attemptId: attempt.id,
@@ -776,6 +913,14 @@ const getAttemptResult = async (attemptId, userId) => {
       negativeScore: analysis.negativeScore || 0,
       percentage,
       subjects: analysis.subjects || [],
+      // 🆕 تراز
+      tarazScore: taraz,
+      rank,
+      percentile,
+      totalParticipants: totalParticipants ?? 0,
+      minParticipants: tarazService.MIN_PARTICIPANTS,
+      examAverage: attempt.exam.averageScore,
+      examStdDev: attempt.exam.stdDeviation,
     },
   };
 };
@@ -784,7 +929,9 @@ const getAttemptResult = async (attemptId, userId) => {
 const getMyAttempts = async (studentId) => {
   const attempts = await prisma.attempt.findMany({
     where: { studentId },
-    include: { exam: { select: { id: true, title: true, examDate: true } } },
+    include: {
+      exam: { select: { id: true, title: true, examDate: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -795,6 +942,11 @@ const getMyAttempts = async (studentId) => {
     score: attempt.score,
     percentage: attempt.analysis?.percentage ?? 0,
     submittedAt: attempt.submittedAt,
+    // 🆕 تراز
+    tarazScore: attempt.tarazScore,
+    rank: attempt.rank,
+    percentile: attempt.percentile,
+    totalParticipants: attempt.totalParticipants,
   }));
 };
 

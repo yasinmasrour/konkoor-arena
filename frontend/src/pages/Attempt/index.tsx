@@ -68,7 +68,11 @@ const Attempt = () => {
 
         // 🆕 چک دسترسی
         const examId = data.exam?.id;
-        if (examId && !hasExamAccess(examId)) {
+        const examAccessType = data.exam?.accessType;
+        const isFreeExam = examAccessType === "FREE";
+
+        // 🆕 اگه آزمون رایگان بود، همیشه دسترسی بده
+        if (examId && !isFreeExam && !hasExamAccess(examId)) {
           setAccessDenied(true);
           setLoading(false);
           return;
@@ -141,8 +145,6 @@ const Attempt = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
-
-  // ... (بقیه useEffectها بدون تغییر)
 
   // ==================== Save to localStorage ====================
   useEffect(() => {

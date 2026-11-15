@@ -36,6 +36,7 @@ export interface AttemptStateResponse {
   exam: {
     id: string;
     title: string;
+    accessType?: string; // 🆕 FREE | PURCHASE | SUBSCRIPTION | SUBSCRIPTION_OR_PURCHASE
   };
   booklets: AttemptBooklet[];
   activeBookletId: string | null;
